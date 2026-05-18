@@ -1,0 +1,88 @@
+import { uploadToR2 } from '../storage/r2'
+import { execSync } from 'child_process'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs'
+import { join } from 'path'
+import { nanoid } from 'nanoid'
+
+export const FILM_EMULATION_LUTS: Record<string, string> = {
+  kodak_5219: '/luts/kodak-5219.cube',
+  fuji_3510: '/luts/fuji-3510.cube',
+  kodak_2383: '/luts/kodak-2383.cube',
+  bw_contrast: '/luts/bw-contrast.cube',
+}
+
+export async function applyLUT(params: {
+  videoUrl: string
+  lutUrl: string
+  intensity: number
+}): Promise<{ outputUrl: string }> {
+  const { videoUrl, lutUrl, intensity } = params
+  const jobId = nanoid()
+  const tmpDir = `/tmp/lut-${jobId}`
+  mkdirSync(tmpDir, { recursive: true })
+
+  try {
+    // Download .cube LUT file
+    const lutBuf = Buffer.from(await (await fetch(lutUrl)).arrayBuffer())
+    const lutPath = join(tmpDir, 'grade.cube')
+    writeFileSync(lutPath, lutBuf)
+
+    const outputPath = join(tmpDir, 'graded.mp4')
+
+    // Apply LUT with intensity blend using FFmpeg lut3d + hue/sat/brightness
+    if (intensity < 1.0) {
+      // Blend original + graded
+      execSync(
+        `ffmpeg -i "${videoUrl}" -vf "split[orig][graded];[graded]lut3d='${lutPath}'[graded_out];[orig][graded_out]blend=all_expr='A*${(1 - intensity).toFixed(3)}+B*${intensity.toFixed(3)}'" -c:v libx264 -crf 18 -c:a copy "${outputPath}" -y 2>/dev/null`
+      )
+    } else {
+      execSync(
+        `ffmpeg -i "${videoUrl}" -vf "lut3d='${lutPath}'" -c:v libx264 -crf 18 -c:a copy "${outputPath}" -y 2>/dev/null`
+      )
+    }
+
+    const buffer = execSync(`cat "${outputPath}"`)
+    const outputUrl = await uploadToR2(buffer, `colour/${jobId}_lut.mp4`, 'video/mp4')
+    return { outputUrl }
+  } finally {
+    if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true })
+  }
+}
+
+export async function applyASCCDL(params: {
+  videoUrl: string
+  lift: [number, number, number]
+  gamma: [number, number, number]
+  gain: [number, number, number]
+  saturation: number
+}): Promise<{ outputUrl: string }> {
+  const { videoUrl, lift, gamma, gain, saturation } = params
+  const jobId = nanoid()
+  const tmpDir = `/tmp/cdl-${jobId}`
+  mkdirSync(tmpDir, { recursive: true })
+
+  try {
+    const outputPath = join(tmpDir, 'cdl.mp4')
+
+    // Build FFmpeg colorgrade filter chain
+    const [lr, lg, lb] = lift
+    const [gr, gg, gb] = gamma
+    const [gnr, gng, gnb] = gain
+
+    // ASC CDL formula: out = (in * gain + lift) ^ (1/gamma)
+    // FFmpeg curves filter approximates this
+    const colorchannelFilter = `colorchannelmixer=rr=${gnr}:gg=${gng}:bb=${gnb}`
+    const brightnessFilter = `eq=brightness=${((lr + lg + lb) / 3).toFixed(4)}:saturation=${saturation}`
+    const gammaFilter = `eq=gamma=${((gr + gg + gb) / 3).toFixed(4)}`
+
+    execSync(
+      `ffmpeg -i "${videoUrl}" -vf "${colorchannelFilter},${brightnessFilter},${gammaFilter}" -c:v libx264 -crf 18 -c:a copy "${outputPath}" -y 2>/dev/null`
+    )
+
+    const buffer = execSync(`cat "${outputPath}"`)
+    const outputUrl = await uploadToR2(buffer, `colour/${jobId}_cdl.mp4`, 'video/mp4')
+    return { outputUrl }
+  } finally {
+    if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true })
+  }
+}

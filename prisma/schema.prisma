@@ -1,0 +1,681 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  FREE
+  PRO
+  STUDIO
+  ADMIN
+}
+
+enum JobType {
+  GENERATE
+  REPAINT
+  RELIGHT
+  UPSCALE
+  EXPORT
+  LORA_TRAIN
+  LIPSYNC
+  AUTO_SOCIAL
+  TRANSCRIBE
+  CGI_INSERT
+  AVATAR
+}
+
+enum JobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETE
+  FAILED
+  CANCELLED
+}
+
+enum LocationSource {
+  MAPILLARY
+  CESIUM
+  OSM_FALLBACK
+  USER_UPLOAD
+}
+
+enum LoraStatus {
+  PENDING
+  TRAINING
+  READY
+  FAILED
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  name               String?
+  avatarUrl          String?
+  passwordHash       String?
+  role               UserRole  @default(FREE)
+  creditBalance      Int       @default(50)
+  totalGenerated     Int       @default(0)
+  subscriptionStatus String    @default("trial")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  projects        Project[]
+  creditTxns      CreditTransaction[]
+  renderJobs      RenderJob[]
+  trainingData    TrainingData[]
+  rlhfLogs        RLHFLog[]
+  accounts        Account[]
+  sessions        Session[]
+  avatars         Avatar[]
+  reviewLinks     ReviewLink[]
+  brandKits       BrandKit[]
+  filmProjects    FilmProject[]
+  seriesProjects  SeriesProject[]
+
+  @@index([email])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Project {
+  id              String    @id @default(cuid())
+  userId          String
+  title           String    @default("Untitled Project")
+  description     String?
+  thumbnailUrl    String?
+  timelineJson    Json?
+  durationSeconds Float     @default(0)
+  fps             Int       @default(24)
+  resolution      String    @default("1920x1080")
+  status          String    @default("draft")
+  isPublic        Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id])
+  renderJobs      RenderJob[]
+  vaultChars      VaultCharacter[]
+  vaultLocations  VaultLocation[]
+  mediaBins       MediaBin[]
+
+  @@index([userId])
+}
+
+model VaultCharacter {
+  id              String      @id @default(cuid())
+  projectId       String
+  name            String
+  referenceUrls   String[]
+  faceEmbedding   Json?
+  loraModelId     String?
+  loraStatus      LoraStatus  @default(PENDING)
+  modelFamily     String?
+  voiceId         String?
+  voiceProvider   String?
+  motionRefUrl    String?
+  renderCount     Int         @default(0)
+  styleJson       Json?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  project         Project     @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+}
+
+model VaultLocation {
+  id               String          @id @default(cuid())
+  projectId        String
+  name             String
+  source           LocationSource
+  lat              Float?
+  lng              Float?
+  hdriUrl          String?
+  depthMapUrl      String?
+  referenceUrls    String[]
+  metaJson         Json?
+  generativePrompt String?
+  createdAt        DateTime        @default(now())
+
+  project          Project         @relation(fields: [projectId], references: [id])
+}
+
+model RenderJob {
+  id              String      @id @default(cuid())
+  userId          String
+  projectId       String?
+  type            JobType
+  status          JobStatus   @default(QUEUED)
+  priority        Int         @default(1)
+  modelUsed       String?
+  creditsCharged  Int         @default(0)
+  inputPayload    Json
+  outputUrl       String?
+  outputUrls      String[]
+  proxyUrl        String?
+  errorMessage    String?
+  progressPct     Int         @default(0)
+  processingMs    Int?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  completedAt     DateTime?
+
+  user            User        @relation(fields: [userId], references: [id])
+  project         Project?    @relation(fields: [projectId], references: [id])
+
+  @@index([userId, status])
+  @@index([projectId])
+}
+
+model CreditTransaction {
+  id          String    @id @default(cuid())
+  userId      String
+  amount      Int
+  type        String
+  description String
+  jobId       String?
+  stripeId    String?
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model TrainingData {
+  id                  String    @id @default(cuid())
+  userId              String
+  type                String
+  originalUrl         String?
+  instruction         String?
+  regeneratedUrl      String?
+  promptVariants      Json?
+  selectedVariantIdx  Int?
+  metadata            Json?
+  isProcessed         Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+
+  user                User      @relation(fields: [userId], references: [id])
+
+  @@index([isProcessed])
+}
+
+model RLHFLog {
+  id              String    @id @default(cuid())
+  userId          String
+  sessionId       String
+  promptText      String
+  modelOptions    Json
+  selectedModel   String
+  selectedIdx     Int
+  context         Json?
+  createdAt       DateTime  @default(now())
+
+  user            User      @relation(fields: [userId], references: [id])
+}
+
+model ApiUsageLog {
+  id          String    @id @default(cuid())
+  provider    String
+  model       String
+  userId      String?
+  jobId       String?
+  costCents   Float
+  latencyMs   Int
+  success     Boolean
+  createdAt   DateTime  @default(now())
+
+  @@index([provider, createdAt])
+}
+
+model Avatar {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  type         String   // 'instant' | 'stock' | 'custom'
+  videoUrl     String
+  thumbnailUrl String
+  voiceId      String?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model ReviewLink {
+  id            String          @id @default(cuid())
+  projectId     String
+  userId        String
+  token         String          @unique @default(cuid())
+  title         String
+  status        String          @default("pending")
+  expiresAt     DateTime?
+  allowDownload Boolean         @default(false)
+  comments      ReviewComment[]
+  createdAt     DateTime        @default(now())
+
+  user          User            @relation(fields: [userId], references: [id])
+
+  @@index([token])
+  @@index([userId])
+}
+
+model ReviewComment {
+  id             String     @id @default(cuid())
+  reviewLinkId   String
+  authorName     String
+  authorEmail    String
+  timecode       Float
+  clipId         String?
+  text           String
+  annotationData Json?
+  resolved       Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+
+  link           ReviewLink @relation(fields: [reviewLinkId], references: [id])
+
+  @@index([reviewLinkId])
+}
+
+model BrandKit {
+  id                 String   @id @default(cuid())
+  userId             String
+  name               String
+  primaryColor       String
+  secondaryColor     String
+  accentColor        String
+  fontFamily         String
+  logoUrl            String?
+  introClipUrl       String?
+  outroClipUrl       String?
+  lowerThirdStyle    Json
+  watermarkUrl       String?
+  watermarkPosition  String   @default("bottom-right")
+  watermarkOpacity   Float    @default(0.6)
+  isDefault          Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  user               User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+// ── CASTING SYSTEM ─────────────────────────────────────────
+
+model CastMember {
+  id                  String    @id @default(cuid())
+  projectId           String
+  name                String
+  role                String    // 'lead' | 'supporting' | 'featured' | 'background' | 'voice_only'
+  faceReferenceUrls   String[]
+  loraModelId         String?
+  loraStatus          String    @default("pending")
+  lockedModelFamily   String?
+  baseAppearance      Json
+  costumesByScene     Json      @default("{}")
+  makeupState         Json
+  makeupByScene       Json      @default("{}")
+  voiceId             String?
+  voiceProvider       String    @default("elevenlabs")
+  voiceCharacteristics Json     @default("{}")
+  appearsInScenes     String[]
+  totalScreenTime     Float     @default(0)
+  relationshipsTo     Json      @default("[]")
+  notes               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([projectId])
+}
+
+// ── FILM MODE ──────────────────────────────────────────────
+
+enum FilmType {
+  FEATURE_FILM
+  SHORT_FILM
+  DOCUMENTARY
+  MUSIC_VIDEO
+  COMMERCIAL
+  EXPERIMENTAL
+}
+
+enum FilmStatus {
+  DEVELOPMENT
+  PRE_PRODUCTION
+  PRODUCTION
+  POST_PRODUCTION
+  COMPLETE
+  RELEASED
+}
+
+model FilmProject {
+  id               String          @id @default(cuid())
+  userId           String
+  title            String
+  type             FilmType
+  logline          String?
+  synopsis         String?
+  genre            String[]
+  targetRuntime    Int
+  rating           String?
+  status           FilmStatus      @default(DEVELOPMENT)
+  colourPalette    Json?
+  cinematicStyle   String?
+  aspectRatio      String          @default("2.39:1")
+  soundDesignNotes String?
+  musicStyle       String?
+  finalVideoUrl    String?
+  exportStatus     String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  user             User            @relation(fields: [userId], references: [id])
+  acts             Act[]
+  cast             FilmCastMember[]
+  locations        FilmLocation[]
+
+  @@index([userId])
+}
+
+model Act {
+  id            String     @id @default(cuid())
+  filmProjectId String
+  number        Int
+  title         String?
+  description   String?
+
+  film          FilmProject @relation(fields: [filmProjectId], references: [id])
+  sequences     Sequence[]
+
+  @@index([filmProjectId])
+}
+
+model Sequence {
+  id          String      @id @default(cuid())
+  actId       String
+  title       String
+  description String?
+
+  act         Act         @relation(fields: [actId], references: [id])
+  scenes      FilmScene[]
+
+  @@index([actId])
+}
+
+model FilmScene {
+  id              String   @id @default(cuid())
+  sequenceId      String
+  sceneNumber     String
+  intExt          String
+  location        String
+  timeOfDay       String
+  heading         String
+  actionLines     String
+  dialogue        Json
+  characterIds    String[]
+  locationId      String?
+  shotList        Json?
+  generatedClips  String[]
+  status          String   @default("scripted")
+  productionNotes String?
+
+  sequence        Sequence @relation(fields: [sequenceId], references: [id])
+
+  @@index([sequenceId])
+}
+
+model FilmCastMember {
+  id               String      @id @default(cuid())
+  filmProjectId    String
+  vaultCharacterId String
+  characterName    String
+  role             String
+  actorNotes       String?
+
+  film             FilmProject @relation(fields: [filmProjectId], references: [id])
+
+  @@index([filmProjectId])
+}
+
+model FilmLocation {
+  id              String      @id @default(cuid())
+  filmProjectId   String
+  vaultLocationId String?
+  name            String
+  description     String
+
+  film            FilmProject @relation(fields: [filmProjectId], references: [id])
+
+  @@index([filmProjectId])
+}
+
+// ── SERIES MODE ────────────────────────────────────────────
+
+enum SeriesType {
+  TV_DRAMA
+  TV_COMEDY
+  WEB_SERIES
+  SOCIAL_SERIES
+  DOCUMENTARY_SERIES
+  ANTHOLOGY
+}
+
+model SeriesProject {
+  id                   String     @id @default(cuid())
+  userId               String
+  title                String
+  type                 SeriesType
+  platform             String
+  episodeFormat        Json
+  seriesBible          Json
+  recurringCastIds     String[]
+  recurringLocationIds String[]
+  status               String     @default("development")
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  user                 User       @relation(fields: [userId], references: [id])
+  seasons              Season[]
+
+  @@index([userId])
+}
+
+model Season {
+  id           String        @id @default(cuid())
+  seriesId     String
+  seasonNumber Int
+  title        String?
+  seasonArc    String?
+  episodeCount Int           @default(0)
+  status       String        @default("planned")
+
+  series       SeriesProject @relation(fields: [seriesId], references: [id])
+  episodes     Episode[]
+
+  @@index([seriesId])
+}
+
+model Episode {
+  id             String   @id @default(cuid())
+  seasonId       String
+  episodeNumber  Int
+  title          String
+  logline        String?
+  previouslyOn   String?
+  coldOpen       String?
+  actBreaks      Json
+  sceneIds       String[]
+  tags           String[]
+  targetRuntime  Int
+  finalVideoUrl  String?
+  status         String   @default("planned")
+
+  season         Season   @relation(fields: [seasonId], references: [id])
+
+  @@index([seasonId])
+}
+
+// ── MEDIA BIN (project asset management) ──────────────────
+model MediaBin {
+  id        String         @id @default(cuid())
+  projectId String
+  name      String
+  colour    String         @default("#00e5c8")
+  sortOrder Int            @default(0)
+  entries   BinClipEntry[]
+  project   Project        @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+}
+
+model BinClipEntry {
+  id              String    @id @default(cuid())
+  binId           String
+  clipUrl         String
+  proxyUrl        String?
+  name            String
+  durationSeconds Float?
+  thumbnailUrl    String?
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  bin             MediaBin  @relation(fields: [binId], references: [id])
+
+  @@index([binId])
+}
+
+// ── ROUTING TELEMETRY (technical domain) ──────────────────
+model RoutingDecision {
+  id             String   @id @default(cuid())
+  sceneCategory  String
+  assignedEngine String
+  tier           String
+  qualityScore   Float?
+  neededRepaint  Boolean  @default(false)
+  creditsCost    Int
+  generationMs   Int?
+  segmentCount   Int      @default(1)
+  createdAt      DateTime @default(now())
+
+  @@index([sceneCategory, assignedEngine])
+}
+
+model EnginePerformanceLog {
+  id            String   @id @default(cuid())
+  engineId      String
+  sceneCategory String
+  tier          String
+  latencyMs     Int
+  qualityScore  Float
+  costCents     Float
+  success       Boolean
+  errorType     String?
+  createdAt     DateTime @default(now())
+
+  @@index([engineId, createdAt])
+}
+
+model BlendQualityLog {
+  id            String   @id @default(cuid())
+  clipId        String
+  engineIds     String[]
+  stitchCount   Int
+  qualityScore  Float
+  repaintNeeded Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([clipId])
+}
+
+// ── INTELLIGENCE PIPELINE ──────────────────────────────────
+model ProbeResult {
+  id             String   @id @default(cuid())
+  probeId        String
+  category       String
+  engineId       String
+  engineVersion  String
+  prompt         String
+  videoUrl       String
+  qualityScore   Float
+  issues         String[]
+  strengths      String[]
+  assessmentJson Json
+  tierUsed       String
+  generationMs   Int
+  createdAt      DateTime @default(now())
+
+  @@index([engineId, category])
+}
+
+model ModelReport {
+  id             String   @id @default(cuid())
+  engineId       String
+  engineVersion  String
+  reportDate     DateTime
+  generatedBy    String
+  reportJson     Json
+  probeCount     Int
+  isDelta        Boolean  @default(false)
+  previousReport String?
+  createdAt      DateTime @default(now())
+
+  @@index([engineId, reportDate])
+}
+
+model ModelUpdate {
+  id                       String   @id @default(cuid())
+  engineId                 String
+  previousVersion          String
+  newVersion               String
+  detectedAt               DateTime
+  probesRun                Int      @default(0)
+  trainingSignalsExtracted Int      @default(0)
+  routingUpdated           Boolean  @default(false)
+
+  @@index([engineId])
+}
+
+model TrainingSignal {
+  id                 String   @id @default(cuid())
+  sourceEngine       String
+  sourceVersion      String
+  prompt             String
+  videoUrl           String
+  qualityScore       Float?
+  failureDescription String?
+  category           String
+  signalType         String
+  processed          Boolean  @default(false)
+  ingestedAt         DateTime @default(now())
+
+  @@index([processed, signalType])
+}

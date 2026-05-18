@@ -1,0 +1,68 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { runAIDirector, queueDirectorGenerations } from '@/lib/studio/director'
+import { checkAndDeductCredits } from '@/lib/credits'
+import { db } from '@/lib/db'
+
+const schema = z.object({
+  brief: z.string().min(10).max(2000),
+  style: z.string().default('cinematic drama'),
+  targetDuration: z.number().min(10).max(600).default(60),
+  projectId: z.string(),
+  autoQueue: z.boolean().default(false),
+})
+
+export async function POST(request: NextRequest) {
+  const userId = request.headers.get('x-user-id')
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await request.json()
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+
+  const { brief, style, targetDuration, projectId, autoQueue } = parsed.data
+
+  // Verify project ownership
+  const project = await db.project.findFirst({ where: { id: projectId, userId } })
+  if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+
+  try {
+    await checkAndDeductCredits(userId, 'ai_director')
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 402 })
+  }
+
+  // Fetch available vault assets
+  const [characters, locations] = await Promise.all([
+    db.vaultCharacter.findMany({ where: { projectId } }),
+    db.vaultLocation.findMany({ where: { projectId } }),
+  ])
+
+  const { recipe, directorNotes } = await runAIDirector({
+    brief,
+    style,
+    targetDuration,
+    projectId,
+    availableCharacters: characters.map((c) => ({
+      id: c.id,
+      name: c.name,
+      modelFamily: c.modelFamily,
+      loraModelId: c.loraModelId,
+      loraStatus: c.loraStatus,
+      referenceUrls: c.referenceUrls as string[],
+    })),
+    availableLocations: locations.map((l) => ({
+      id: l.id,
+      name: l.name,
+      generativePrompt: l.generativePrompt,
+      source: l.source,
+    })),
+  })
+
+  if (autoQueue) {
+    const queuedRecipe = await queueDirectorGenerations(recipe, userId)
+    return NextResponse.json({ recipe: queuedRecipe, directorNotes, queued: true })
+  }
+
+  return NextResponse.json({ recipe, directorNotes, queued: false })
+}

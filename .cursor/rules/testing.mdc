@@ -1,0 +1,26 @@
+---
+description: Testing rules for Jest unit tests and Playwright E2E tests.
+globs: ["tests/**", "e2e/**", "src/__tests__/**"]
+---
+
+# Testing Rules
+
+## Jest Unit Tests
+- Location: `tests/unit/*.test.ts` or `src/__tests__/*.test.ts`
+- Config: `jest` key in `package.json`; uses `ts-jest` preset
+- Run: `npm test` or `npm run test:watch`
+- Coverage: `npm run test:coverage` (40% line threshold)
+- **Never** import ESM-only packages (e.g. `nanoid`) directly — mock or replace with inline helpers
+- Mock the `db` singleton with `jest.mock('@/lib/db')` to avoid real DB calls
+- Mock Redis with `jest.mock('@/lib/redis')`
+
+## Playwright E2E Tests
+- Location: `e2e/*.spec.ts` and `e2e/api/*.spec.ts`
+- Config: `playwright.config.ts` at project root
+- Auth state saved to `e2e/.auth/user.json` (git-ignored) by `global.setup.ts`
+- Run all: `npm run test:e2e`
+- Run with UI: `npm run test:e2e:ui`
+- Run only API smoke tests: `npx playwright test --project=api`
+- **Browsers**: Chromium (primary), Mobile Safari; installed via `playwright-core install`
+- Use `page.route()` to mock API responses in browser tests
+- API tests use `request` fixture — no browser launched

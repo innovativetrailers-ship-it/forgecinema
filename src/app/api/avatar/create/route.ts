@@ -1,0 +1,55 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
+import { checkAndDeductCredits } from '@/lib/credits'
+import { fal } from '@fal-ai/client'
+import { db } from '@/lib/db'
+
+export async function POST(req: NextRequest) {
+  const session = await auth()
+  const userId = req.headers.get('x-user-id') ?? session?.user?.id
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { imageUrl, name, style } = await req.json() as {
+    imageUrl: string
+    name: string
+    style?: 'realistic' | 'anime' | 'cartoon'
+  }
+
+  if (!imageUrl || !name) {
+    return NextResponse.json({ error: 'imageUrl and name required' }, { status: 400 })
+  }
+
+  await checkAndDeductCredits(userId, 'avatar_create')
+
+  try {
+    const result = await fal.subscribe('fal-ai/instant-id', {
+      input: {
+        image_url: imageUrl,
+        prompt: `professional avatar portrait, ${style ?? 'realistic'} style, clean background`,
+        negative_prompt: 'blurry, deformed, ugly, watermark',
+        guidance_scale: 5,
+        num_inference_steps: 30,
+      },
+    })
+
+    const avatarUrl = (result.data as { images?: Array<{ url: string }> }).images?.[0]?.url
+    if (!avatarUrl) {
+      return NextResponse.json({ error: 'Avatar generation failed' }, { status: 500 })
+    }
+
+    const avatar = await db.avatar.create({
+      data: {
+        userId,
+        name,
+        type: style ?? 'realistic',
+        videoUrl: avatarUrl,
+        thumbnailUrl: imageUrl,
+      },
+    })
+
+    return NextResponse.json({ avatar, avatarUrl }, { status: 201 })
+  } catch (err) {
+    console.error('[avatar/create]', err)
+    return NextResponse.json({ error: 'Avatar creation failed' }, { status: 500 })
+  }
+}

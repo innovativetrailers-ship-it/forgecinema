@@ -1,0 +1,27 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { generateFoley } from '@/lib/audio/audiocraft'
+import { checkAndDeductCredits } from '@/lib/credits'
+
+const schema = z.object({
+  description: z.string().min(3),
+  durationSeconds: z.number().min(1).max(120).default(5),
+})
+
+export async function POST(request: NextRequest) {
+  const userId = request.headers.get('x-user-id')
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await request.json()
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+
+  try {
+    await checkAndDeductCredits(userId, 'foley_generate')
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 402 })
+  }
+
+  const result = await generateFoley(parsed.data)
+  return NextResponse.json(result)
+}

@@ -1,0 +1,26 @@
+{
+  "name": "CINÉMA — AI Film Production Platform",
+  "short_name": "CINÉMA",
+  "description": "The world's most advanced AI film and video production platform.",
+  "start_url": "/simple",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#9333ea",
+  "orientation": "landscape",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["productivity", "entertainment"],
+  "screenshots": []
+}

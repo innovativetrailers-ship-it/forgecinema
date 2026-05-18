@@ -1,0 +1,60 @@
+---
+description: Growth Engine CINÉMA — AI Film Production Platform. Apply to all files in the web app.
+globs: ["**/*.ts", "**/*.tsx", "**/*.css"]
+alwaysApply: true
+---
+
+# Growth Engine CINÉMA — Project Rules
+
+## Stack
+- **Framework**: Next.js 15 App Router, TypeScript strict mode
+- **Styling**: Tailwind CSS v4, Shadcn/ui components
+- **State**: Zustand (no immer), TanStack Query v5 for server state
+- **DB**: PostgreSQL + Prisma v7 with `@prisma/adapter-pg` (NOT standard PrismaClient)
+- **Auth**: NextAuth.js v5, `useSession()` on client, `x-user-id` header on server
+- **Queue**: BullMQ + Redis (ioredis) — jobs go through `renderQueue`, `trainingQueue`, `exportQueue`
+- **Storage**: Cloudflare R2 via `src/lib/storage/r2.ts`; local DAS via `src/lib/storage/das.ts`
+- **Real-time**: SSE via `/api/jobs/[jobId]/stream` — never use WebSockets
+
+## AI Models
+Route all generation through `src/lib/models/router.ts` (`routeToModel`).
+Model clients live in `src/lib/models/` — Kling, Veo3, Luma, Runway, Pika, Minimax, Seedance, HunyuanVideo, SVD, AnimateDiff.
+fal.ai utilities: `src/lib/fal/` — lighting, enhancement, sync, training, character, proxy.
+
+## Credits
+Always call `checkAndDeductCredits()` from `src/lib/credits.ts` BEFORE starting any AI job.
+Refund with `refundCredits()` on failure.
+
+## Timeline
+Core schema: `src/lib/timeline/schema.ts` — `TimelineRecipe`, `Track`, `Clip`.
+FFmpeg renderer: `src/lib/timeline/renderer.ts`.
+Export pipeline: `src/lib/timeline/export.ts` → BullMQ `exportQueue`.
+
+## Vault
+Characters: `src/lib/vault/character.ts` — face embeddings + LoRA trigger words.
+Model lock: `src/lib/vault/model-lock.ts` — enforces consistency after 3 renders.
+
+## API Routes
+- Protected routes must check `x-user-id` header (set by middleware)
+- Always return `{ error: string }` on failure with correct HTTP status
+- Cron routes check `Authorization: Bearer ${CRON_SECRET}`
+- Worker health routes check `x-health-token: ${WORKER_HEALTH_TOKEN}`
+
+## Code Style
+- No `any` unless absolutely necessary — use `unknown` + type guards
+- Prefer `const` arrow functions for components
+- No default exports from lib files — named exports only
+- All Prisma queries must use the `db` singleton from `src/lib/db.ts`
+- No raw SQL — use Prisma ORM methods
+- Comments only for non-obvious intent — never narrate what code does
+
+## Folder Structure
+```
+src/
+  app/           # Next.js App Router pages + API routes
+  components/    # React components (ui/, editor/, simple/, ultimate/)
+  hooks/         # Custom React hooks
+  lib/           # Server-side utilities (db, auth, queue, models, etc.)
+  store/         # Zustand stores (editor, vault, jobs)
+  workers/       # Standalone BullMQ worker entry points
+```

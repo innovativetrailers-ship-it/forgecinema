@@ -1,0 +1,136 @@
+import { fal } from '../fal/client'
+import { uploadToR2 } from '../storage/r2'
+import { db } from '../db'
+import { cloneVoice, synthesiseSpeech } from '../audio/elevenlabs'
+
+export async function createInstantAvatar(params: {
+  recordingUrl: string
+  userId: string
+  name: string
+}): Promise<{ avatarId: string; previewUrl: string }> {
+  const { recordingUrl, userId, name } = params
+
+  // Extract face thumbnail
+  const { execSync } = await import('child_process')
+  const { mkdirSync, rmSync, existsSync } = await import('fs')
+  const { join } = await import('path')
+  const { nanoid } = await import('nanoid')
+
+  const jobId = nanoid()
+  const tmpDir = `/tmp/avatar-${jobId}`
+  mkdirSync(tmpDir, { recursive: true })
+
+  let thumbnailUrl: string
+  let voiceId: string | null = null
+
+  try {
+    // Extract a good face frame
+    const thumbPath = join(tmpDir, 'thumb.jpg')
+    execSync(`ffmpeg -i "${recordingUrl}" -vframes 1 -ss 00:00:02 "${thumbPath}" -y 2>/dev/null`)
+    const thumbBuf = execSync(`cat "${thumbPath}"`)
+    thumbnailUrl = await uploadToR2(thumbBuf, `avatars/${jobId}_thumb.jpg`, 'image/jpeg')
+
+    // Clone voice from recording
+    try {
+      const cloneResult = await cloneVoice({
+        name,
+        audioSamples: [recordingUrl],
+      })
+      voiceId = cloneResult.voiceId
+    } catch {
+      // Voice cloning optional
+    }
+
+    const avatar = await db.avatar.create({
+      data: {
+        userId,
+        name,
+        type: 'instant',
+        videoUrl: recordingUrl,
+        thumbnailUrl,
+        voiceId,
+      },
+    })
+
+    return { avatarId: avatar.id, previewUrl: thumbnailUrl }
+  } finally {
+    if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true })
+  }
+}
+
+export async function scriptToAvatarVideo(params: {
+  script: string
+  avatarId: string
+  voiceSettings?: { pitch: number; speed: number; emotion: string }
+  backgroundUrl?: string
+  duration?: number
+}): Promise<{ videoUrl: string }> {
+  const { script, avatarId, voiceSettings, backgroundUrl } = params
+
+  const avatar = await db.avatar.findUnique({ where: { id: avatarId } })
+  if (!avatar) throw new Error('Avatar not found')
+
+  // Generate TTS audio from script
+  const { audioUrl } = await synthesiseSpeech({
+    text: script,
+    voiceId: avatar.voiceId ?? 'EXAVITQu4vr4xnSDxMaL', // default voice
+    emotion: (voiceSettings?.emotion as 'neutral' | 'excited' | 'sad' | 'angry' | 'whispering') ?? 'neutral',
+  })
+
+  // Drive the avatar with SadTalker + LivePortrait
+  const sadTalkerResult = await fal.subscribe('fal-ai/sadtalker', {
+    input: {
+      source_image_url: avatar.thumbnailUrl,
+      driven_audio_url: audioUrl,
+      expression_scale: 1.2,
+    },
+  }) as unknown as { video: { url: string } }
+
+  let videoUrl = sadTalkerResult.video.url
+
+  // Composite over background
+  if (backgroundUrl) {
+    const { execSync } = await import('child_process')
+    const { mkdirSync, rmSync, existsSync } = await import('fs')
+    const { join } = await import('path')
+    const { nanoid } = await import('nanoid')
+    const jobId = nanoid()
+    const tmpDir = `/tmp/avatar-comp-${jobId}`
+    mkdirSync(tmpDir, { recursive: true })
+
+    try {
+      const avatarBuf = Buffer.from(await (await fetch(videoUrl)).arrayBuffer())
+      const avatarPath = join(tmpDir, 'avatar.mp4')
+      require('fs').writeFileSync(avatarPath, avatarBuf)
+      const outputPath = join(tmpDir, 'composited.mp4')
+
+      execSync(
+        `ffmpeg -i "${backgroundUrl}" -i "${avatarPath}" -filter_complex "[0:v][1:v]overlay=x=(W-w)/2:y=(H-h)/2" -c:a copy "${outputPath}" -y 2>/dev/null`
+      )
+
+      const outBuf = execSync(`cat "${outputPath}"`)
+      videoUrl = await uploadToR2(outBuf, `avatar-videos/${jobId}.mp4`, 'video/mp4')
+    } finally {
+      if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true })
+    }
+  }
+
+  return { videoUrl }
+}
+
+export async function talkingPhoto(params: {
+  photoUrl: string
+  audioUrl: string
+}): Promise<{ videoUrl: string }> {
+  const { photoUrl, audioUrl } = params
+
+  const result = await fal.subscribe('fal-ai/sadtalker', {
+    input: {
+      source_image_url: photoUrl,
+      driven_audio_url: audioUrl,
+      expression_scale: 1.0,
+    },
+  }) as unknown as { video: { url: string } }
+
+  return { videoUrl: result.video.url }
+}

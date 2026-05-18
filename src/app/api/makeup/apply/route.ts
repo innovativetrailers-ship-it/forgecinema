@@ -1,0 +1,74 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
+import { checkAndDeductCredits, refundCredits } from '@/lib/credits'
+import { SFXMakeupEngine } from '@/lib/makeup/SFXMakeupEngine'
+import type { MakeupEffect } from '@/lib/casting/types'
+
+const engine = new SFXMakeupEngine()
+
+export async function POST(req: NextRequest) {
+  const session = await auth()
+  const userId = req.headers.get('x-user-id') ?? session?.user?.id
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await req.json() as {
+    videoUrl: string
+    effects?: MakeupEffect[]
+    intensity?: number
+    naturalLanguageRequest?: string
+    makeupReferenceImageUrl?: string
+    characterId?: string
+    mode?: 'post_generation' | 'reference_transfer' | 'natural_language'
+  }
+
+  if (!body.videoUrl) {
+    return NextResponse.json({ error: 'videoUrl is required' }, { status: 400 })
+  }
+
+  const mode = body.mode ?? (body.naturalLanguageRequest ? 'natural_language'
+    : body.makeupReferenceImageUrl ? 'reference_transfer'
+    : 'post_generation')
+
+  const creditKey = mode === 'reference_transfer' ? 'makeup_reference_transfer' : 'makeup_sfx_postgeneration'
+  const ok = await checkAndDeductCredits(userId, creditKey)
+  if (!ok) return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 })
+
+  try {
+    let videoUrl: string
+    let appliedEffects: MakeupEffect[] = body.effects ?? []
+
+    if (mode === 'natural_language' && body.naturalLanguageRequest) {
+      const result = await engine.handleCustomRequest({
+        videoUrl: body.videoUrl,
+        naturalLanguageRequest: body.naturalLanguageRequest,
+        characterId: body.characterId,
+        intensity: body.intensity,
+      })
+      videoUrl = result.videoUrl
+      appliedEffects = result.appliedEffects
+
+    } else if (mode === 'reference_transfer' && body.makeupReferenceImageUrl) {
+      videoUrl = await engine.transferMakeupFromReference({
+        sourceVideoUrl: body.videoUrl,
+        makeupReferenceImageUrl: body.makeupReferenceImageUrl,
+        intensity: body.intensity ?? 0.75,
+      })
+
+    } else {
+      if (!body.effects || body.effects.length === 0) {
+        await refundCredits(userId, creditKey)
+        return NextResponse.json({ error: 'effects array required for post_generation mode' }, { status: 400 })
+      }
+      videoUrl = await engine.applyMakeupPostGeneration({
+        videoUrl: body.videoUrl,
+        effects: body.effects,
+        intensity: body.intensity ?? 0.75,
+      })
+    }
+
+    return NextResponse.json({ videoUrl, appliedEffects })
+  } catch (err) {
+    await refundCredits(userId, creditKey)
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Makeup application failed' }, { status: 500 })
+  }
+}

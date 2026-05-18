@@ -1,0 +1,66 @@
+:root {
+  /* ── Alias vars (used by legacy components) ── */
+  --accent:         #00e5c8;
+  --accent-mid:     #00b8a0;
+  --accent-dark:    #007a6a;
+  --accent-glow:    rgba(0, 229, 200, 0.12);
+  --accent-border:  rgba(0, 229, 200, 0.25);
+
+  /* ── Backgrounds ── */
+  --bg-base:        #0d1117;
+  --bg-elevated:    #161c26;
+  --bg-surface:     #1e2636;
+  --bg-hover:       #252f40;
+  --bg-active:      #2e3b52;
+
+  /* ── Neon Teal — primary accent ── */
+  --teal-bright:    #00e5c8;
+  --teal-mid:       #00b8a0;
+  --teal-dark:      #007a6a;
+  --teal-glow:      rgba(0, 229, 200, 0.12);
+  --teal-border:    rgba(0, 229, 200, 0.25);
+
+  /* ── Text ── */
+  --text-primary:   #e8edf5;
+  --text-secondary: #8a9bbf;
+  --text-tertiary:  #4a5a78;
+  --text-teal:      #00e5c8;
+
+  /* ── Semantic ── */
+  --success:        #22c55e;
+  --warning:        #00e5c8;
+  --danger:         #ef4444;
+  --info:           #3b82f6;
+
+  /* ── Track colours ── */
+  --track-video:    #3b82f6;
+  --track-vfx:      #8b5cf6;
+  --track-cgi:      #ec4899;
+  --track-music:    #22c55e;
+  --track-voice:    #f97316;
+  --track-sfx:      #06b6d4;
+  --track-caption:  #6b7280;
+  --track-motion:   #a78bfa;
+
+  /* ── Borders ── */
+  --border:         rgba(139, 155, 191, 0.12);
+  --border-mid:     rgba(139, 155, 191, 0.22);
+
+  /* ── Shadows ── */
+  --shadow-panel:   0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-teal:    0 0 20px rgba(0, 229, 200, 0.15);
+
+  /* ── Semantic aliases (gap-audit spec §9) ── */
+  --color-primary:     #00e5c8;
+  --color-primary-dim: rgba(0, 229, 200, 0.15);
+  --color-bg:          #0d1117;
+  --color-surface:     #151b24;
+  --color-border:      #1a2030;
+  --color-text:        #e8eaf0;
+  --color-muted:       #6b7280;
+}
+
+/* Override any amber/yellow that may slip through in third-party or generated code */
+.text-amber-400, .text-amber-500, .text-yellow-400 { color: #00e5c8 !important; }
+.bg-amber-400, .bg-amber-500 { background-color: #00e5c8 !important; }
+.border-amber-400, .border-amber-500 { border-color: #00e5c8 !important; }

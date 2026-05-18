@@ -1,0 +1,126 @@
+version: '3.9'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Growth Engine Cinema — Local Development Stack
+# Usage:
+#   docker compose up -d          # start all services
+#   docker compose down -v        # stop and remove volumes
+#   docker compose logs -f redis  # tail service logs
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: cinema_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cinema
+      POSTGRES_PASSWORD: cinema_dev
+      POSTGRES_DB: cinema
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cinema -d cinema']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: cinema_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning --requirepass cinema_dev
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'cinema_dev', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── MinIO (R2-compatible local S3) ─────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: cinema_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: cinema
+      MINIO_ROOT_PASSWORD: cinema_dev_secret
+    ports:
+      - '9000:9000'   # S3 API
+      - '9001:9001'   # Web console → http://localhost:9001
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── MinIO bucket init ──────────────────────────────────────────────────────
+  minio-init:
+    image: minio/mc:latest
+    container_name: cinema_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 cinema cinema_dev_secret &&
+        mc mb local/cinema-media --ignore-existing &&
+        mc anonymous set public local/cinema-media/public &&
+        echo 'MinIO bucket ready.'
+      "
+    restart: 'no'
+
+  # ── Redis Commander (optional UI) ──────────────────────────────────────────
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: cinema_redis_ui
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:cinema_dev
+    ports:
+      - '8081:8081'
+    depends_on:
+      redis:
+        condition: service_healthy
+    profiles:
+      - debug
+
+  # ── pgAdmin (optional UI) ──────────────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: cinema_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@cinema.local
+      PGADMIN_DEFAULT_PASSWORD: cinema_dev
+      PGADMIN_LISTEN_PORT: 5050
+    ports:
+      - '5050:5050'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - debug
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  pgadmin_data:
+
+networks:
+  default:
+    name: cinema_net

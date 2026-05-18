@@ -1,0 +1,105 @@
+'use client'
+
+import { useState } from 'react'
+import { Film, Clock, Trash2 } from 'lucide-react'
+import { GenerationCard } from './GenerationCard'
+import { VideoPreviewModal } from './VideoPreviewModal'
+import type { GeneratedClip } from './types'
+
+interface Props {
+  clips: GeneratedClip[]
+  onRegenerate: (clip: GeneratedClip) => void
+  onAddToTimeline: (clip: GeneratedClip) => void
+  onDelete: (id: string) => void
+}
+
+export function ResultsGallery({ clips, onRegenerate, onAddToTimeline, onDelete }: Props) {
+  const [expandedClip, setExpandedClip] = useState<GeneratedClip | null>(null)
+  const [filter, setFilter] = useState<'all' | 'done' | 'generating' | 'failed'>('all')
+
+  const filteredClips = clips.filter((c) => {
+    if (filter === 'done') return c.status === 'complete'
+    if (filter === 'generating') return c.status === 'queued' || c.status === 'processing'
+    if (filter === 'failed') return c.status === 'failed'
+    return true
+  })
+
+  const generating = clips.filter((c) => c.status === 'queued' || c.status === 'processing').length
+  const done = clips.filter((c) => c.status === 'complete').length
+
+  if (clips.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <Film className="w-12 h-12 text-white/10 mb-4" />
+        <p className="text-sm text-white/30 font-medium">No videos yet</p>
+        <p className="text-xs text-white/20 mt-1">Generate your first video above</p>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-4">
+          <h2 className="text-sm font-semibold text-white/70">Results</h2>
+          {generating > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-[#00e5c8]">
+              <Clock className="w-3 h-3 animate-pulse" />
+              {generating} generating
+            </div>
+          )}
+          {done > 0 && (
+            <span className="text-xs text-white/30">{done} complete</span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1">
+          {(['all', 'done', 'generating', 'failed'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`
+                px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors capitalize
+                ${filter === f ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'}
+              `}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {filteredClips.map((clip) => (
+          <div key={clip.id} className="relative group/card">
+            <GenerationCard
+              clip={clip}
+              onRegenerate={onRegenerate}
+              onAddToTimeline={onAddToTimeline}
+              onExpand={setExpandedClip}
+            />
+            <button
+              onClick={() => onDelete(clip.id)}
+              className="absolute top-2 right-10 p-1 rounded-full bg-black/60 text-white/40
+                opacity-0 group-hover/card:opacity-100 transition-opacity hover:text-red-400 hover:bg-black/80 z-10"
+              title="Delete"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {expandedClip && (
+        <VideoPreviewModal
+          clip={expandedClip}
+          onClose={() => setExpandedClip(null)}
+          onRegenerate={(c) => { onRegenerate(c); setExpandedClip(null) }}
+          onAddToTimeline={(c) => { onAddToTimeline(c); setExpandedClip(null) }}
+        />
+      )}
+    </>
+  )
+}

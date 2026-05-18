@@ -1,0 +1,23 @@
+---
+description: Prisma v7 rules — apply when editing schema.prisma, db.ts, or any file importing from prisma/generated.
+globs: ["prisma/**", "src/lib/db.ts", "src/generated/**"]
+---
+
+# Prisma v7 Rules
+
+## Critical: Prisma v7 Breaking Changes
+- `PrismaClient` is imported from `'../generated/prisma/client'` (NOT `'@prisma/client'`)
+- The `datasource db` block has NO `url` property — connection is passed via the pg adapter
+- Always instantiate: `new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) })`
+- Config lives in `prisma.config.ts`, NOT in `schema.prisma`
+- Run `npx prisma generate` after any schema change
+- Run `npx prisma migrate dev --name <name>` to create migrations
+
+## Schema Conventions
+- All models use `@id @default(dbgenerated("gen_random_uuid()")) @db.Uuid`
+- Timestamps: `createdAt DateTime @default(now())`, `updatedAt DateTime @updatedAt`
+- JSON fields typed as `Json` in Prisma map to `Record<string, unknown>` in TypeScript
+- Enums are defined in `schema.prisma` and referenced directly
+
+## The `db` singleton
+Always import from `@/lib/db` — never instantiate PrismaClient directly in route files.
