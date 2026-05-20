@@ -278,4 +278,5 @@ def generate_asset_map(package_id: str, files: list, output_dir: str) -> str:
 
 
 if __name__ == '__main__':
-    app.run(port=7433, debug=False, host='0.0.0.0')
+    port = int(os.environ.get('PORT', '7433'))
+    app.run(port=port, debug=False, host='0.0.0.0')

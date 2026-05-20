@@ -21,7 +21,7 @@ import {
   generateWan22,
   generateMochi,
 } from '../models/index'
-import type { OutcomeTier } from '../swarm/types'
+import type { OutcomeTier } from '../routing/types'
 
 type ProbePayload = { prompt: string; duration: number; aspectRatio: '16:9' }
 

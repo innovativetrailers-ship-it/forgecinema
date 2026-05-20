@@ -9,14 +9,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ModelUpdateWatcher, generateCrossModelComparisonReport, suggestRoutingMatrixUpdates } from '@/lib/intelligence/update-watcher'
 import { getIntelligenceQueueLength, pushIntelligenceSignal } from '@/lib/firewall/domain-guard'
+import { denyUnlessCron } from '@/lib/cron-guard'
 
 type CronMode = 'update_detection' | 'weekly_probes' | 'monthly_comparison' | 'queue_check' | 'all'
 
 export async function GET(req: NextRequest) {
-  const auth = req.headers.get('authorization')
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const denied = denyUnlessCron(req)
+  if (denied) return denied
 
   const { searchParams } = new URL(req.url)
   const mode = (searchParams.get('mode') ?? 'update_detection') as CronMode

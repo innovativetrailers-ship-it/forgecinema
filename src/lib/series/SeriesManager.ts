@@ -131,16 +131,16 @@ Bible: ${JSON.stringify(bible)}. Return JSON shot array.`,
     })
 
     const shots = JSON.parse(response.content)
-    const { SwarmRouter } = await import('../swarm/SwarmRouter')
-    const swarm = new SwarmRouter()
+    const { ShotListRouter } = await import('../routing/ShotListRouter')
+    const router = new ShotListRouter()
 
-    const shotList = await swarm.decompose({
+    const shotList = await router.decompose({
       userInput: shots.map((s: { description: string }) => s.description).join('. '),
       tier: params.tier,
       userId: params.userId,
     })
 
-    const results = await swarm.dispatch({
+    const results = await router.dispatch({
       shotList,
       userId: params.userId,
       projectId: params.seriesId,

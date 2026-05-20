@@ -1,0 +1,7 @@
+# CINÉMA Python microservices — install: pip install -r src/services/requirements.txt
+flask>=3.0,<4
+gunicorn>=22.0,<24
+opentimelineio>=0.17.0,<0.18
+
+# ShotGrid (optional — service returns 503 if import fails)
+shotgun-api3>=3.3.0,<4

@@ -1,6 +1,6 @@
 import { runModel1 } from '../brain/model1'
 import { callCouncil } from '../brain/council'
-import { SwarmRouter } from '../swarm/SwarmRouter'
+import { ShotListRouter } from '../routing/ShotListRouter'
 import { LongFormOrchestrator } from '../swarm/LongFormOrchestrator'
 import { db } from '../db'
 import { uploadToR2 } from '../storage/r2'
@@ -33,7 +33,7 @@ interface LocalFilmScene { heading: string; actionLines: string; characterIds: s
 interface Shot { shot_id?: string; sequence_index?: number; duration_seconds: number }
 
 export class FilmDirector {
-  private swarm = new SwarmRouter()
+  private router = new ShotListRouter()
   private longForm = new LongFormOrchestrator()
 
   async parseFountainScript(fountainText: string): Promise<ParsedScript> {

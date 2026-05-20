@@ -55,15 +55,22 @@ export DATABASE_URL="postgresql://..."
 ./scripts/setup-db.sh --seed
 ```
 
-### Step 3 — Vercel
+### Step 3 — Vercel (Gap 3)
+
+Full checklist: **`deploy/vercel/CHECKLIST.md`**
 
 ```bash
-# Install Vercel CLI
-npm i -g vercel
+# Link project, sync env (production URL for OAuth), deploy
+./scripts/setup-vercel.sh https://your-app.vercel.app
 
-# Link and push all env vars + deploy
-./scripts/setup-vercel.sh
+# Or step by step:
+npm run env:vercel -- https://your-app.vercel.app
+npm run deploy:vercel -- https://your-app.vercel.app
 ```
+
+**Preview deploys:** leave `NEXTAUTH_URL` unset on preview — auth uses `trustHost: true`.
+
+**Crons:** set `CRON_SECRET` in Vercel production; routes use `src/lib/cron-guard.ts`.
 
 ### Required GitHub Secrets
 
@@ -78,23 +85,41 @@ Add these in **GitHub → Settings → Secrets → Actions**:
 | `WORKER_HEALTH_TOKEN` | Random string for health check auth |
 | `EXPO_TOKEN` | From expo.dev account settings |
 
-### Step 4 — Workers (Fly.io)
+### Step 4 — Workers + Python services (Railway recommended)
+
+Vercel cannot run BullMQ workers or Flask processes. Use **Railway** (see `deploy/railway/README.md` and root `Procfile`).
+
+**Node workers** — one Railway service each:
+
+| Start command | Queue |
+|---------------|-------|
+| `npm run worker:render` | render |
+| `npm run worker:training` | training |
+| `npm run worker:export` | export |
+| `npm run worker:das` | das-pull |
+
+Build: `npm ci && npx prisma generate`
+
+**Python microservices** — ports 7432–7435:
 
 ```bash
-# Install flyctl
-brew install flyctl
-
-# Deploy render worker
-cd src/lib/queue/workers
-flyctl launch --name cinema-render-worker
-flyctl secrets import < ../../../.env.local
-flyctl deploy
+bash scripts/install-python-services.sh
+bash scripts/start_services.sh
+bash scripts/check-services.sh
 ```
 
-Or use Railway — connect your GitHub repo and set the start command to:
+Docker (local): `npm run workers:docker`
+
+Set on Vercel after Railway deploy:
+
 ```
-npx tsx src/lib/queue/workers/render.worker.ts
+OTIO_SERVICE_URL=https://<otio-service>.up.railway.app
+IMF_SERVICE_URL=https://<imf-service>.up.railway.app
+SHOTGRID_SERVICE_URL=https://<shotgrid-service>.up.railway.app
+EXR_SERVICE_URL=https://<exr-service>.up.railway.app
 ```
+
+Alternative: **Fly.io** — same start commands, `flyctl launch` per worker.
 
 ---
 

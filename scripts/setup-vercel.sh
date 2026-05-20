@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
-# ─────────────────────────────────────────────────────────────────────────────
-# Vercel project setup — link project and push all environment variables
-# Requires: vercel CLI (`npm i -g vercel`) and .env.local
-# Usage: ./scripts/setup-vercel.sh
-# ─────────────────────────────────────────────────────────────────────────────
+# Link Vercel project, sync env vars, deploy production.
+# Usage: ./scripts/setup-vercel.sh [https://your-production-domain]
 set -euo pipefail
 
+PRODUCTION_URL="${1:-}"
+
 echo "─────────────────────────────────────────────────────────────"
-echo "  Growth Engine Cinema — Vercel Setup"
+echo "  Cinematic Forge — Vercel Setup (Gap 3)"
 echo "─────────────────────────────────────────────────────────────"
 
 if ! command -v vercel &>/dev/null; then
@@ -15,40 +14,17 @@ if ! command -v vercel &>/dev/null; then
   npm install -g vercel
 fi
 
-# Link project (creates .vercel/project.json)
-echo "→ Linking Vercel project…"
 vercel link --yes
 
-# Push env vars from .env.local to all environments
-echo "→ Pushing environment variables…"
-ENV_FILE=".env.local"
-if [[ ! -f "$ENV_FILE" ]]; then
-  echo "✗ $ENV_FILE not found — copy .env.example and fill in values first"
-  exit 1
+if [[ -f .env.local ]]; then
+  bash scripts/sync-vercel-env.sh "$PRODUCTION_URL"
+else
+  echo "⚠ .env.local missing — set env vars in Vercel dashboard (see deploy/vercel/CHECKLIST.md)"
 fi
 
-ENVS=("production" "preview" "development")
-
-while IFS='=' read -r key value || [[ -n "$key" ]]; do
-  # Skip comments and empty lines
-  [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
-  # Strip inline comments and trim whitespace
-  value="${value%%#*}"
-  value="${value// /}"
-  key="${key// /}"
-  [[ -z "$value" ]] && continue
-
-  for env in "${ENVS[@]}"; do
-    echo "  $key → $env"
-    echo "$value" | vercel env add "$key" "$env" --force 2>/dev/null || true
-  done
-done < "$ENV_FILE"
+echo ""
+echo "→ Deploying production…"
+vercel deploy --prod
 
 echo ""
-echo "✓ Environment variables pushed."
-echo ""
-echo "→ Triggering first deployment…"
-vercel --prod
-
-echo ""
-echo "✓ Deployment complete! Check https://vercel.com/dashboard for status."
+echo "✓ Done. See deploy/vercel/CHECKLIST.md for OAuth, crons, and Railway worker URLs."

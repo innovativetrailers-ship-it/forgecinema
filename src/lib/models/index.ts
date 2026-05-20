@@ -245,3 +245,14 @@ export async function generatePixverse(payload: SwarmPayload): Promise<string> {
     5000, 120, 'Pixverse'
   )
 }
+
+// ── Mochi-1 (fal) ────────────────────────────────────────────────────────────
+export async function generateMochi(payload: SwarmPayload): Promise<string> {
+  const { runModel2 } = await import('../brain/model2')
+  const out = await runModel2({
+    prompt: payload.prompt,
+    duration: payload.duration,
+    seed: payload.seed,
+  })
+  return out.videoUrl
+}

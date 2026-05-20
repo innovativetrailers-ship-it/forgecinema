@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { denyUnlessCron } from '@/lib/cron-guard'
 
 export const runtime = 'nodejs'
 
-function verifyCronAuth(req: NextRequest): boolean {
-  return req.headers.get('Authorization') === `Bearer ${process.env.CRON_SECRET}`
-}
-
 export async function GET(req: NextRequest) {
-  if (!verifyCronAuth(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const denied = denyUnlessCron(req)
+  if (denied) return denied
 
   try {
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)

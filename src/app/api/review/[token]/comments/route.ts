@@ -49,6 +49,8 @@ export async function POST(
       timecode: parsed.data.timecode ?? 0,
       authorName: parsed.data.authorName,
       authorEmail: parsed.data.authorEmail,
+      clipId: parsed.data.clipId,
+      annotationData: parsed.data.annotationData ?? null,
     },
   })
 

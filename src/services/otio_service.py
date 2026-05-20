@@ -200,4 +200,5 @@ def get_extension(fmt: str) -> str:
 
 
 if __name__ == '__main__':
-    app.run(port=7432, debug=False, host='0.0.0.0')
+    port = int(os.environ.get('PORT', '7432'))
+    app.run(port=port, debug=False, host='0.0.0.0')

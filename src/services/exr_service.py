@@ -171,4 +171,5 @@ def parse_exr_minimal(path: str) -> dict:
 
 
 if __name__ == '__main__':
-    app.run(port=7435, debug=False, host='0.0.0.0')
+    port = int(os.environ.get('PORT', '7435'))
+    app.run(port=port, debug=False, host='0.0.0.0')

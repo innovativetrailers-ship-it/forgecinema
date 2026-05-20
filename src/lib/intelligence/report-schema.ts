@@ -1,4 +1,4 @@
-import type { SceneCategory } from '../swarm/types'
+import type { SceneCategory } from '../routing/types'
 
 export interface FailureMode {
   trigger: string

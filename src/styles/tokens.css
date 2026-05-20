@@ -1,4 +1,8 @@
 :root {
+  --font-geist-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-geist-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: var(--font-geist-sans);
+
   /* ── Alias vars (used by legacy components) ── */
   --accent:         #00e5c8;
   --accent-mid:     #00b8a0;

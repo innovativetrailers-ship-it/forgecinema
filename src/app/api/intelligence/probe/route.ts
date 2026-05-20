@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ModelIntelligenceAnalyser } from '@/lib/intelligence/analyser'
 import { PROBE_BATTERY, getProbeSets } from '@/lib/intelligence/probe-battery'
-import type { OutcomeTier } from '@/lib/swarm/types'
+import type { OutcomeTier } from '@/lib/routing/types'
 
 const VALID_MODELS = [
   'veo_3_1', 'kling_3_0', 'seedance_2_0', 'runway_gen4_5',

@@ -17,6 +17,7 @@ interface ReviewData {
   status: string
   allowDownload: boolean
   projectId: string
+  videoUrl: string | null
   comments: ReviewComment[]
 }
 
@@ -32,19 +33,18 @@ export default function ReviewPage() {
   const [submitting, setSubmitting] = useState(false)
   const [annotation, setAnnotation] = useState<{ x: number; y: number } | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  async function loadReview() {
+    const res = await fetch(`/api/review/${token}`)
+    const data = (await res.json()) as ReviewData & { error?: string }
+    if (!res.ok) throw new Error(data.error ?? 'Review not found')
+    setReview(data)
+  }
 
   useEffect(() => {
-    fetch(`/api/review/public/${token}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setReview(data)
-        setLoading(false)
-      })
-      .catch(() => {
-        setError('Review not found or expired')
-        setLoading(false)
-      })
+    loadReview()
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setLoading(false))
   }, [token])
 
   function handleFrameClick(e: React.MouseEvent<HTMLCanvasElement>) {
@@ -52,18 +52,17 @@ export default function ReviewPage() {
     const x = ((e.clientX - rect.left) / rect.width) * 100
     const y = ((e.clientY - rect.top) / rect.height) * 100
     setAnnotation({ x, y })
-    if (videoRef.current) videoRef.current.pause()
+    videoRef.current?.pause()
   }
 
   async function submitComment() {
     if (!commentText.trim() || !authorName.trim() || !authorEmail.trim()) return
     setSubmitting(true)
     try {
-      await fetch('/api/review/comment', {
+      const res = await fetch(`/api/review/${token}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          token,
           authorName,
           authorEmail,
           timecode: currentTime,
@@ -71,23 +70,46 @@ export default function ReviewPage() {
           annotationData: annotation,
         }),
       })
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string }
+        throw new Error(data.error ?? 'Failed to post comment')
+      }
       setCommentText('')
       setAnnotation(null)
-      // Reload comments
-      const data = await fetch(`/api/review/public/${token}`).then((r) => r.json())
-      setReview(data)
+      await loadReview()
+    } catch (err) {
+      alert((err as Error).message)
     } finally {
       setSubmitting(false)
     }
   }
 
-  async function updateStatus(status: 'approved' | 'changes_requested') {
-    await fetch(`/api/review/status/${token}`, {
-      method: 'PATCH',
+  async function submitDecision(decision: 'approved' | 'changes_requested') {
+    if (!authorName.trim() || !authorEmail.trim()) {
+      alert('Enter your name and email before approving or requesting changes.')
+      return
+    }
+    const note =
+      decision === 'changes_requested'
+        ? window.prompt('What changes are needed?') ?? undefined
+        : window.prompt('Optional approval note:') ?? undefined
+
+    const res = await fetch(`/api/review/${token}/approve`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({
+        decision,
+        approverName: authorName,
+        approverEmail: authorEmail,
+        note,
+      }),
     })
-    setReview((prev) => prev ? { ...prev, status } : prev)
+    const data = (await res.json()) as { status?: string; error?: string }
+    if (!res.ok) {
+      alert(data.error ?? 'Failed to submit decision')
+      return
+    }
+    await loadReview()
   }
 
   if (loading) {
@@ -106,29 +128,34 @@ export default function ReviewPage() {
     )
   }
 
-  const statusColor = {
+  const statusColor: Record<string, string> = {
     pending: 'text-[#00e5c8]',
     approved: 'text-green-400',
     changes_requested: 'text-red-400',
-  }[review.status] ?? 'text-gray-400'
+  }
+
+  const videoSrc = review.videoUrl ?? `/api/review/stream/${token}`
 
   return (
     <div className="min-h-screen bg-[#0c0c10] text-white">
-      {/* Header */}
       <div className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">{review.title}</h1>
-          <span className={`text-sm ${statusColor} capitalize`}>{review.status.replace('_', ' ')}</span>
+          <span className={`text-sm capitalize ${statusColor[review.status] ?? 'text-gray-400'}`}>
+            {review.status.replace('_', ' ')}
+          </span>
         </div>
         <div className="flex gap-3">
           <button
-            onClick={() => updateStatus('approved')}
+            type="button"
+            onClick={() => void submitDecision('approved')}
             className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm font-medium transition-colors"
           >
             Approve
           </button>
           <button
-            onClick={() => updateStatus('changes_requested')}
+            type="button"
+            onClick={() => void submitDecision('changes_requested')}
             className="px-4 py-2 bg-red-700 hover:bg-red-600 rounded-lg text-sm font-medium transition-colors"
           >
             Request Changes
@@ -137,7 +164,6 @@ export default function ReviewPage() {
       </div>
 
       <div className="flex gap-6 p-6">
-        {/* Video player */}
         <div className="flex-1">
           <div className="relative bg-black rounded-xl overflow-hidden">
             <video
@@ -148,11 +174,9 @@ export default function ReviewPage() {
                 if (videoRef.current) setCurrentTime(videoRef.current.currentTime)
               }}
             >
-              <source src={`/api/review/stream/${token}`} />
+              <source src={videoSrc} />
             </video>
-            {/* Annotation canvas overlay */}
             <canvas
-              ref={canvasRef}
               className="absolute inset-0 w-full h-full cursor-crosshair"
               onClick={handleFrameClick}
             />
@@ -164,10 +188,18 @@ export default function ReviewPage() {
             )}
           </div>
 
-          {/* Comment form */}
+          {!review.videoUrl && (
+            <p className="mt-2 text-xs text-amber-400">
+              No export found yet — export the project in the editor, then refresh this page.
+            </p>
+          )}
+
           <div className="mt-4 bg-white/5 rounded-xl p-4 space-y-3">
             <div className="text-sm text-gray-400">
-              Comment at {formatTime(currentTime)} {annotation ? `· Pin at (${annotation.x.toFixed(0)}%, ${annotation.y.toFixed(0)}%)` : ''}
+              Comment at {formatTime(currentTime)}
+              {annotation
+                ? ` · Pin at (${annotation.x.toFixed(0)}%, ${annotation.y.toFixed(0)}%)`
+                : ''}
             </div>
             <div className="flex gap-3">
               <input
@@ -193,7 +225,8 @@ export default function ReviewPage() {
             />
             <div className="flex justify-end">
               <button
-                onClick={submitComment}
+                type="button"
+                onClick={() => void submitComment()}
                 disabled={submitting || !commentText.trim()}
                 className="px-4 py-2 bg-[#00e5c8] hover:bg-[#00f0d5] disabled:opacity-50 rounded-lg text-sm font-medium transition-colors"
               >
@@ -203,7 +236,6 @@ export default function ReviewPage() {
           </div>
         </div>
 
-        {/* Comments panel */}
         <div className="w-80 flex-shrink-0 space-y-3">
           <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
             Comments ({review.comments.length})
@@ -218,7 +250,7 @@ export default function ReviewPage() {
                 onClick={() => {
                   if (videoRef.current) {
                     videoRef.current.currentTime = c.timecode
-                    videoRef.current.play()
+                    void videoRef.current.play()
                   }
                 }}
               >

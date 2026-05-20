@@ -52,7 +52,8 @@ export function extractDepthChannel(exr: EXRData): Float32Array | null {
   // Normalise depth to 0-1 range
   let min = Infinity
   let max = -Infinity
-  for (const v of arr) {
+  for (let i = 0; i < arr.length; i++) {
+    const v = arr[i]
     if (isFinite(v)) { if (v < min) min = v; if (v > max) max = v }
   }
   if (max === min) return arr

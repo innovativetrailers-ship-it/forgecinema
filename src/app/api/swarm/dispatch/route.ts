@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { SwarmRouter } from '@/lib/swarm/SwarmRouter'
+import { ShotListRouter } from '@/lib/routing/ShotListRouter'
+
+const DEPRECATION_HEADERS = {
+  Deprecation: 'true',
+  Link: '</api/generate/dispatch>; rel="successor-version"',
+}
 import { checkAndDeductCredits } from '@/lib/credits'
 import { z } from 'zod'
 
@@ -20,13 +25,16 @@ export async function POST(req: NextRequest) {
 
   await checkAndDeductCredits(session.user.id, 'generate_standard', shot_list.estimated_total_credits)
 
-  const swarm = new SwarmRouter()
-  // Dispatch async — client polls via SSE on swarm:projectId channel
-  swarm.dispatch({
+  const router = new ShotListRouter()
+  // Dispatch async — client polls via SSE on generate/{projectId}/stream
+  router.dispatch({
     shotList: shot_list,
     userId: session.user.id,
     projectId,
   }).catch(console.error)
 
-  return NextResponse.json({ status: 'dispatched', projectId })
+  return NextResponse.json(
+    { status: 'dispatched', projectId },
+    { headers: DEPRECATION_HEADERS },
+  )
 }

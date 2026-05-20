@@ -189,7 +189,11 @@ export function TopBar() {
             </button>
           )}
 
-          <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors">
+          <button
+            type="button"
+            onClick={() => useUIStore.getState().openModal('reviewPortal')}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
+          >
             <Share2 size={12} />
             Share
           </button>

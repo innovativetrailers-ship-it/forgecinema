@@ -80,7 +80,7 @@ export function SwarmProgressPanel({ projectId, shots }: SwarmProgressPanelProps
   const startRef = useRef(Date.now())
 
   useEffect(() => {
-    const es = new EventSource(`/api/swarm/${projectId}/stream`)
+    const es = new EventSource(`/api/generate/${projectId}/stream`)
     es.onmessage = (e) => {
       try {
         const event = JSON.parse(e.data) as SwarmEvent

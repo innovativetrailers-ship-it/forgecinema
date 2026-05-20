@@ -2,12 +2,14 @@
   "framework": "nextjs",
   "buildCommand": "npx prisma generate && npm run build",
   "installCommand": "npm install",
-  "outputDirectory": ".next",
 
   "functions": {
     "src/app/api/upload/**": { "maxDuration": 120 },
     "src/app/api/jobs/create/route": { "maxDuration": 60 },
     "src/app/api/jobs/[jobId]/stream/route": { "maxDuration": 300 },
+    "src/app/api/generate/**": { "maxDuration": 300 },
+    "src/app/api/swarm/**": { "maxDuration": 300 },
+    "src/app/api/studio/compositor/render/route": { "maxDuration": 120 },
     "src/app/api/studio/director/route": { "maxDuration": 120 },
     "src/app/api/studio/continuity/route": { "maxDuration": 90 },
     "src/app/api/studio/storyboard/route": { "maxDuration": 90 },

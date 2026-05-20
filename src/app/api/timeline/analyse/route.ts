@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { analyseTimelineEdit } from '@/lib/swarm/timeline-edit'
+import { analyseTimelineEdit } from '@/lib/routing/TimelineEditor'
 import { z } from 'zod'
 
 const schema = z.object({

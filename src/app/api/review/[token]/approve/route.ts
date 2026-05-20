@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { db } from '@/lib/db'
+import { notifyProjectOwner } from '@/lib/review'
+
+const approveSchema = z.object({
+  decision: z.enum(['approved', 'changes_requested']),
+  approverName: z.string().min(1).max(100),
+  approverEmail: z.string().email(),
+  note: z.string().max(2000).optional(),
+})
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ token: string }> }
+  { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params
-  const { approverName, approverEmail, note } = await req.json() as {
-    approverName?: string
-    approverEmail?: string
-    note?: string
-  }
 
   const link = await db.reviewLink.findUnique({ where: { token } })
   if (!link) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -18,16 +22,40 @@ export async function POST(
     return NextResponse.json({ error: 'Link expired' }, { status: 410 })
   }
 
-  // Add an approval comment to record who approved and when
+  const body = await req.json()
+  const parsed = approveSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+  }
+
+  const { decision, approverName, approverEmail, note } = parsed.data
+
+  await db.reviewLink.update({
+    where: { id: link.id },
+    data: { status: decision },
+  })
+
+  const label = decision === 'approved' ? 'APPROVED' : 'CHANGES REQUESTED'
   await db.reviewComment.create({
     data: {
       reviewLinkId: link.id,
-      text: `APPROVED${note ? `: ${note}` : ''}`,
+      text: `${label}${note ? `: ${note}` : ''}`,
       timecode: 0,
-      authorName: approverName ?? 'Approver',
-      authorEmail: approverEmail ?? 'approver@review',
+      authorName: approverName,
+      authorEmail: approverEmail,
     },
   })
 
-  return NextResponse.json({ success: true, status: 'APPROVED' })
+  await notifyProjectOwner({
+    reviewLinkId: token,
+    projectId: link.projectId,
+    ownerUserId: link.userId,
+    title: link.title,
+    decision,
+    approverName,
+    approverEmail,
+    note,
+  })
+
+  return NextResponse.json({ success: true, status: decision })
 }

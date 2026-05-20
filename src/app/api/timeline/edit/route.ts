@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { executeTimelineEdit } from '@/lib/swarm/timeline-edit'
+import { executeTimelineEdit } from '@/lib/routing/TimelineEditor'
 import { checkAndDeductCredits } from '@/lib/credits'
 import { z } from 'zod'
 

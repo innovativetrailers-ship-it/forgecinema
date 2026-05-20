@@ -17,6 +17,10 @@ if [ ! -f ".env.local" ] && [ ! -f ".env" ]; then
   exit 1
 fi
 
+# Python microservices (OTIO, IMF, ShotGrid, EXR)
+echo "▶ Starting Python microservices..."
+bash scripts/start_services.sh
+
 # Main Next.js app
 echo "▶ Starting Next.js dev server..."
 npm run dev &

@@ -1,8 +1,6 @@
 import OpenAI from 'openai'
 import { nanoid } from 'nanoid'
 import type { TimelineRecipe, Track, Clip } from '../timeline/schema'
-import type { VaultCharacter, VaultLocation } from '@prisma/client'
-import { routeToModel } from '../models/router'
 
 const client = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -31,14 +29,31 @@ Your timeline plan must:
 
 Return ONLY valid JSON matching the TimelineRecipe schema.`
 
+type DirectorCharacter = {
+  id: string
+  name: string
+  modelFamily: string | null
+  loraModelId?: string | null
+  loraStatus?: string
+  referenceUrls?: string[]
+}
+
+type DirectorLocation = {
+  id: string
+  name: string
+  generativePrompt: string | null
+  source?: string
+}
+
 export async function runAIDirector(params: {
   brief: string
-  availableCharacters: Pick<VaultCharacter, 'id' | 'name' | 'modelFamily'>[]
-  availableLocations: Pick<VaultLocation, 'id' | 'name' | 'generativePrompt'>[]
+  availableCharacters: DirectorCharacter[]
+  availableLocations: DirectorLocation[]
   targetDuration: number
   style: string
-}): Promise<TimelineRecipe> {
-  const { brief, availableCharacters, availableLocations, targetDuration, style } = params
+  projectId: string
+}): Promise<{ recipe: TimelineRecipe; directorNotes: string }> {
+  const { brief, availableCharacters, availableLocations, targetDuration, style, projectId } = params
 
   const response = await client.chat.completions.create({
     model: 'anthropic/claude-3.5-sonnet',
@@ -69,20 +84,19 @@ The clips together should tell a compelling story matching the brief and style.`
   })
 
   const text = response.choices[0]?.message?.content ?? '{}'
+  const directorNotes = text.replace(/\{[\s\S]*\}/, '').trim() || 'Director plan generated.'
   const jsonMatch = text.match(/\{[\s\S]*\}/)
   if (!jsonMatch) throw new Error('AI Director failed to produce a valid timeline plan')
 
   const plan = JSON.parse(jsonMatch[0]) as Partial<TimelineRecipe>
 
-  // Build a proper TimelineRecipe from the plan
-  const recipeId = nanoid()
   const recipe: TimelineRecipe = {
-    id: recipeId,
-    projectId: '',
-    fps: 24,
-    resolution: { width: 1920, height: 1080 },
+    id: plan.id ?? nanoid(),
+    projectId,
+    fps: plan.fps ?? 24,
+    resolution: plan.resolution ?? { width: 1920, height: 1080 },
     durationSeconds: targetDuration,
-    colorSpace: 'rec709',
+    colorSpace: plan.colorSpace ?? 'rec709',
     tracks: plan.tracks ?? [
       {
         id: `track-${nanoid()}`,
@@ -96,5 +110,75 @@ The clips together should tell a compelling story matching the brief and style.`
     ],
   }
 
-  return recipe
+  return { recipe, directorNotes }
+}
+
+export async function queueDirectorGenerations(
+  recipe: TimelineRecipe,
+  userId: string,
+): Promise<TimelineRecipe> {
+  const { db } = await import('../db')
+  const { renderQueue, getPriorityForRole } = await import('../queue')
+
+  const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } })
+  const priority = getPriorityForRole(user?.role ?? 'FREE')
+
+  const tracks = await Promise.all(
+    recipe.tracks.map(async (track) => {
+      if (track.type !== 'video') return track
+
+      const clips = await Promise.all(
+        track.clips.map(async (clip) => {
+          if (clip.sourceUrl || !clip.prompt) return clip
+
+          const modelId = clip.modelUsed ?? 'wan_2_2'
+          const jobId = nanoid()
+          const duration = Math.max(1, clip.endTime - clip.startTime)
+
+          await db.renderJob.create({
+            data: {
+              id: jobId,
+              userId,
+              projectId: recipe.projectId,
+              type: 'GENERATE',
+              status: 'QUEUED',
+              modelUsed: modelId,
+              inputPayload: {
+                prompt: clip.prompt,
+                duration,
+                characterId: clip.characterId,
+                locationId: clip.locationId,
+                clipId: clip.id,
+              } as never,
+              creditsCharged: 0,
+            },
+          })
+
+          await renderQueue.add(
+            'generate',
+            {
+              jobId,
+              userId,
+              projectId: recipe.projectId,
+              prompt: clip.prompt,
+              duration,
+              modelId,
+              clipId: clip.id,
+            },
+            { priority },
+          )
+
+          return {
+            ...clip,
+            sourceUrl: '',
+            metadata: { ...clip.metadata, jobId, generating: true },
+          } satisfies Clip
+        }),
+      )
+
+      return { ...track, clips }
+    }),
+  )
+
+  return { ...recipe, tracks }
 }

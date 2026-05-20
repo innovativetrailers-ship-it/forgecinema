@@ -19,7 +19,11 @@ const nextConfig: NextConfig = {
     'sharp',
     'music-metadata',
     '@prisma/client',
+    '@prisma/adapter-pg',
+    'prisma',
     'ioredis',
+    'bullmq',
+    'better-sqlite3',
   ],
 
   // Enable typed routes for better DX

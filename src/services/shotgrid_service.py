@@ -4,6 +4,7 @@ Bridges CINÉMA Film Mode with ShotGrid production management.
 Run: python src/services/shotgrid_service.py
 """
 import json
+import os
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
@@ -180,4 +181,5 @@ def import_shots():
 
 
 if __name__ == '__main__':
-    app.run(port=7434, debug=False, host='0.0.0.0')
+    port = int(os.environ.get('PORT', '7434'))
+    app.run(port=port, debug=False, host='0.0.0.0')

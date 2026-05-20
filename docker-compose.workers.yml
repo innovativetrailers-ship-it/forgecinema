@@ -1,0 +1,115 @@
+# BullMQ workers + Python microservices (use alongside docker-compose.yml for local dev).
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.workers.yml --profile workers up -d
+#   docker compose -f docker-compose.yml -f docker-compose.workers.yml --profile python up -d
+
+services:
+  worker-render:
+    image: node:20-bookworm-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    env_file:
+      - .env.local
+    environment:
+      REDIS_URL: redis://:cinema_dev@redis:6379
+      DATABASE_URL: postgresql://cinema:cinema_dev@postgres:5432/cinema
+    command: sh -c "npm ci && npx prisma generate && npm run worker:render"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - workers
+
+  worker-training:
+    image: node:20-bookworm-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    env_file:
+      - .env.local
+    environment:
+      REDIS_URL: redis://:cinema_dev@redis:6379
+      DATABASE_URL: postgresql://cinema:cinema_dev@postgres:5432/cinema
+    command: sh -c "npm ci && npx prisma generate && npm run worker:training"
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - workers
+
+  worker-export:
+    image: node:20-bookworm-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    env_file:
+      - .env.local
+    environment:
+      REDIS_URL: redis://:cinema_dev@redis:6379
+      DATABASE_URL: postgresql://cinema:cinema_dev@postgres:5432/cinema
+      OTIO_SERVICE_URL: http://otio:7432
+      IMF_SERVICE_URL: http://imf:7433
+    command: sh -c "npm ci && npx prisma generate && npm run worker:export"
+    depends_on:
+      redis:
+        condition: service_healthy
+      otio:
+        condition: service_started
+      imf:
+        condition: service_started
+    restart: unless-stopped
+    profiles:
+      - workers
+
+  otio:
+    build:
+      context: .
+      dockerfile: deploy/docker/python-service.Dockerfile
+    environment:
+      SERVICE_MODULE: otio_service
+      PORT: 7432
+    ports:
+      - '7432:7432'
+    profiles:
+      - python
+
+  imf:
+    build:
+      context: .
+      dockerfile: deploy/docker/python-service.Dockerfile
+    environment:
+      SERVICE_MODULE: imf_service
+      PORT: 7433
+    ports:
+      - '7433:7433'
+    profiles:
+      - python
+
+  shotgrid:
+    build:
+      context: .
+      dockerfile: deploy/docker/python-service.Dockerfile
+    environment:
+      SERVICE_MODULE: shotgrid_service
+      PORT: 7434
+    ports:
+      - '7434:7434'
+    profiles:
+      - python
+
+  exr:
+    build:
+      context: .
+      dockerfile: deploy/docker/python-service.Dockerfile
+    environment:
+      SERVICE_MODULE: exr_service
+      PORT: 7435
+    ports:
+      - '7435:7435'
+    profiles:
+      - python

@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { renderQueue, trainingQueue, exportQueue } from '@/lib/queue'
+import { denyUnlessCron } from '@/lib/cron-guard'
 
 export const runtime = 'nodejs'
 
-// Vercel cron authentication
-function verifyCronAuth(req: NextRequest): boolean {
-  return req.headers.get('Authorization') === `Bearer ${process.env.CRON_SECRET}`
-}
-
 export async function GET(req: NextRequest) {
-  if (!verifyCronAuth(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const denied = denyUnlessCron(req)
+  if (denied) return denied
 
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // 7 days ago
 

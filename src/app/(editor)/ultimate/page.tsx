@@ -38,6 +38,7 @@ import { VideoPreview } from '@/components/editor/VideoPreview'
 import { Timeline } from '@/components/editor/Timeline'
 import { PropertiesPanel } from '@/components/editor/PropertiesPanel'
 import { RepaintModal } from '@/components/editor/RepaintModal'
+import { ReviewPortalModal } from '@/components/review/ReviewPortalModal'
 import { useCredits } from '@/hooks/useCredits'
 import { DEFAULT_ZOOM } from '@/components/editor/constants'
 import type { TimelineRecipe, Clip, Track } from '@/lib/timeline/schema'
@@ -593,6 +594,8 @@ export default function UltimatePage() {
           onRepaintComplete={(clipId, newUrl) => { handleClipUpdate(clipId, { sourceUrl: newUrl }); setRepaintClip(null) }}
         />
       )}
+
+      <ReviewPortalModal projectId={projectId.current} />
     </div>
   )
 }

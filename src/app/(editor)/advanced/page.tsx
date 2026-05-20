@@ -11,6 +11,7 @@ import { RightPanel } from '@/components/layout/RightPanel'
 import { VideoPreview } from '@/components/editor/VideoPreview'
 import { Timeline } from '@/components/editor/Timeline'
 import { RepaintModal } from '@/components/editor/RepaintModal'
+import { ReviewPortalModal } from '@/components/review/ReviewPortalModal'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { useStudioStore } from '@/store/editor'
 import { useUIStore } from '@/store/ui'
@@ -342,6 +343,8 @@ export default function AdvancedPage() {
           onRepaintComplete={handleRepaintComplete}
         />
       )}
+
+      <ReviewPortalModal projectId={projectId.current} />
     </div>
   )
 }
