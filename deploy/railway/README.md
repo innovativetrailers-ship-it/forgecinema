@@ -4,7 +4,7 @@ Vercel runs the Next.js app. **Railway** (or Fly.io) runs long-lived processes f
 
 ## Create a Railway project
 
-1. Connect GitHub repo `innovativetrailers-ship-it/forgecinema`.
+1. Connect GitHub repo **`innovativetrailers-ship-it/forgeback`** (workers + Python only — not `forgecinema`).
 2. Add **shared variables** (same as Vercel production): `DATABASE_URL`, `REDIS_URL`, `FAL_KEY`, `R2_*`, `NEXTAUTH_SECRET`, etc.
 3. Set Python service URLs on Vercel after deploy:
    - `OTIO_SERVICE_URL=https://otio-production.up.railway.app`
