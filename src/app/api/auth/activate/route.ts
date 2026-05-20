@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import type { UserRole } from '@/generated/prisma/client'
 
-const ROLE_MAP: Record<string, string> = {
+const ROLE_MAP: Record<string, UserRole> = {
   free: 'FREE',
   pro: 'PRO',
   studio: 'STUDIO',
-  ultimate: 'ULTIMATE',
+  ultimate: 'STUDIO',
 }
 
 const CREDITS_MAP: Record<string, number> = {
@@ -29,9 +30,8 @@ export async function POST(req: NextRequest) {
   await db.user.update({
     where: { id: uid },
     data: {
-      role: ROLE_MAP[planId] as 'FREE' | 'PRO' | 'STUDIO' | 'ULTIMATE' | 'ADMIN',
+      role: ROLE_MAP[planId],
       creditBalance: CREDITS_MAP[planId],
-      subscriptionStatus: planId === 'free' ? 'trial' : 'active',
     },
   })
 

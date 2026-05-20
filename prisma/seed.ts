@@ -1,6 +1,9 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '../src/generated/prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 
-const db = new PrismaClient()
+const db = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
+})
 
 async function main() {
   const DEV_EMAIL = process.env.DEV_ACCOUNT_EMAIL ?? 'innovative.trailers@gmail.com'
@@ -29,5 +32,8 @@ async function main() {
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1) })
+  .catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })
   .finally(() => db.$disconnect())

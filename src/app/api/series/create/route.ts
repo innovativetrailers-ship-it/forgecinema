@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { checkAndDeductCredits, refundCredits } from '@/lib/credits'
+import { checkAndDeductCredits, refundOperationCredits } from '@/lib/credits'
 import { SeriesManager } from '@/lib/series/SeriesManager'
 
 const manager = new SeriesManager()
@@ -25,8 +25,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'title, type, platform, concept and episodeRuntime are required' }, { status: 400 })
   }
 
-  const ok = await checkAndDeductCredits(userId, 'series_bible_generation')
-  if (!ok) return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 })
+  try {
+    await checkAndDeductCredits(userId, 'series_bible_generation')
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 402 })
+  }
 
   try {
     const bible = await manager.generateSeriesBible({
@@ -66,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ series, bible, committed: true }, { status: 201 })
   } catch (err) {
-    await refundCredits(userId, 'series_bible_generation')
+    await refundOperationCredits(userId, 'series_bible_generation')
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Generation failed' }, { status: 500 })
   }
 }

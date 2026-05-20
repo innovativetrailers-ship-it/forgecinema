@@ -12,7 +12,7 @@ interface SubscriptionDetails {
 const ROLE_MAP: Record<string, string> = {
   pro: 'PRO',
   studio: 'STUDIO',
-  ultimate: 'ULTIMATE',
+  ultimate: 'STUDIO',
 }
 
 export async function GET(req: NextRequest) {
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     await db.user.update({
       where: { id: userId },
       data: {
-        role: role as 'PRO' | 'STUDIO' | 'ULTIMATE',
+        role: role as 'PRO' | 'STUDIO',
         creditBalance: TIER_MONTHLY_CREDITS[role] ?? 0,
         subscriptionStatus: 'active',
       },

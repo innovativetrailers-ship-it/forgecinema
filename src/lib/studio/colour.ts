@@ -86,3 +86,35 @@ export async function applyASCCDL(params: {
     if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true })
   }
 }
+
+export async function applyFilmEmulation(
+  videoUrl: string,
+  preset: keyof typeof FILM_EMULATION_LUTS | string,
+  intensity: number,
+): Promise<{ outputUrl: string }> {
+  const lutPath = FILM_EMULATION_LUTS[preset] ?? FILM_EMULATION_LUTS.kodak_5219
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const lutUrl = lutPath.startsWith('http') ? lutPath : `${base}${lutPath}`
+  return applyLUT({ videoUrl, lutUrl, intensity })
+}
+
+export async function applyColourCorrection(params: {
+  videoUrl: string
+  shadows?: number
+  midtones?: number
+  highlights?: number
+  temperature?: number
+  tint?: number
+}): Promise<{ outputUrl: string }> {
+  const lift = (params.shadows ?? 0) * 0.1
+  const gain = 1 + (params.highlights ?? 0) * 0.1
+  const gamma = 1 + (params.midtones ?? 0) * 0.05
+  const sat = 1 + (params.tint ?? 0) * 0.05
+  return applyASCCDL({
+    videoUrl: params.videoUrl,
+    lift: [lift, lift, lift],
+    gamma: [gamma, gamma, gamma],
+    gain: [gain, gain, gain],
+    saturation: sat,
+  })
+}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { checkAndDeductCredits, refundCredits } from '@/lib/credits'
+import { checkAndDeductCredits, refundOperationCredits } from '@/lib/credits'
 import { SeriesManager } from '@/lib/series/SeriesManager'
 
 const manager = new SeriesManager()
@@ -29,8 +29,11 @@ export async function POST(
   if (series.userId !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const creditKey = body.isSocial ? 'social_episode' : 'episode_production'
-  const ok = await checkAndDeductCredits(userId, creditKey)
-  if (!ok) return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 })
+  try {
+    await checkAndDeductCredits(userId, creditKey)
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 402 })
+  }
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
@@ -66,7 +69,7 @@ export async function POST(
         send({ status: 'complete', outputUrl })
         controller.close()
       } catch (err) {
-        await refundCredits(userId, creditKey)
+        await refundOperationCredits(userId, creditKey)
         send({ status: 'error', error: err instanceof Error ? err.message : 'Episode generation failed' })
         controller.close()
       }

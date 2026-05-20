@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { paypalPost } from '@/lib/paypal/client'
-import { addCredits, CREDIT_PACKS } from '@/lib/credits'
+import { addCredits } from '@/lib/credits'
+import { CREDIT_PACKS } from '@/lib/paypal/client'
 
 interface CaptureResult {
   id: string

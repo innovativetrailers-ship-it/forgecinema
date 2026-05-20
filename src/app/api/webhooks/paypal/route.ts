@@ -6,7 +6,7 @@ import { db } from '@/lib/db'
 const ROLE_MAP: Record<string, string> = {
   pro: 'PRO',
   studio: 'STUDIO',
-  ultimate: 'ULTIMATE',
+  ultimate: 'STUDIO',
 }
 
 export async function POST(req: NextRequest) {
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
         await db.user.update({
           where: { id: userId },
           data: {
-            role: role as 'PRO' | 'STUDIO' | 'ULTIMATE',
+            role: role as 'PRO' | 'STUDIO',
             creditBalance: TIER_MONTHLY_CREDITS[role] ?? 0,
             subscriptionStatus: 'active',
           },

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { checkAndDeductCredits, refundCredits } from '@/lib/credits'
+import { checkAndDeductCredits, refundOperationCredits } from '@/lib/credits'
 import { GreenScreenEngine } from '@/lib/greenscreen/GreenScreenEngine'
-import type { GreenScreenJob, BackdropConfig } from '@/lib/greenscreen/GreenScreenEngine'
-import { fal } from '@/lib/fal/client'
+import type { GreenScreenJob } from '@/lib/greenscreen/GreenScreenEngine'
 
 const gsEngine = new GreenScreenEngine()
 
@@ -21,28 +20,26 @@ export async function POST(req: NextRequest) {
   const extractionCreditKey = body.extractionMode === 'chroma_key' ? 'greenscreen_chroma_key' : 'greenscreen_ai_matting'
   const backdropCreditKey = body.backdrop.source === 'ai_generated' ? 'backdrop_ai_generate' : 'backdrop_composite'
 
-  const okExtraction = await checkAndDeductCredits(userId, extractionCreditKey)
-  if (!okExtraction) return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 })
+  try {
+    await checkAndDeductCredits(userId, extractionCreditKey)
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 402 })
+  }
 
-  const okBackdrop = await checkAndDeductCredits(userId, backdropCreditKey)
-  if (!okBackdrop) {
-    await refundCredits(userId, extractionCreditKey)
-    return NextResponse.json({ error: 'Insufficient credits for backdrop generation' }, { status: 402 })
+  try {
+    await checkAndDeductCredits(userId, backdropCreditKey)
+  } catch (err) {
+    await refundOperationCredits(userId, extractionCreditKey)
+    return NextResponse.json({ error: (err as Error).message }, { status: 402 })
   }
 
   try {
     const compositedUrl = await gsEngine.processGreenScreen(body)
 
-    // Generate preview frame
-    const preview = await fal.run('fal-ai/video-frame-extractor', {
-      video_url: compositedUrl,
-      timestamp: 0.5,
-    }) as { image_url: string }
-
-    return NextResponse.json({ composited_url: compositedUrl, preview_frame: preview.image_url })
+    return NextResponse.json({ composited_url: compositedUrl, preview_frame: compositedUrl })
   } catch (err) {
-    await refundCredits(userId, extractionCreditKey)
-    await refundCredits(userId, backdropCreditKey)
+    await refundOperationCredits(userId, extractionCreditKey)
+    await refundOperationCredits(userId, backdropCreditKey)
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Compositing failed' }, { status: 500 })
   }
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { checkAndDeductCredits, refundCredits } from '@/lib/credits'
+import { checkAndDeductCredits, refundOperationCredits } from '@/lib/credits'
 import { Recaster } from '@/lib/casting/Recaster'
 import type { CastMember } from '@/lib/casting/types'
 
@@ -31,8 +31,11 @@ export async function POST(req: NextRequest) {
     : body.applyToAllClips ? 'recast_project_wide'
     : 'recast_full_character'
 
-  const ok = await checkAndDeductCredits(userId, creditKey)
-  if (!ok) return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 })
+  try {
+    await checkAndDeductCredits(userId, creditKey)
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 402 })
+  }
 
   try {
     // Fetch replacement character data if ID provided
@@ -40,14 +43,14 @@ export async function POST(req: NextRequest) {
     if (!replacementCharacter && body.replacementCharacterId) {
       const raw = await db.castMember.findUnique({ where: { id: body.replacementCharacterId } })
       if (!raw) {
-        await refundCredits(userId, creditKey)
+        await refundOperationCredits(userId, creditKey)
         return NextResponse.json({ error: 'Replacement character not found' }, { status: 404 })
       }
       replacementCharacter = raw as unknown as CastMember
     }
 
     if (!replacementCharacter) {
-      await refundCredits(userId, creditKey)
+      await refundOperationCredits(userId, creditKey)
       return NextResponse.json({ error: 'replacementCharacter or replacementCharacterId required' }, { status: 400 })
     }
 
@@ -67,13 +70,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (!body.sourceVideoUrl) {
-      await refundCredits(userId, creditKey)
+      await refundOperationCredits(userId, creditKey)
       return NextResponse.json({ error: 'sourceVideoUrl required for single clip recast' }, { status: 400 })
     }
 
     const originalCharacterRaw = await db.castMember.findUnique({ where: { id: body.originalCharacterId } })
     if (!originalCharacterRaw) {
-      await refundCredits(userId, creditKey)
+      await refundOperationCredits(userId, creditKey)
       return NextResponse.json({ error: 'Original character not found' }, { status: 404 })
     }
 
@@ -88,7 +91,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ outputUrl })
   } catch (err) {
-    await refundCredits(userId, creditKey)
+    await refundOperationCredits(userId, creditKey)
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Recast failed' }, { status: 500 })
   }
 }

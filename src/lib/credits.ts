@@ -217,6 +217,16 @@ export async function handleSubscriptionRenewal(
   })
 }
 
+export async function refundOperationCredits(
+  userId: string,
+  operation: string,
+  reason?: string,
+): Promise<void> {
+  const amount = OPERATION_COSTS[operation] ?? 0
+  if (amount === 0) return
+  await refundCredits(userId, amount, reason ?? `Refund: ${operation}`)
+}
+
 export async function refundCredits(
   userId: string,
   amount: number,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { checkAndDeductCredits, refundCredits } from '@/lib/credits'
+import { checkAndDeductCredits, refundOperationCredits } from '@/lib/credits'
 import { SFXMakeupEngine } from '@/lib/makeup/SFXMakeupEngine'
 import type { MakeupEffect } from '@/lib/casting/types'
 
@@ -30,8 +30,11 @@ export async function POST(req: NextRequest) {
     : 'post_generation')
 
   const creditKey = mode === 'reference_transfer' ? 'makeup_reference_transfer' : 'makeup_sfx_postgeneration'
-  const ok = await checkAndDeductCredits(userId, creditKey)
-  if (!ok) return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 })
+  try {
+    await checkAndDeductCredits(userId, creditKey)
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 402 })
+  }
 
   try {
     let videoUrl: string
@@ -56,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     } else {
       if (!body.effects || body.effects.length === 0) {
-        await refundCredits(userId, creditKey)
+        await refundOperationCredits(userId, creditKey)
         return NextResponse.json({ error: 'effects array required for post_generation mode' }, { status: 400 })
       }
       videoUrl = await engine.applyMakeupPostGeneration({
@@ -68,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ videoUrl, appliedEffects })
   } catch (err) {
-    await refundCredits(userId, creditKey)
+    await refundOperationCredits(userId, creditKey)
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Makeup application failed' }, { status: 500 })
   }
 }

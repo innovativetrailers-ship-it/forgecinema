@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { checkAndDeductCredits, refundCredits } from '@/lib/credits'
+import { checkAndDeductCredits, refundOperationCredits } from '@/lib/credits'
 import { ReferenceVideoAnalyser } from '@/lib/analysis/ReferenceVideoAnalyser'
 
 const analyser = new ReferenceVideoAnalyser()
@@ -26,8 +26,11 @@ export async function POST(req: NextRequest) {
   const depth = body.analysisDepth ?? 'standard'
   const analysisCreditKey = depth === 'quick' ? 'reference_quick_analysis' : 'reference_deep_analysis'
 
-  const ok = await checkAndDeductCredits(userId, analysisCreditKey)
-  if (!ok) return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 })
+  try {
+    await checkAndDeductCredits(userId, analysisCreditKey)
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 402 })
+  }
 
   try {
     const styleDNA = await analyser.analyseReference({
@@ -39,20 +42,22 @@ export async function POST(req: NextRequest) {
     let script: string | undefined
 
     if (body.generateScript && body.newConcept) {
-      const scriptOk = await checkAndDeductCredits(userId, 'reference_script_generate')
-      if (scriptOk) {
+      try {
+        await checkAndDeductCredits(userId, 'reference_script_generate')
         script = await analyser.generateScriptFromReference({
           referenceVideoUrl: body.videoUrl,
           newConcept: body.newConcept,
           format: body.format ?? 'short_film',
           targetRuntime: body.targetRuntime ?? 5,
         })
+      } catch {
+        // Script generation skipped when credits insufficient
       }
     }
 
     return NextResponse.json({ styleDNA, ...(script ? { script } : {}) })
   } catch (err) {
-    await refundCredits(userId, analysisCreditKey)
+    await refundOperationCredits(userId, analysisCreditKey)
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Analysis failed' }, { status: 500 })
   }
 }

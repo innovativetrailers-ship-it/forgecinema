@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 402 })
   }
 
-  const recipe = project.timelineData as ReturnType<typeof JSON.parse>
+  const recipe = project.timelineJson as ReturnType<typeof JSON.parse> | null
   if (!recipe) return NextResponse.json({ error: 'No timeline data found' }, { status: 422 })
 
   // Collect video and audio URLs from the timeline

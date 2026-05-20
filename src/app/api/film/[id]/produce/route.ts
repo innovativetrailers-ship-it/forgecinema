@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { checkAndDeductCredits, refundCredits } from '@/lib/credits'
+import { checkAndDeductCredits, refundOperationCredits } from '@/lib/credits'
 import { FilmDirector } from '@/lib/film/FilmDirector'
 
 const director = new FilmDirector()
@@ -32,8 +32,11 @@ export async function POST(
   const creditCost = body.actId ? 10 : 100
   const creditKey = body.actId ? 'film_act_assembly' : 'film_full_production'
 
-  const ok = await checkAndDeductCredits(userId, creditKey as Parameters<typeof checkAndDeductCredits>[1])
-  if (!ok) return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 })
+  try {
+    await checkAndDeductCredits(userId, creditKey as Parameters<typeof checkAndDeductCredits>[1])
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 402 })
+  }
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
@@ -68,7 +71,7 @@ export async function POST(
         send({ status: 'complete', outputUrl })
         controller.close()
       } catch (err) {
-        await refundCredits(userId, creditKey as Parameters<typeof refundCredits>[1])
+        await refundOperationCredits(userId, creditKey)
         send({ status: 'error', error: err instanceof Error ? err.message : 'Production failed' })
         controller.close()
       }

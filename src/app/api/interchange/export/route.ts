@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Reconstruct TimelineRecipe from project data
-  const recipe = project.timelineData as ReturnType<typeof JSON.parse>
+  const recipe = project.timelineJson as ReturnType<typeof JSON.parse> | null
   if (!recipe) return NextResponse.json({ error: 'No timeline data found for this project' }, { status: 422 })
 
   try {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { checkAndDeductCredits, refundCredits } from '@/lib/credits'
+import { checkAndDeductCredits, refundOperationCredits } from '@/lib/credits'
 import { ReferenceVideoAnalyser } from '@/lib/analysis/ReferenceVideoAnalyser'
 
 const analyser = new ReferenceVideoAnalyser()
@@ -21,8 +21,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'referenceVideoUrl is required' }, { status: 400 })
   }
 
-  const ok = await checkAndDeductCredits(userId, 'reference_style_apply')
-  if (!ok) return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 })
+  try {
+    await checkAndDeductCredits(userId, 'reference_style_apply')
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 402 })
+  }
 
   try {
     const styleDNA = await analyser.analyseReference({
@@ -43,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ styleDNA, updatedShots })
   } catch (err) {
-    await refundCredits(userId, 'reference_style_apply')
+    await refundOperationCredits(userId, 'reference_style_apply')
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Style matching failed' }, { status: 500 })
   }
 }

@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   const project = await db.project.findFirst({ where: { id: projectId, userId } })
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
-  const recipe = project.timelineData as ReturnType<typeof JSON.parse>
+  const recipe = project.timelineJson as ReturnType<typeof JSON.parse> | null
   if (!recipe) return NextResponse.json({ error: 'No timeline data for this project' }, { status: 422 })
 
   // Credit costs per action

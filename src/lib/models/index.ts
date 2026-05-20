@@ -6,9 +6,7 @@ import { fal } from '../fal/client'
 import { generateSkyReels } from './skyreels'
 import { generateLTX } from './ltx'
 import { generateCogVideoX } from './cogvideox'
-import { generatePixverse } from './pixverse'
-
-export { generateSkyReels, generateLTX, generateCogVideoX, generatePixverse }
+export { generateSkyReels, generateLTX, generateCogVideoX }
 
 export interface SwarmPayload {
   prompt: string
