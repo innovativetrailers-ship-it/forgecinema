@@ -1,4 +1,4 @@
-import OpenAI from 'openai'
+import { getOpenRouterClient } from '../brain/openai-client'
 
 export interface QualityReport {
   score: number
@@ -16,12 +16,7 @@ export async function inspectGeneratedClip(params: {
   const frameUrl = await extractMiddleFrame(params.videoUrl)
 
   try {
-    const client = new OpenAI({
-      baseURL: 'https://openrouter.ai/api/v1',
-      apiKey: process.env.OPENROUTER_API_KEY,
-    })
-
-    const response = await client.chat.completions.create({
+    const response = await getOpenRouterClient().chat.completions.create({
       model: 'google/gemini-1.5-pro',
       max_tokens: 500,
       messages: [

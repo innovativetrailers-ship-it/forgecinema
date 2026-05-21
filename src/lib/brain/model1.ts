@@ -1,9 +1,5 @@
-import OpenAI from 'openai'
-
-const client = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY,
-})
+import type OpenAI from 'openai'
+import { getOpenRouterClient } from './openai-client'
 
 export interface Model1Input {
   systemPrompt: string
@@ -40,7 +36,7 @@ export async function runModel1(input: Model1Input): Promise<Model1Output> {
 
   userContent.push({ type: 'text', text: input.userMessage })
 
-  const msg = await client.chat.completions.create({
+  const msg = await getOpenRouterClient().chat.completions.create({
     model: 'groq/llama-3.3-70b-versatile',
     max_tokens: input.requireJSON ? 4096 : 2048,
     messages: [

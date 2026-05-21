@@ -1,14 +1,9 @@
-import OpenAI from 'openai'
 import { execSync } from 'child_process'
 import { mkdirSync, rmSync, existsSync } from 'fs'
 import { join } from 'path'
 import { nanoid } from 'nanoid'
 import type { TimelineRecipe } from '../timeline/schema'
-
-const client = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY,
-})
+import { getOpenRouterClient } from '../brain/openai-client'
 
 interface ContinuityError {
   type: 'prop' | 'costume' | 'lighting' | 'time_jump' | 'character_mismatch'
@@ -59,7 +54,7 @@ export async function checkContinuity(recipe: TimelineRecipe): Promise<Continuit
 
     const clipIds = frames.slice(0, 10).map((f) => f.clipId)
 
-    const response = await client.chat.completions.create({
+    const response = await getOpenRouterClient().chat.completions.create({
       model: 'google/gemini-1.5-pro',
       max_tokens: 2048,
       messages: [

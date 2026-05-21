@@ -1,12 +1,7 @@
-import OpenAI from 'openai'
 import { fal } from '../fal/client'
 import { uploadToR2 } from '../storage/r2'
 import { nanoid } from 'nanoid'
-
-const client = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY,
-})
+import { getOpenRouterClient } from '../brain/openai-client'
 
 export interface StoryboardShot {
   id: string
@@ -36,7 +31,7 @@ export async function generateStoryboard(params: {
   const { scriptText, style, targetDuration } = params
 
   // Step 1: Parse script into shots with Claude
-  const parseResponse = await client.chat.completions.create({
+  const parseResponse = await getOpenRouterClient().chat.completions.create({
     model: 'anthropic/claude-3.5-sonnet',
     max_tokens: 4000,
     messages: [

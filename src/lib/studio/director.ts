@@ -1,11 +1,6 @@
-import OpenAI from 'openai'
 import { nanoid } from 'nanoid'
 import type { TimelineRecipe, Track, Clip } from '../timeline/schema'
-
-const client = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY,
-})
+import { getOpenRouterClient } from '../brain/openai-client'
 
 const DIRECTOR_SYSTEM_PROMPT = `You are the AI Director of CINÉMA — the world's most advanced AI film production platform.
 
@@ -55,7 +50,7 @@ export async function runAIDirector(params: {
 }): Promise<{ recipe: TimelineRecipe; directorNotes: string }> {
   const { brief, availableCharacters, availableLocations, targetDuration, style, projectId } = params
 
-  const response = await client.chat.completions.create({
+  const response = await getOpenRouterClient().chat.completions.create({
     model: 'anthropic/claude-3.5-sonnet',
     max_tokens: 8000,
     messages: [

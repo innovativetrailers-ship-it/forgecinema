@@ -1,9 +1,4 @@
-import OpenAI from 'openai'
-
-const client = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY,
-})
+import { getOpenRouterClient } from './openai-client'
 
 export interface CouncilInput {
   task: string
@@ -21,7 +16,7 @@ export interface CouncilOutput {
 export async function callCouncil(input: CouncilInput): Promise<CouncilOutput> {
   const systemPrompt = `You are a fallback AI for the CINÉMA system. Task: ${input.task}${input.reason ? ` (Reason for fallback: ${input.reason})` : ''}.${input.requireJSON ? ' Return ONLY valid JSON. No markdown. No preamble.' : ''}`
 
-  const msg = await client.chat.completions.create({
+  const msg = await getOpenRouterClient().chat.completions.create({
     model: 'moonshotai/moonshot-v1-8k',
     max_tokens: 4096,
     messages: [
