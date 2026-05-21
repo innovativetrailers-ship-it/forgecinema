@@ -6,14 +6,10 @@
  */
 
 import { Worker } from 'bullmq'
-import IORedis from 'ioredis'
+import { bullmqRedis, bullMQPrefix } from '../lib/redis'
 import { db } from '../lib/db'
 import { runModel1 } from '../lib/brain/model1'
-
-const redis = new IORedis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-  keyPrefix: 'cinema:',
-})
+import { rlhfMeta } from '../lib/brain/rlhf-meta'
 
 const QUALITY_GATE_THRESHOLD = 0.85
 
@@ -34,12 +30,14 @@ const worker = new Worker(
     const signal = await db.rLHFLog.findUnique({ where: { id: signalId } })
     if (!signal) return
 
+    const meta = rlhfMeta(signal)
+
     // Final quality review with Model 1
     const review = await runModel1({
       systemPrompt: `You are a quality gate for an AI video training dataset.
 Evaluate if this video generation result is good enough to be a training example.
 Return JSON: { "approved": boolean, "reason": "string", "dataset": "routing|quality|style|character" }`,
-      userMessage: `Prompt: "${signal.promptRaw}"\nEnhanced: "${signal.promptEnhanced}"\nQuality Score: ${qualityScore}\nVideo: ${signal.videoUrl}`,
+      userMessage: `Prompt: "${meta.promptRaw}"\nEnhanced: "${meta.promptEnhanced}"\nQuality Score: ${qualityScore}\nVideo: ${meta.videoUrl}`,
       requireJSON: true,
     })
 
@@ -54,13 +52,16 @@ Return JSON: { "approved": boolean, "reason": "string", "dataset": "routing|qual
     if (parsed.approved) {
       await db.trainingData.create({
         data: {
-          promptRaw: signal.promptRaw,
-          promptEnhanced: signal.promptEnhanced ?? '',
-          videoUrl: signal.videoUrl ?? '',
-          qualityScore,
-          dataset: parsed.dataset,
-          sourceSignalId: signalId,
-          approved: true,
+          userId: signal.userId,
+          type: parsed.dataset,
+          instruction: meta.promptEnhanced,
+          originalUrl: meta.videoUrl || null,
+          metadata: {
+            promptRaw: meta.promptRaw,
+            qualityScore,
+            sourceSignalId: signalId,
+            approved: true,
+          },
         },
       }).catch(() => { /* table may not exist yet */ })
 
@@ -69,7 +70,7 @@ Return JSON: { "approved": boolean, "reason": "string", "dataset": "routing|qual
       console.log(`[quality-gate] Signal ${signalId} REJECTED — ${parsed.reason}`)
     }
   },
-  { connection: redis, concurrency: 1 }
+  { connection: bullmqRedis, prefix: bullMQPrefix, concurrency: 1 }
 )
 
 worker.on('completed', (job) => console.log(`[quality-gate] Job ${job.id} done`))

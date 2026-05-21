@@ -45,13 +45,19 @@ const FILM_TABS: Array<{ id: FilmToolbarTab; label: string }> = [
 ]
 
 // Maps film toolbar tabs → left panel IDs
-const FILM_TAB_TO_PANEL: Record<FilmToolbarTab, import('@/store/ui').PanelId> = {
-  script:      'script',
-  storyboard:  'storyboard',
+const FILM_TAB_TO_PANEL: Partial<Record<FilmToolbarTab, import('@/store/ui').PanelId>> = {
+  script: 'script',
+  storyboard: 'storyboard',
+  director: 'ai_director',
   ai_director: 'ai_director',
-  continuity:  'continuity',
-  cast:        'cast',
-  locations:   'location',
+  continuity: 'continuity',
+  cast: 'cast',
+  locations: 'location',
+  vfx_mix: 'vfx',
+  audio_mix: 'audio',
+  greenscreen: 'greenscreen',
+  sfx_makeup: 'sfx_makeup',
+  cgi: 'cgi',
 }
 
 const EDIT_TOOLS: Array<{ id: EditTool; icon: React.ReactNode; label: string; key: string }> = [
@@ -70,7 +76,7 @@ export function TopBar() {
   const [purchaseOpen, setPurchaseOpen] = useState(false)
 
   const { mode, setMode, activeTier, setTier, zoom, setZoom, isPlaying, setIsPlaying } = useStudioStore()
-  const { filmToolbarTab, setFilmToolbarTab, editTool, setEditTool, projectName, setProjectName, autoSaveStatus, setActivePanel } = useUIStore()
+  const { filmToolbarTab, setFilmToolbarTab, editTool, setEditTool, projectName, setProjectName, autoSaveStatus, setActivePanel, addToast } = useUIStore()
 
   const isAdvancedOrUltimate = mode === 'advanced' || mode === 'ultimate'
   const isUltimate = mode === 'ultimate'
@@ -89,12 +95,12 @@ export function TopBar() {
       if (selectedClipId) {
         useUIStore.getState().openModal('repaint', { clipId: selectedClipId })
       } else {
-        toast.info('Select a clip in the timeline first, then use Repaint')
+        addToast('Select a clip in the timeline first, then use Repaint', 'info')
       }
     }
-    if (tool === 'motion_brush') toast.info('Motion Brush: paint on the preview to control motion direction')
-    if (tool === 'razor') toast.info('Razor: click a clip in the timeline to split it')
-  }, [setEditTool, selectedClipId])
+    if (tool === 'motion_brush') addToast('Motion Brush: paint on the preview to control motion direction', 'info')
+    if (tool === 'razor') addToast('Razor: click a clip in the timeline to split it', 'info')
+  }, [setEditTool, selectedClipId, addToast])
 
   // Global keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -251,7 +257,8 @@ export function TopBar() {
               onClick={() => {
                 const next = filmToolbarTab === tab.id ? null : tab.id
                 setFilmToolbarTab(next)
-                if (next) setActivePanel(FILM_TAB_TO_PANEL[next])
+                const panel = next ? FILM_TAB_TO_PANEL[next] : undefined
+                if (panel) setActivePanel(panel)
               }}
               className={cn(
                 'px-3 py-1 rounded text-[11px] font-medium transition-all',

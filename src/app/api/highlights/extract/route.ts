@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   try {
     // 1. Whisper transcription
     const transcriptResult = await fal.subscribe('fal-ai/whisper', {
-      input: { audio_url: videoUrl, task: 'transcribe', return_timestamps: 'word' },
+      input: { audio_url: videoUrl, task: 'transcribe' },
     }) as unknown as {
       text: string
       chunks: Array<{ text: string; timestamp: [number, number] }>

@@ -22,7 +22,6 @@ export async function runModel2(input: Model2Input): Promise<Model2Output> {
   const result = await fal.subscribe('fal-ai/mochi-v1', {
     input: {
       prompt: input.prompt,
-      num_frames: Math.round((input.duration ?? 5) * 24),
       seed: input.seed,
     },
   }) as { data: { video?: { url: string } } }

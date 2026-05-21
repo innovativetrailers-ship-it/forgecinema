@@ -77,7 +77,7 @@ export async function importProject(params: {
     case 'avid':
     case 'edl':
     case 'otio': {
-      const file = new File([params.buffer], params.filename)
+      const file = new File([new Uint8Array(params.buffer)], params.filename)
       const recipe = await importTimeline(file, params.filename)
       return {
         recipe,

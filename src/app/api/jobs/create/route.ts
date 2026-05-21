@@ -122,12 +122,12 @@ export async function POST(request: NextRequest) {
 
           await db.renderJob.update({
             where: { id: jobId },
-            data: { status: 'COMPLETED', outputUrl: blendedUrl },
+            data: { status: 'COMPLETE', outputUrl: blendedUrl },
           })
         } catch (err) {
           await db.renderJob.update({
             where: { id: jobId },
-            data: { status: 'FAILED', error: (err as Error).message },
+            data: { status: 'FAILED', errorMessage: (err as Error).message },
           })
         }
       })()

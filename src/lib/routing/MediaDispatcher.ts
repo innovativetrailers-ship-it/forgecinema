@@ -52,9 +52,9 @@ async function getCharacterRefs(characterIds?: string[]): Promise<string[]> {
   const { db } = await import('../db')
   const chars = await db.vaultCharacter.findMany({
     where: { id: { in: characterIds } },
-    select: { referenceImageUrls: true },
+    select: { referenceUrls: true },
   })
-  return chars.flatMap((c) => c.referenceImageUrls ?? [])
+  return chars.flatMap((c) => c.referenceUrls ?? [])
 }
 
 export async function dispatchClip(params: {

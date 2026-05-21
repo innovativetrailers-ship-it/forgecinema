@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       timecode,
       clipId,
       text,
-      annotationData: annotationData ?? null,
+      annotationData: (annotationData ?? null) as never,
     },
   })
 

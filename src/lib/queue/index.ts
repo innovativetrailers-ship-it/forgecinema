@@ -1,7 +1,7 @@
 import { Queue, QueueEvents } from 'bullmq'
-import { redis } from '../redis'
+import { bullmqRedis, bullMQPrefix } from '../redis'
 
-const connection = { connection: redis }
+const connection = { connection: bullmqRedis, prefix: bullMQPrefix }
 
 export const renderQueue = new Queue('render', {
   ...connection,

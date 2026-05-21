@@ -32,8 +32,8 @@ export async function POST(req: Request) {
     const project = await db.project.create({
       data: {
         userId: session.user.id,
-        name: body.projectName ?? body.filename.replace(/\.[^.]+$/, ''),
-        timelineJson: JSON.stringify(result.recipe),
+        title: body.projectName ?? body.filename.replace(/\.[^.]+$/, ''),
+        timelineJson: result.recipe as never,
         status: result.offlineMedia.length > 0 ? 'needs_relink' : 'active',
       },
     })

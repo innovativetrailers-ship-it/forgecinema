@@ -21,7 +21,7 @@ export function Preview() {
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const hideControlsTimer = useRef<ReturnType<typeof setTimeout>>()
+  const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const [volume, setVolume] = useState(1)
   const [isMuted, setIsMuted] = useState(false)

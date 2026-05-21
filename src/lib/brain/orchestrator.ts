@@ -65,12 +65,17 @@ Keep it under 200 words. Focus on: composition, lighting, motion, atmosphere.`,
     await db.rLHFLog.create({
       data: {
         userId: job.userId,
-        promptRaw: job.prompt,
-        promptEnhanced: enhancedPrompt,
-        videoUrl: generated.videoUrl,
-        qualityScore: evaluation.score,
-        iteration: iter,
-        tier: job.tier,
+        sessionId: `orch_${job.userId}_${Date.now()}`,
+        promptText: enhancedPrompt,
+        modelOptions: {
+          rawPrompt: job.prompt,
+          iteration: iter,
+          tier: job.tier,
+          videoUrl: generated.videoUrl,
+          qualityScore: evaluation.score,
+        },
+        selectedModel: 'mochi-v1',
+        selectedIdx: iter,
       },
     }).catch(() => { /* rLHFLog may not be migrated yet */ })
 

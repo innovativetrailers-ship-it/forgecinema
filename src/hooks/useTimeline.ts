@@ -1,9 +1,45 @@
 'use client'
 
-import { useEditorStore } from '@/store/editor'
+import { useEditorStore, type Clip, type TimelineRecipe, type Track } from '@/store/editor'
 import { useCallback } from 'react'
 import { nanoid } from 'nanoid'
-import type { Track, TimelineClip } from '@/lib/models/types'
+
+const parseResolution = (resolution: string) => {
+  const [w, h] = resolution.split('x').map((n) => parseInt(n, 10))
+  return { width: Number.isFinite(w) ? w : 1920, height: Number.isFinite(h) ? h : 1080 }
+}
+
+const emptyClip = (
+  trackId: string,
+  startTime: number,
+  duration: number,
+  videoUrl: string,
+): Clip => ({
+  id: nanoid(),
+  trackId,
+  startTime,
+  duration,
+  videoUrl,
+  proxyUrl: null,
+  thumbnailUrl: null,
+  prompt: '',
+  engineUsed: 'imported',
+  tier: 'Draft',
+  characterIds: [],
+  locationId: null,
+  isGenerating: false,
+  generationProgress: 0,
+  jobId: null,
+  trimIn: 0,
+  trimOut: duration,
+  volume: 1,
+  opacity: 1,
+  speed: 1,
+  colourGradeJson: null,
+  sfxMakeupJson: null,
+  src: videoUrl,
+  type: 'video',
+})
 
 export function useTimeline() {
   const {
@@ -28,47 +64,43 @@ export function useTimeline() {
   const initTimeline = useCallback(
     (fps: number = 24, resolution: string = '1920x1080') => {
       const defaultTracks: Track[] = [
-        { id: nanoid(), type: 'video', name: 'VIDEO 1', clips: [] },
-        { id: nanoid(), type: 'video', name: 'VIDEO 2', clips: [] },
-        { id: nanoid(), type: 'fx', name: 'VFX', clips: [] },
-        { id: nanoid(), type: 'audio', name: 'MUSIC', clips: [], volume: 80 },
-        { id: nanoid(), type: 'audio', name: 'VOICE', clips: [], volume: 100 },
-        { id: nanoid(), type: 'audio', name: 'SFX', clips: [], volume: 70 },
+        { id: nanoid(), type: 'video', name: 'VIDEO 1', label: 'VIDEO 1', height: 72, muted: false, locked: false, solo: false, clips: [] },
+        { id: nanoid(), type: 'video', name: 'VIDEO 2', label: 'VIDEO 2', height: 72, muted: false, locked: false, solo: false, clips: [] },
+        { id: nanoid(), type: 'vfx', name: 'VFX', label: 'VFX', height: 72, muted: false, locked: false, solo: false, clips: [] },
+        { id: nanoid(), type: 'audio', name: 'MUSIC', label: 'MUSIC', height: 48, muted: false, locked: false, solo: false, volume: 0.8, clips: [] },
+        { id: nanoid(), type: 'audio', name: 'VOICE', label: 'VOICE', height: 48, muted: false, locked: false, solo: false, volume: 1, clips: [] },
+        { id: nanoid(), type: 'audio', name: 'SFX', label: 'SFX', height: 48, muted: false, locked: false, solo: false, volume: 0.7, clips: [] },
       ]
-      setTimeline({
+      const recipe: TimelineRecipe = {
         id: nanoid(),
+        projectId: '',
         fps,
-        resolution,
+        resolution: parseResolution(resolution),
+        totalDuration: 0,
         durationSeconds: 0,
+        colourSpace: 'rec709',
         tracks: defaultTracks,
-      })
+      }
+      setTimeline(recipe)
     },
-    [setTimeline]
+    [setTimeline],
   )
 
   const appendClip = useCallback(
-    (trackId: string, sourceUrl: string, duration: number, type: TimelineClip['type'] = 'video') => {
+    (trackId: string, sourceUrl: string, duration: number) => {
       const track = timeline?.tracks.find((t) => t.id === trackId)
       if (!track) return
 
       const startTime = track.clips.reduce(
         (max, c) => Math.max(max, c.startTime + c.duration),
-        0
+        0,
       )
 
-      const clip: TimelineClip = {
-        id: nanoid(),
-        trackId,
-        startTime,
-        duration,
-        sourceUrl,
-        type,
-      }
-
+      const clip = emptyClip(trackId, startTime, duration, sourceUrl)
       addClipToTrack(trackId, clip)
       return clip
     },
-    [timeline, addClipToTrack]
+    [timeline, addClipToTrack],
   )
 
   const getSelectedClip = useCallback(() => {

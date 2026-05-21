@@ -7,6 +7,8 @@ const commentSchema = z.object({
   timecode: z.number().optional().default(0),
   authorName: z.string().min(1),
   authorEmail: z.string().email(),
+  clipId: z.string().optional(),
+  annotationData: z.unknown().optional(),
 })
 
 export async function GET(
@@ -50,7 +52,7 @@ export async function POST(
       authorName: parsed.data.authorName,
       authorEmail: parsed.data.authorEmail,
       clipId: parsed.data.clipId,
-      annotationData: parsed.data.annotationData ?? null,
+      annotationData: (parsed.data.annotationData ?? null) as never,
     },
   })
 

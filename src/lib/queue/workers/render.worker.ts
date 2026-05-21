@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq'
-import { redis } from '../../redis'
+import { redis, bullmqRedis, bullMQPrefix } from '../../redis'
 import { startHeartbeat } from '../heartbeat'
 import { db } from '../../db'
 import { broadcastJobEvent } from '../events'
@@ -384,7 +384,8 @@ export const renderWorker = new Worker<RenderJobPayload>(
     }
   },
   {
-    connection: redis,
+    connection: bullmqRedis,
+    prefix: bullMQPrefix,
     concurrency: 5,
     limiter: { max: 20, duration: 60000 },
   }

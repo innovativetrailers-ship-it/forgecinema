@@ -310,5 +310,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   closeRepaintModal: () => set({ isRepaintModalOpen: false, repaintSelection: null }),
 }))
 
+export type AppMode = EditorState['mode']
+export type OutcomeTier = EditorState['activeTier']
+
 // Backward-compat alias
 export const useStudioStore = useEditorStore

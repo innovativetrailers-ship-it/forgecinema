@@ -145,7 +145,7 @@ export class LongFormOrchestrator {
       try {
         const frameResult = await fal.run('fal-ai/video-frame-extractor', {
           input: { video_url: lastResult.output_url, timestamp: 999 },
-        }) as { image_url?: string }
+        }) as unknown as { image_url?: string }
 
         lastShot.character_ids.forEach(charId => {
           const existing = newContext.establishedCharacters.findIndex(c => c.characterId === charId)

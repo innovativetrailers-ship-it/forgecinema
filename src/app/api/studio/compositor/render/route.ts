@@ -10,7 +10,7 @@ const schema = z.object({
     connections: z.array(z.unknown()),
     outputNodeId: z.string().optional(),
   }),
-  mediaUrls: z.record(z.string()).optional(),
+  mediaUrls: z.record(z.string(), z.string()).optional(),
 })
 
 export const runtime = 'nodejs'

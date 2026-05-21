@@ -29,28 +29,34 @@ export class Recaster {
     if (!bestReference) throw new Error('Replacement character has no face references')
 
     const frame = await fal.run('fal-ai/video-frame-extractor', {
-      video_url: sourceVideoUrl, timestamp: 0.5,
-    }) as { image_url: string }
+      input: { video_url: sourceVideoUrl, timestamp: 0.5 },
+    }) as unknown as { image_url: string }
 
     const faceSwapped = await fal.run('fal-ai/face-swap-v2', {
-      source_image_url: frame.image_url,
-      reference_image_url: bestReference,
-      strength: intensity,
+      input: {
+        source_image_url: frame.image_url,
+        reference_image_url: bestReference,
+        strength: intensity,
+      },
     }).catch(async () => {
       return fal.run('fal-ai/flux-general/image-to-image', {
-        image_url: frame.image_url,
-        prompt: `Replace the face in this image with: ${replacementCharacter.baseAppearance.promptDescription}. Keep all other aspects of the image identical including body, clothes, and background.`,
-        strength: intensity * 0.4,
+        input: {
+          image_url: frame.image_url,
+          prompt: `Replace the face in this image with: ${replacementCharacter.baseAppearance.promptDescription}. Keep all other aspects of the image identical including body, clothes, and background.`,
+          strength: intensity * 0.4,
+        },
       })
-    }) as { image?: { url: string }; images?: Array<{ url: string }> }
+    }) as unknown as { image?: { url: string }; images?: Array<{ url: string }> }
 
     const swappedFrameUrl = faceSwapped.image?.url ?? faceSwapped.images?.[0]?.url
 
     const videoResult = await fal.run('fal-ai/seedance-v1-pro-i2v', {
-      image_url: swappedFrameUrl,
-      prompt: `${replacementCharacter.baseAppearance.promptDescription}, same action and motion as original`,
-      duration: 5,
-    }) as { video: { url: string } }
+      input: {
+        image_url: swappedFrameUrl,
+        prompt: `${replacementCharacter.baseAppearance.promptDescription}, same action and motion as original`,
+        duration: 5,
+      },
+    }) as unknown as { video: { url: string } }
 
     return videoResult.video.url
   }
@@ -59,21 +65,25 @@ export class Recaster {
     const { sourceVideoUrl, replacementCharacter } = params
 
     const poseResult = await fal.run('fal-ai/dwpose', {
-      image_url: sourceVideoUrl,
-    }) as { image_url: string }
+      input: { image_url: sourceVideoUrl },
+    }) as unknown as { image_url: string }
 
     const recast = await fal.run('fal-ai/flux-controlnet', {
-      control_image_url: poseResult.image_url,
-      prompt: `${replacementCharacter.baseAppearance.promptDescription}, same pose and action`,
-      controlnet_type: 'pose',
-    }) as { images: Array<{ url: string }> }
+      input: {
+        control_image_url: poseResult.image_url,
+        prompt: `${replacementCharacter.baseAppearance.promptDescription}, same pose and action`,
+        controlnet_type: 'pose',
+      },
+    }) as unknown as { images: Array<{ url: string }> }
 
     const animated = await fal.run('fal-ai/seedance-v1-pro-i2v', {
-      image_url: recast.images[0].url,
-      image_references: replacementCharacter.faceReferenceUrls.slice(0, 3),
-      prompt: `${replacementCharacter.baseAppearance.promptDescription}, same motion as original video`,
-      duration: 5,
-    }) as { video: { url: string } }
+      input: {
+        image_url: recast.images[0].url,
+        image_references: replacementCharacter.faceReferenceUrls.slice(0, 3),
+        prompt: `${replacementCharacter.baseAppearance.promptDescription}, same motion as original video`,
+        duration: 5,
+      },
+    }) as unknown as { video: { url: string } }
 
     return animated.video.url
   }
@@ -82,20 +92,24 @@ export class Recaster {
     const { sourceVideoUrl, replacementCharacter } = params
 
     const frame = await fal.run('fal-ai/video-frame-extractor', {
-      video_url: sourceVideoUrl, timestamp: 0.5,
-    }) as { image_url: string }
+      input: { video_url: sourceVideoUrl, timestamp: 0.5 },
+    }) as unknown as { image_url: string }
 
     const restyle = await fal.run('fal-ai/flux-general/image-to-image', {
-      image_url: frame.image_url,
-      prompt: replacementCharacter.baseAppearance.promptDescription,
-      strength: 0.55,
-    }) as { images: Array<{ url: string }> }
+      input: {
+        image_url: frame.image_url,
+        prompt: replacementCharacter.baseAppearance.promptDescription,
+        strength: 0.55,
+      },
+    }) as unknown as { images: Array<{ url: string }> }
 
     const result = await fal.run('fal-ai/seedance-v1-pro-i2v', {
-      image_url: restyle.images[0].url,
-      prompt: replacementCharacter.baseAppearance.promptDescription,
-      duration: 5,
-    }) as { video: { url: string } }
+      input: {
+        image_url: restyle.images[0].url,
+        prompt: replacementCharacter.baseAppearance.promptDescription,
+        duration: 5,
+      },
+    }) as unknown as { video: { url: string } }
 
     return result.video.url
   }

@@ -73,9 +73,8 @@ export class ReferenceVideoAnalyser {
     const frames = await Promise.all(
       sampleTimestamps.map(ts =>
         fal.run('fal-ai/video-frame-extractor', {
-          video_url: params.videoUrl,
-          timestamp: ts,
-        }).then(r => (r as { image_url: string }).image_url)
+          input: { video_url: params.videoUrl, timestamp: ts },
+        }).then((r) => (r as unknown as { image_url: string }).image_url)
       )
     )
 
@@ -210,7 +209,7 @@ Write in Fountain screenplay format. Target runtime: ${params.targetRuntime} min
         ? `${shot.prompt_enhanced}\n\nStyle reference: ${styleInjection}`
         : styleInjection,
       colourGradeInstruction: colourInjection,
-      averageShotDuration: styleDNA.editingStyle.averageShotDuration,
+      averageShotDuration: styleDNA.cinematography.averageShotDuration,
     }))
   }
 }

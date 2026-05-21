@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
         type: 'GENERATE',
         status: 'QUEUED',
         modelUsed: modelId,
-        inputPayload: payload,
+        inputPayload: payload as never,
         creditsCharged: 0,
       },
     })

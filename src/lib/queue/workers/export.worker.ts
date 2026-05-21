@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq'
-import { redis } from '../../redis'
+import { bullmqRedis, bullMQPrefix } from '../../redis'
 import { db } from '../../db'
 import { broadcastJobEvent } from '../events'
 import { refundCredits } from '../../credits'
@@ -98,7 +98,8 @@ export const exportWorker = new Worker<ExportJobPayload>(
     }
   },
   {
-    connection: redis,
+    connection: bullmqRedis,
+    prefix: bullMQPrefix,
     concurrency: 3,
   }
 )

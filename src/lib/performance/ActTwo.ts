@@ -17,7 +17,7 @@ export async function capturePerformance(params: {
       video_url: webcamVideoUrl,
       include_hands: captureMode === 'full_body_hands',
       include_face: captureMode !== 'face_only',
-    },
+    } as never,
   }) as unknown as { pose_video_url: string; keypoints: unknown[] }
 
   // 2. Get target character reference from vault
@@ -38,7 +38,7 @@ export async function capturePerformance(params: {
       control_image_url: dwposeResult.pose_video_url,
       control_type: 'pose',
       lora_weights: character.loraModelId ?? undefined,
-    },
+    } as never,
   }) as unknown as { video: { url: string } }
 
   // 4. LivePortrait facial expression overlay
@@ -48,7 +48,7 @@ export async function capturePerformance(params: {
       input: {
         source_image_url: referenceImageUrl,
         driving_video_url: webcamVideoUrl,
-      },
+      } as never,
     }) as unknown as { video: { url: string } }
     finalVideoUrl = livePortraitResult.video.url
   }

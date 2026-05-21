@@ -19,29 +19,35 @@ const DISTILLATION_INTERVAL_MS = 6 * 60 * 60 * 1000 // every 6 hours
 async function runDistillation() {
   console.log('[distillation] Starting distillation run...')
 
-  // Fetch recent approved training data
-  const signals = await db.trainingData.findMany({
-    where: { approved: true },
+  const rows = await db.trainingData.findMany({
     orderBy: { createdAt: 'desc' },
     take: 200,
   }).catch(() => [] as Awaited<ReturnType<typeof db.trainingData.findMany>>)
+
+  const signals = rows.filter((row) => {
+    const meta = (row.metadata ?? {}) as Record<string, unknown>
+    return meta.approved === true
+  })
 
   if (signals.length === 0) {
     console.log('[distillation] No approved signals found, skipping.')
     return
   }
 
-  // Group by dataset type
   const byDataset: Record<string, typeof signals> = {}
   for (const sig of signals) {
-    const ds = sig.dataset ?? 'general'
+    const meta = (sig.metadata ?? {}) as Record<string, unknown>
+    const ds = typeof meta.dataset === 'string' ? meta.dataset : 'general'
     byDataset[ds] = [...(byDataset[ds] ?? []), sig]
   }
 
   for (const [dataset, datasetSignals] of Object.entries(byDataset)) {
-    const summary = datasetSignals.map((s) =>
-      `Prompt: "${s.promptRaw}" | Quality: ${s.qualityScore?.toFixed(2)} | Dataset: ${s.dataset}`
-    ).join('\n')
+    const summary = datasetSignals.map((s) => {
+      const meta = (s.metadata ?? {}) as Record<string, unknown>
+      const promptRaw = typeof meta.promptRaw === 'string' ? meta.promptRaw : s.instruction ?? ''
+      const qualityScore = typeof meta.qualityScore === 'number' ? meta.qualityScore : null
+      return `Prompt: "${promptRaw}" | Quality: ${qualityScore?.toFixed(2) ?? 'n/a'} | Dataset: ${dataset}`
+    }).join('\n')
 
     const report = await runModel1({
       systemPrompt: `You are analysing a batch of high-quality AI video generation examples for the "${dataset}" dataset.

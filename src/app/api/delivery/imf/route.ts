@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     const zipBuffer = Buffer.from(await imfResponse.arrayBuffer())
     const packageId = `imf_${Date.now()}`
 
-    return new NextResponse(zipBuffer, {
+    return new NextResponse(new Uint8Array(zipBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/zip',

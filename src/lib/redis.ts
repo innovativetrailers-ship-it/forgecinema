@@ -58,6 +58,26 @@ export const redis =
 
 if (process.env.NODE_ENV !== 'production') globalForRedis.redis = redis
 
+// BullMQ cannot use ioredis `keyPrefix` — use BullMQ's `prefix` option instead.
+export function createBullMQConnection(): Redis {
+  return new Redis(buildRedisUrl(), {
+    maxRetriesPerRequest: null,
+    lazyConnect: true,
+    tls: {},
+    enableOfflineQueue: false,
+    reconnectOnError: (err: Error) => err.message.includes('READONLY'),
+  })
+}
+
+const globalForBullMQ = globalThis as unknown as { bullmqRedis: Redis }
+
+export const bullmqRedis =
+  globalForBullMQ.bullmqRedis ?? createBullMQConnection()
+
+if (process.env.NODE_ENV !== 'production') globalForBullMQ.bullmqRedis = bullmqRedis
+
+export const bullMQPrefix = CINEMA_KEY_PREFIX
+
 // ── Pub/Sub channel helper ────────────────────────────────────
 // ioredis `keyPrefix` does NOT apply to pub/sub channel names.
 // Always run channel strings through this function before publish/subscribe.

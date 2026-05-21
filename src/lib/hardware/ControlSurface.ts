@@ -67,6 +67,7 @@ export async function initMIDIControlSurface(
     // Listen for new devices plugged in
     midiAccess.onstatechange = (e) => {
       const port = e.port
+      if (!port) return
       if (port.type === 'input' && port.state === 'connected') {
         ;(port as MIDIInput).onmidimessage = handleMIDIMessage
       }

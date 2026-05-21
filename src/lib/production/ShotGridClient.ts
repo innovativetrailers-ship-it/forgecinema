@@ -17,7 +17,7 @@ export interface ShotGridShot {
 
 const SHOTGRID_SERVICE = process.env.SHOTGRID_SERVICE_URL ?? 'http://localhost:7434'
 
-async function callService<T>(endpoint: string, body: Record<string, unknown>): Promise<T> {
+async function callService<T>(endpoint: string, body: object): Promise<T> {
   const res = await fetch(`${SHOTGRID_SERVICE}/${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -1,5 +1,5 @@
 import { db } from '../db'
-import type { UserRole } from '@prisma/client'
+import type { UserRole } from '@/generated/prisma/client'
 
 const ROLE_MAP: Record<string, UserRole> = {
   free:     'FREE',

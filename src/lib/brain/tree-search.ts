@@ -2,7 +2,7 @@ import { runModel1 } from './model1'
 import { db } from '../db'
 import { nanoid } from 'nanoid'
 import type { TimelineRecipe, Track } from '../timeline/schema'
-import type { VaultCharacter } from '@prisma/client'
+import type { VaultCharacter } from '@/generated/prisma/client'
 
 interface FilmPlan {
   title: string
@@ -89,7 +89,7 @@ FilmPlan schema:
           rejectedPlans,
           numBranches,
           targetDuration,
-        },
+        } as never,
         isProcessed: false,
       },
     }).catch(() => {})

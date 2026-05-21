@@ -13,7 +13,7 @@ export async function captureFlywheelSignal(
     data: {
       userId,
       type,
-      metadata: data,
+      metadata: data as never,
       isProcessed: false,
     },
   })

@@ -144,7 +144,8 @@ Return JSON array of shots.`,
     for (let i = 0; i < actUrls.length; i++) {
       const p = path.join(tmp, `act_${i + 1}.mp4`)
       const resp = await fetch(actUrls[i])
-      await pipeline(resp.body as NodeJS.ReadableStream, createWriteStream(p))
+      if (!resp.body) throw new Error(`Failed to download act ${i + 1}`)
+      await pipeline(resp.body as unknown as NodeJS.ReadableStream, createWriteStream(p))
       localPaths.push(p)
     }
 

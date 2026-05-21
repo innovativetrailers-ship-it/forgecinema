@@ -4,6 +4,7 @@ import { useEditorStore } from '@/store/editor'
 import { RelinkMediaModal } from './RelinkMediaModal'
 import type { ImportResult, ImportSourceApp } from '@/lib/importers/ProjectImporter'
 import type { TimelineRecipe } from '@/lib/timeline/schema'
+import { toEditorTimelineRecipe } from '@/lib/timeline/to-editor-recipe'
 
 type ImportStep = 'drop' | 'detecting' | 'options' | 'importing' | 'relink' | 'done'
 
@@ -125,7 +126,7 @@ export function ImportProjectPanel({ onClose }: ImportProjectPanelProps) {
       if (result.offlineMedia.length > 0) {
         setStep('relink')
       } else {
-        setRecipe(result.recipe)
+        setRecipe(toEditorTimelineRecipe(result.recipe))
         setStep('done')
       }
     } catch (err) {
@@ -137,7 +138,7 @@ export function ImportProjectPanel({ onClose }: ImportProjectPanelProps) {
   const handleRelinkDone = (relinks: Record<string, string>) => {
     if (!importResult) return
     const updatedRecipe = applyRelinkToRecipe(importResult.recipe, relinks)
-    setRecipe(updatedRecipe)
+    setRecipe(toEditorTimelineRecipe(updatedRecipe))
     setStep('done')
   }
 
@@ -277,7 +278,7 @@ export function ImportProjectPanel({ onClose }: ImportProjectPanelProps) {
             offlineMedia={importResult.offlineMedia}
             onRelinked={handleRelinkDone}
             onClose={() => {
-              setRecipe(importResult.recipe)
+              setRecipe(toEditorTimelineRecipe(importResult.recipe))
               setStep('done')
             }}
           />

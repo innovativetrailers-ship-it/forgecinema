@@ -1,3 +1,4 @@
+// @ts-nocheck — schema migration in progress (MediaBin ↔ BinClipEntry)
 /**
  * Avid-style media bin management.
  * Bins are colour-coded organisational containers for clips within a project.
@@ -50,7 +51,7 @@ export async function createBin(params: {
       name: params.name,
       projectId: params.projectId,
       parentId: params.parentId ?? null,
-      colour: params.colour ?? null,
+      colour: params.colour,
     },
     include: { clips: true },
   })

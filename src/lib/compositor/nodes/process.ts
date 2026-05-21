@@ -2,10 +2,11 @@ import type { CompositorNode } from '../schema'
 import type { CompositorFrame, NodeInputs } from '../frame'
 import { loadEXRFromURL } from '../EXRLoader'
 
-type SharpInstance = typeof import('sharp')
+type SharpFactory = (input?: import('sharp').SharpOptions | Buffer) => import('sharp').Sharp
 
-async function sharp(): Promise<SharpInstance> {
-  return import('sharp')
+async function sharp(): Promise<SharpFactory> {
+  const mod = await import('sharp')
+  return (mod as unknown as { default: SharpFactory }).default
 }
 
 function num(v: unknown, fallback: number): number {

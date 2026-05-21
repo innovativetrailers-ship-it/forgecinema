@@ -48,7 +48,7 @@ export async function removeFillersAndSilence(params: {
 
   // Whisper transcription with word-level timestamps
   const transcriptResult = await fal.subscribe('fal-ai/whisper', {
-    input: { audio_url: audioUrl, task: 'transcribe', return_timestamps: 'word' },
+    input: { audio_url: audioUrl, task: 'transcribe' },
   }) as unknown as { chunks: Array<{ text: string; timestamp: [number, number] }> }
 
   // Parse word-level timestamps

@@ -25,6 +25,8 @@ const MODEL_PROFILES: Record<ModelId, {
   pika_2_2:       { grainLevel: 0.14, colourTemp: 300,   contrastBias:  0.12, saturationBias:  0.15, compressionSharpness: 0.80 },
   minimax_hailuo: { grainLevel: 0.16, colourTemp: -150,  contrastBias: -0.03, saturationBias:  0.02, compressionSharpness: 0.83 },
   mochi_1:        { grainLevel: 0.28, colourTemp: 0,     contrastBias:  0.00, saturationBias:  0.00, compressionSharpness: 0.70 },
+  pixverse:       { grainLevel: 0.14, colourTemp: 80,    contrastBias:  0.06, saturationBias:  0.09, compressionSharpness: 0.84 },
+  hunyuan_1_5:    { grainLevel: 0.20, colourTemp: 120,   contrastBias:  0.07, saturationBias:  0.11, compressionSharpness: 0.78 },
 }
 
 // ── CINÉMA house look target ─────────────────────────────────
@@ -131,7 +133,7 @@ export class SeamlessBlender {
               prompt: 'match lighting temperature and colour tone of reference',
               reference_image: lastFrameUrl,
             },
-          }) as { image_url?: string }
+          }) as unknown as { image_url?: string }
 
           await this.applyProgressiveBoundaryGrade(
             normalised[i + 1].localPath,
@@ -243,7 +245,7 @@ export class SeamlessBlender {
     const fileBuffer = await fs.readFile(clipPath)
     const tempUrl = await uploadToR2(fileBuffer, `temp/frame-extract-${Date.now()}.mp4`, 'video/mp4')
     const timestamp = position === 'first' ? 0.1 : 999
-    const result = await fal.run('fal-ai/video-frame-extractor', { input: { video_url: tempUrl, timestamp } }) as { image_url?: string }
+    const result = await fal.run('fal-ai/video-frame-extractor', { input: { video_url: tempUrl, timestamp } }) as unknown as { image_url?: string }
     return result.image_url ?? tempUrl
   }
 

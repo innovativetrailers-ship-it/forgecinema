@@ -8,6 +8,7 @@ import { AIDirectorPanel } from '@/components/panels/AIDirectorPanel'
 import { ContinuityPanel } from '@/components/panels/ContinuityPanel'
 import { LocationPanel } from '@/components/panels/LocationPanel'
 import { GeneratePanel } from '@/components/panels/GeneratePanel'
+import { LibraryPanel } from '@/components/panels/LibraryPanel'
 import { X } from 'lucide-react'
 
 // Lazy placeholders for panels
@@ -56,10 +57,11 @@ export function LeftPanel() {
   const PANEL_LABELS: Record<PanelId, string> = {
     generate: 'Generate', vault: 'Vault', library: 'Library',
     location: 'Locations', cast: 'Cast', makeup: 'SFX Makeup',
-    greenscreen: 'Green Screen', cgi: 'CGI Insert', vfx: 'VFX',
+    sfx_makeup: 'SFX Makeup', greenscreen: 'Green Screen', cgi: 'CGI Insert', vfx: 'VFX',
     transitions: 'Transitions', audio: 'Audio', stock: 'Stock Media',
     script: 'Script', storyboard: 'Storyboard', avatar: 'AI Avatar',
-    translate: 'Translate', highlight: 'Highlight Reel', brandkit: 'Brand Kit',
+    translate: 'Translate', highlight: 'Highlight Reel', highlights: 'Highlights',
+    brandkit: 'Brand Kit', brand_kit: 'Brand Kit',
     settings: 'Settings', ai_director: 'AI Director',
     continuity: 'Continuity', audio_mix: 'Audio Mix',
   }

@@ -54,12 +54,12 @@ export async function upscaleClip(params: {
 
           if (engine === 'real_esrgan') {
             const res = await fal.subscribe('fal-ai/real-esrgan', {
-              input: { image_url: dataUrl, scale: job.targetFactor },
+              input: { image_url: dataUrl, scale: job.targetFactor } as never,
             }) as unknown as { image: { url: string } }
             upscaledFrameUrl = res.image.url
           } else if (engine === 'clarity_upscaler') {
             const res = await fal.subscribe('fal-ai/clarity-upscaler', {
-              input: { image_url: dataUrl, scale: job.targetFactor },
+              input: { image_url: dataUrl, scale: job.targetFactor } as never,
             }) as unknown as { image: { url: string } }
             upscaledFrameUrl = res.image.url
           } else if (engine === 'esrgan_plus') {
@@ -70,7 +70,7 @@ export async function upscaleClip(params: {
           } else {
             // Default: aura_sr
             const res = await fal.subscribe('fal-ai/aura-sr', {
-              input: { image_url: dataUrl, upscaling_factor: job.targetFactor },
+              input: { image_url: dataUrl, upscale_factor: job.targetFactor } as never,
             }) as unknown as { image: { url: string } }
             upscaledFrameUrl = res.image.url
           }

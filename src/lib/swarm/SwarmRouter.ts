@@ -343,7 +343,7 @@ export class SwarmRouter extends EventEmitter {
 
   private async makeProxy(url: string): Promise<string> {
     try {
-      const r = await fal.run('fal-ai/video-frame-extractor', { input: { video_url: url, timestamp: 0.5 } }) as { image_url?: string }
+      const r = await fal.run('fal-ai/video-frame-extractor', { input: { video_url: url, timestamp: 0.5 } }) as unknown as { image_url?: string }
       return r.image_url ?? url
     } catch {
       return url

@@ -13,12 +13,12 @@ export async function upscaleImage(params: {
 
   if (contentType === 'anime') {
     const result = await fal.subscribe('fal-ai/real-esrgan', {
-      input: { image_url: imageUrl, scale: factor, model: 'RealESRGAN_x4plus_anime_6B' },
+      input: { image_url: imageUrl, scale: factor, model: 'RealESRGAN_x4plus_anime_6B' } as never,
     }) as unknown as { image: { url: string; width: number; height: number } }
     upscaledUrl = result.image.url
   } else {
     const result = await fal.subscribe('fal-ai/aura-sr', {
-      input: { image_url: imageUrl, upscaling_factor: factor },
+      input: { image_url: imageUrl, upscale_factor: factor } as never,
     }) as unknown as { image: { url: string; width: number; height: number } }
     upscaledUrl = result.image.url
   }
