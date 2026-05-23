@@ -1,0 +1,1 @@
+web: gunicorn --bind 0.0.0.0:${PORT:-7435} --workers 2 --timeout 300 exr_service:app
