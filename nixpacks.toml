@@ -1,0 +1,13 @@
+# Shared nixpacks config for all Railway services (Node workers + Python microservices).
+# Node workers use npm ci; Python services use gunicorn (installed via pip).
+# When py-* services are migrated to their own Root Directories (deploy/py-*/),
+# this file's Python entries become redundant but harmless.
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "python311", "ffmpeg"]
+
+[phases.install]
+cmds = [
+  "npm ci",
+  "pip install -r src/services/requirements.txt",
+]
