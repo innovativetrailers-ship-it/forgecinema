@@ -7,7 +7,7 @@ const isBuildTime =
   process.env.NEXT_PHASE === 'phase-export'
 
 // ─── Stub used during `next build` ──────────────────────────────────────────
-const queueStub = new Proxy({} as unknown, {
+const queueStub = new Proxy({} as object, {
   get: (_t, prop) => {
     if (prop === 'add')    return async () => ({ id: 'stub' })
     if (prop === 'close')  return async () => {}
@@ -17,7 +17,7 @@ const queueStub = new Proxy({} as unknown, {
   },
 }) as unknown as Queue
 
-const eventStub = new Proxy({} as unknown, {
+const eventStub = new Proxy({} as object, {
   get: () => async () => {},
 }) as unknown as QueueEvents
 
