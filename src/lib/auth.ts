@@ -5,12 +5,15 @@ import { PrismaAdapter } from '@auth/prisma-adapter'
 import bcrypt from 'bcryptjs'
 import { db } from './db'
 
+const isBuildTime =
+  process.env.NEXT_PHASE === 'phase-production-build' ||
+  process.env.NEXT_PHASE === 'phase-export'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(db),
+  // Skip PrismaAdapter during build — it opens a DB connection on init.
+  adapter: isBuildTime ? undefined : PrismaAdapter(db),
   session: { strategy: 'jwt' },
   pages: { signIn: '/login' },
-  // trustHost allows NextAuth to work regardless of port (3000, 3001, etc.)
   trustHost: true,
   providers: [
     Google({
@@ -24,7 +27,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        // Dev bypass — always allow in development without hitting the DB
         if (process.env.NODE_ENV === 'development' && credentials?.email === 'dev@cinema.local') {
           return { id: 'dev-user-001', email: 'dev@cinema.local', name: 'Dev User', role: 'STUDIO', creditBalance: 99999 }
         }
@@ -65,20 +67,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token
     },
     async session({ session, token }) {
+      if (isBuildTime) return session
+
       if (token) {
         session.user.id = token.id as string
         ;(session.user as { role?: string }).role = token.role as string
         ;(session.user as { creditBalance?: number }).creditBalance =
           token.creditBalance as number
 
-        // Re-fetch credit balance from DB on every session check
+        // Re-fetch live credit balance on every session check
         const dbUser = await db.user.findUnique({
           where: { id: token.id as string },
           select: { creditBalance: true, role: true },
         })
         if (dbUser) {
-          ;(session.user as { creditBalance?: number }).creditBalance =
-            dbUser.creditBalance
+          ;(session.user as { creditBalance?: number }).creditBalance = dbUser.creditBalance
           ;(session.user as { role?: string }).role = dbUser.role
         }
       }

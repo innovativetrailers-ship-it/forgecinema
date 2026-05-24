@@ -1,15 +1,50 @@
 import { PrismaClient } from '../generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined }
 
-function createPrismaClient() {
+const isBuildTime =
+  process.env.NEXT_PHASE === 'phase-production-build' ||
+  process.env.NEXT_PHASE === 'phase-export'
+
+function createPrismaClient(): PrismaClient {
   const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL!,
   })
   return new PrismaClient({ adapter, log: ['error'] })
 }
 
-export const db = globalForPrisma.prisma ?? createPrismaClient()
+// During build (static page generation) return a Proxy that never opens a
+// DB connection. All model methods resolve to null/[] so pages render safely.
+const buildStub = new Proxy({} as PrismaClient, {
+  get: (_target, prop) => {
+    if (prop === '$disconnect' || prop === '$connect') return async () => {}
+    if (prop === '$transaction') return async (fn: (tx: unknown) => unknown) => fn(buildStub)
+    // Return a model-like object whose methods resolve to empty values
+    return new Proxy({} as Record<string, unknown>, {
+      get: (_m, method) => {
+        if (method === 'findMany') return async () => []
+        if (method === 'count') return async () => 0
+        return async () => null
+      },
+    })
+  },
+})
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+export const db: PrismaClient = isBuildTime
+  ? buildStub
+  : (globalForPrisma.prisma ?? createPrismaClient())
+
+if (!isBuildTime && process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = db
+}
+
+// Ensure clean shutdown to prevent "Connection is closed" on process exit.
+if (!isBuildTime) {
+  const shutdown = async () => {
+    await db.$disconnect().catch(() => {})
+  }
+  process.on('beforeExit', shutdown)
+  process.on('SIGINT', shutdown)
+  process.on('SIGTERM', shutdown)
+}

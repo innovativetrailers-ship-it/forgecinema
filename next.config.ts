@@ -1,7 +1,6 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  // Allow images from R2 CDN and common AI output hosts
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.r2.cloudflarestorage.com' },
@@ -13,7 +12,8 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Increase payload limits for upload routes
+  // Prevent these native/server-only packages from being bundled by webpack.
+  // They must be loaded at runtime from node_modules, not inlined at build.
   serverExternalPackages: [
     'fluent-ffmpeg',
     'sharp',
@@ -26,13 +26,8 @@ const nextConfig: NextConfig = {
     'better-sqlite3',
   ],
 
-  // Enable typed routes for better DX
   typedRoutes: false,
-
-  // Allow local network access in dev
   allowedDevOrigins: ['192.168.1.208', 'localhost'],
-
-  // Use empty turbopack config to silence the Turbopack migration warning
   turbopack: {},
 }
 

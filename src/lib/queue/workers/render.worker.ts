@@ -1,3 +1,17 @@
+// Suppress expected teardown errors that fire when Redis/BullMQ connections
+// close in non-deterministic order during graceful shutdown.
+const TEARDOWN_MSGS = ['Connection is closed', "stream isn't writeable", 'ECONNRESET']
+process.on('uncaughtException', (err) => {
+  if (TEARDOWN_MSGS.some((m) => err.message?.includes(m))) return
+  console.error('[render-worker] Uncaught exception:', err)
+  process.exit(1)
+})
+process.on('unhandledRejection', (reason) => {
+  const msg = (reason as Error)?.message ?? String(reason)
+  if (TEARDOWN_MSGS.some((m) => msg.includes(m))) return
+  console.error('[render-worker] Unhandled rejection:', reason)
+})
+
 import { Worker } from 'bullmq'
 import { redis, bullmqRedis, bullMQPrefix } from '../../redis'
 import { startHeartbeat } from '../heartbeat'

@@ -1,20 +1,67 @@
 import { Queue, QueueEvents } from 'bullmq'
 import { bullmqRedis, bullMQPrefix } from '../redis'
 
-const connection = { connection: bullmqRedis, prefix: bullMQPrefix }
+const isBuildTime =
+  process.env.NEXT_PHASE === 'phase-production-build' ||
+  process.env.NEXT_PHASE === 'phase-export'
 
-export const renderQueue = new Queue('render', {
-  ...connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: { type: 'exponential', delay: 2000 },
-    removeOnComplete: { count: 500 },
-    removeOnFail: { count: 100 },
-  },
+const DEFAULT_JOB_OPTIONS = {
+  attempts: 3,
+  backoff: { type: 'exponential' as const, delay: 2000 },
+  removeOnComplete: { count: 500 },
+  removeOnFail: { count: 100 },
+}
+
+// Queue stub used during build — every method is a no-op async function.
+const queueStub = new Proxy({} as Queue, {
+  get: () => async () => null,
+})
+const eventsStub = new Proxy({} as QueueEvents, {
+  get: () => async () => null,
 })
 
-export const trainingQueue = new Queue('training', {
-  ...connection,
+// Factory that lazily creates a Queue on first access via Proxy.
+// This means `renderQueue.add(...)` works unchanged — no `.current` needed.
+function lazyQueue(name: string, opts: Partial<Parameters<typeof Queue>[1]> = {}): Queue {
+  if (isBuildTime) return queueStub
+
+  let _q: Queue | undefined
+  return new Proxy({} as Queue, {
+    get(_, prop) {
+      if (!_q) {
+        _q = new Queue(name, {
+          connection: bullmqRedis,
+          prefix: bullMQPrefix,
+          defaultJobOptions: DEFAULT_JOB_OPTIONS,
+          ...opts,
+        })
+      }
+      const val = (_q as unknown as Record<string | symbol, unknown>)[prop]
+      return typeof val === 'function' ? val.bind(_q) : val
+    },
+  })
+}
+
+function lazyQueueEvents(name: string): QueueEvents {
+  if (isBuildTime) return eventsStub
+
+  let _e: QueueEvents | undefined
+  return new Proxy({} as QueueEvents, {
+    get(_, prop) {
+      if (!_e) {
+        _e = new QueueEvents(name, {
+          connection: bullmqRedis,
+          prefix: bullMQPrefix,
+        })
+      }
+      const val = (_e as unknown as Record<string | symbol, unknown>)[prop]
+      return typeof val === 'function' ? val.bind(_e) : val
+    },
+  })
+}
+
+export const renderQueue = lazyQueue('render')
+export const trainingQueue = lazyQueue('training', {
   defaultJobOptions: {
     attempts: 2,
     backoff: { type: 'exponential', delay: 5000 },
@@ -22,9 +69,7 @@ export const trainingQueue = new Queue('training', {
     removeOnFail: { count: 50 },
   },
 })
-
-export const exportQueue = new Queue('export', {
-  ...connection,
+export const exportQueue = lazyQueue('export', {
   defaultJobOptions: {
     attempts: 2,
     backoff: { type: 'exponential', delay: 3000 },
@@ -32,21 +77,18 @@ export const exportQueue = new Queue('export', {
     removeOnFail: { count: 50 },
   },
 })
+export const upscaleQueue = lazyQueue('upscale')
+export const cameraQueue = lazyQueue('camera')
 
-export const renderQueueEvents = new QueueEvents('render', connection)
-export const trainingQueueEvents = new QueueEvents('training', connection)
-export const exportQueueEvents = new QueueEvents('export', connection)
+export const renderQueueEvents = lazyQueueEvents('render')
+export const trainingQueueEvents = lazyQueueEvents('training')
+export const exportQueueEvents = lazyQueueEvents('export')
 
-// In BullMQ, lower priority number = processed first (higher actual priority)
 export function getPriorityForRole(role: string): number {
   switch (role) {
-    case 'ADMIN':
-      return 1
-    case 'STUDIO':
-      return 5
-    case 'PRO':
-      return 10
-    default:
-      return 20
+    case 'ADMIN':  return 1
+    case 'STUDIO': return 5
+    case 'PRO':    return 10
+    default:       return 20
   }
 }
