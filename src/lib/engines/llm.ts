@@ -34,8 +34,8 @@ export async function callLLM(params: {
 
   if (params.model === 'claude-sonnet' || params.model === 'claude-haiku') {
     const modelId = params.model === 'claude-sonnet'
-      ? 'claude-sonnet-4-6'
-      : 'claude-haiku-4-5'
+      ? 'claude-sonnet-4-20250514'
+      : 'claude-haiku-4-20250514'
 
     const response = await anthropic.messages.create({
       model:      modelId,

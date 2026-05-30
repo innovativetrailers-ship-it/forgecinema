@@ -26,13 +26,6 @@ async function verifyStripePayment(paymentIntentId: string): Promise<void> {
   }
 }
 
-async function verifyPayPalCapture(orderId: string): Promise<void> {
-  const { paypalPost } = await import('../paypal/client')
-  const order = await paypalPost<{ status: string }>(`/v2/checkout/orders/${orderId}`, undefined)
-  if (order.status !== 'COMPLETED') {
-    throw new Error(`PayPal order not completed: ${order.status}`)
-  }
-}
 
 async function sendWelcomeEmail(userId: string): Promise<void> {
   try {
@@ -48,13 +41,11 @@ async function sendWelcomeEmail(userId: string): Promise<void> {
 export async function activateUser(params: {
   userId: string
   planId: 'pro' | 'studio' | 'ultimate' | 'free'
-  paymentProvider?: 'stripe' | 'paypal'
+  paymentProvider?: 'stripe'
   externalPaymentId?: string
 }): Promise<void> {
   if (params.paymentProvider === 'stripe' && params.externalPaymentId) {
     await verifyStripePayment(params.externalPaymentId)
-  } else if (params.paymentProvider === 'paypal' && params.externalPaymentId) {
-    await verifyPayPalCapture(params.externalPaymentId)
   }
 
   const role = ROLE_MAP[params.planId] ?? 'FREE'

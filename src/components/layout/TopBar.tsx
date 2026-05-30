@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { useCredits } from '@/hooks/useCredits'
-import { useStudioStore, type AppMode, type OutcomeTier } from '@/store/editor'
+import { useStudioStore, useEditorStore, type AppMode, type OutcomeTier } from '@/store/editor'
 import { useUIStore, type FilmToolbarTab, type EditTool } from '@/store/ui'
 import { CreditPurchaseModal } from '@/components/ui/CreditPurchaseModal'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -105,9 +105,70 @@ export function TopBar() {
   // Global keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-    const map: Record<string, EditTool> = { v: 'select', c: 'razor', r: 'repaint', m: 'motion_brush', t: 'text' }
-    if (map[e.key.toLowerCase()]) { activateTool(map[e.key.toLowerCase() as keyof typeof map]); return }
-    if (e.code === 'Space') { e.preventDefault(); setIsPlaying(!isPlaying) }
+
+    const meta = e.metaKey || e.ctrlKey
+    const key  = e.key.toLowerCase()
+
+    // ── Tool shortcuts ──────────────────────────────────────────
+    const toolMap: Record<string, EditTool> = {
+      v: 'select', c: 'razor', r: 'repaint', m: 'motion_brush', t: 'text',
+    }
+    if (!meta && toolMap[key]) { activateTool(toolMap[key]); return }
+
+    // ── Playback ────────────────────────────────────────────────
+    if (e.code === 'Space') { e.preventDefault(); setIsPlaying(!isPlaying); return }
+
+    // ── Undo / Redo ─────────────────────────────────────────────
+    if (meta && key === 'z' && !e.shiftKey) {
+      e.preventDefault()
+      window.dispatchEvent(new CustomEvent('editor:undo'))
+      return
+    }
+    if (meta && (key === 'y' || (key === 'z' && e.shiftKey))) {
+      e.preventDefault()
+      window.dispatchEvent(new CustomEvent('editor:redo'))
+      return
+    }
+
+    // ── Save ────────────────────────────────────────────────────
+    if (meta && key === 's') {
+      e.preventDefault()
+      window.dispatchEvent(new CustomEvent('editor:save'))
+      return
+    }
+
+    // ── Delete selected clip ────────────────────────────────────
+    if (key === 'delete' || key === 'backspace') {
+      const { selectedClipId: cid, removeClip } = useEditorStore.getState()
+      if (cid) { e.preventDefault(); removeClip(cid) }
+      return
+    }
+
+    // ── Nudge playhead (arrow keys, 1-frame ≈ 1/24s) ───────────
+    if (key === 'arrowleft' && !meta) {
+      e.preventDefault()
+      const { playheadTime, setPlayheadTime } = useEditorStore.getState()
+      setPlayheadTime(Math.max(0, playheadTime - (e.shiftKey ? 1 : 1 / 24)))
+      return
+    }
+    if (key === 'arrowright' && !meta) {
+      e.preventDefault()
+      const { playheadTime, setPlayheadTime } = useEditorStore.getState()
+      setPlayheadTime(playheadTime + (e.shiftKey ? 1 : 1 / 24))
+      return
+    }
+
+    // ── JKL playback controls (editing keyboard standard) ───────
+    if (key === 'j') { e.preventDefault(); setIsPlaying(false); return }
+    if (key === 'k') { e.preventDefault(); setIsPlaying(false); return }
+    if (key === 'l') { e.preventDefault(); setIsPlaying(true);  return }
+
+    // ── Generate shortcut (Cmd/Ctrl + G) ────────────────────────
+    if (meta && key === 'g') {
+      e.preventDefault()
+      useUIStore.getState().setActivePanel('generate')
+      return
+    }
   }, [isPlaying, setIsPlaying, activateTool])
 
   useEffect(() => {

@@ -6,6 +6,7 @@ import { EditToolbar } from '@/components/layout/EditToolbar'
 import { KeyboardHandler } from '@/components/layout/KeyboardHandler'
 import { CreditPurchaseModal } from '@/components/layout/CreditPurchaseModal'
 import { ContextMenu } from '@/components/ui/ContextMenu'
+import { CollabOverlay } from '@/components/editor/CollabOverlay'
 
 export const metadata: Metadata = {
   title: 'Cinematic Forge — Editor',
@@ -31,6 +32,8 @@ export default function EditorLayout({ children }: { children: ReactNode }) {
       <ContextMenu />
       {/* Global keyboard handler — no UI rendered */}
       <KeyboardHandler />
+      {/* Real-time presence indicators + conflict notifications */}
+      <CollabOverlay />
     </div>
   )
 }

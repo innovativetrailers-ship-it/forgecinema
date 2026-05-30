@@ -758,3 +758,65 @@ model SocialConnection {
   @@unique([userId, platform])
   @@index([userId])
 }
+
+
+model ConflictLog {
+  id          String    @id @default(cuid())
+  projectId   String
+  type        String
+  userId1     String
+  userId2     String
+  clipId      String
+  resolvedAt  DateTime?
+  resolution  String?
+  createdAt   DateTime  @default(now())
+
+  @@index([projectId, resolvedAt])
+  @@index([projectId, createdAt])
+}
+
+model ShoppableEmbed {
+  id        String   @id @default(cuid())
+  projectId String
+  videoUrl  String
+  config    Json
+  embedId   String   @unique @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([embedId])
+}
+
+model BranchingEmbed {
+  id        String   @id @default(cuid())
+  projectId String
+  title     String   @default("")
+  config    Json
+  embedId   String   @unique @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([embedId])
+}
+
+model ClipComment {
+  id         String       @id @default(cuid())
+  projectId  String
+  clipId     String
+  authorId   String
+  timecode   Float
+  text       String
+  parentId   String?      // null = top-level; set = reply
+  resolved   Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  parent     ClipComment? @relation("CommentThread", fields: [parentId], references: [id])
+  replies    ClipComment[] @relation("CommentThread")
+
+  @@index([projectId, clipId])
+  @@index([projectId, createdAt])
+  @@index([parentId])
+}

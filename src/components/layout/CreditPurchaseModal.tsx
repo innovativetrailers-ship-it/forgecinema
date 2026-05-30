@@ -45,26 +45,6 @@ export function CreditPurchaseModal() {
     }
   }
 
-  async function handlePayPal(pack: CreditPack) {
-    setLoading(pack.credits)
-    setError(null)
-    try {
-      const res = await fetch('/api/credits/purchase/paypal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packId: String(pack.credits) }),
-      })
-      const data = await res.json() as { orderId?: string; approvalUrl?: string; error?: string }
-      if (!res.ok) throw new Error(data.error ?? 'PayPal error')
-      if (data.approvalUrl) {
-        window.location.href = data.approvalUrl
-      }
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setLoading(null)
-    }
-  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -124,20 +104,13 @@ export function CreditPurchaseModal() {
                 >
                   {loading === pack.credits ? '...' : 'Pay with Card'}
                 </button>
-                <button
-                  onClick={() => handlePayPal(pack)}
-                  disabled={loading !== null}
-                  className="flex-1 py-1.5 rounded-lg text-sm font-medium bg-[#FFC439] text-[#003087] hover:bg-[#FFB820] disabled:opacity-50 disabled:cursor-not-allowed transition font-bold"
-                >
-                  {loading === pack.credits ? '...' : 'PayPal'}
-                </button>
               </div>
             </div>
           ))}
         </div>
 
         <div className="px-6 pb-5 text-center text-gray-600 text-xs">
-          Payments secured by Stripe & PayPal · Credits are non-refundable
+          Payments secured by Stripe · Credits are non-refundable
         </div>
       </div>
     </div>

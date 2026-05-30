@@ -44,6 +44,7 @@ export const OPERATION_COSTS: Record<string, number> = {
   'mapillary_search':               0,
   'cesium_aerial_path':             0,
   'pexels_stock':                   0,
+  'branching_export':               5,
   'llm_claude_sonnet':              3,
   'llm_claude_haiku':               1,
   'llm_groq':                       1,

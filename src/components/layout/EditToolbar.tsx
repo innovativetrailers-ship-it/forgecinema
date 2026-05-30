@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useUIStore, type ToolId } from '@/store/ui'
 import { useEditorStore } from '@/store/editor'
+import { RoughCutButton } from '@/components/editor/RoughCutButton'
 
 const TOOLS: Array<{ id: ToolId; icon: React.ReactNode; label: string; shortcut: string }> = [
   { id: 'select',       icon: <MousePointer2 size={14} />, label: 'Select',       shortcut: 'V' },
@@ -78,8 +79,10 @@ export function EditToolbar() {
         <ZoomOut size={13} />
       </button>
 
-      {/* Add Track — push to far right */}
-      <div className="ml-auto flex items-center gap-1">
+      {/* Add Track + AI Rough Cut — push to far right */}
+      <div className="ml-auto flex items-center gap-1.5">
+        <RoughCutButton />
+        <div className="w-px h-4 bg-[#1a1f2e]" />
         <button
           onClick={() => addTrack('video')}
           className="text-[10px] px-2 py-1 text-[var(--text-tertiary)] hover:text-white hover:bg-white/5 rounded"

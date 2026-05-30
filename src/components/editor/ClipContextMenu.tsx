@@ -13,6 +13,7 @@ interface MenuItem {
 }
 
 const CLIP_CONTEXT_ITEMS: MenuItem[] = [
+  { label: 'Add comment',           action: 'add_comment' },
   { label: 'Repaint segment',       action: 'open_repaint' },
   { label: 'Clip Extend →',         action: 'open_extend' },
   { label: 'Retime clip',           action: 'open_retime' },
@@ -44,6 +45,9 @@ export function ClipContextMenu({ clipId, x, y, onClose }: Props) {
   const handleAction = (action: string) => {
     onClose()
     switch (action) {
+      case 'add_comment':
+        setActiveRightPanel('comments')
+        break
       case 'open_repaint':
         openRepaintModal({ clipId, startSeconds: 0, endSeconds: 1 })
         break

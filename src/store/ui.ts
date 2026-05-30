@@ -16,6 +16,7 @@ export type ToolId =
   | 'select' | 'razor' | 'repaint' | 'text' | 'motion_brush'
   | 'track' | 'hand' | 'zoom'
   | 'crop' | 'morph_cut' | 'stabilise' | 'retime' | 'extend'
+  | 'planar_track' | 'mask_bezier' | 'mask_freehand' | 'luma_key' | 'particles'
 
 /** @deprecated use ToolId */
 export type EditTool = 'select' | 'razor' | 'repaint' | 'motion_brush' | 'text'
@@ -26,17 +27,19 @@ export type RightPanelId =
   | 'lighting' | 'effects' | 'transform'
   | 'transcript' | 'stabilise' | 'retime' | 'planar_track'
   | 'object_removal' | 'emotion' | 'spatial' | 'shoppable'
+  | 'color_ai' | 'comments'
 
 export type FilmToolbarTab =
   | 'script' | 'storyboard' | 'director' | 'ai_director' | 'continuity'
   | 'cast' | 'locations' | 'colour' | 'vfx_mix' | 'audio_mix'
   | 'greenscreen' | 'sfx_makeup' | 'cgi'
   | 'multicam' | 'transcript' | 'export_hub' | 'collab_grade' | 'plugin' | 'review'
+  | 'emotion_lattice'
 
 export type SimpleModeTab =
   | 'text_to_video' | 'image_to_video' | 'audio_to_video'
   | 'auto_social' | 'avatar_video' | 'translate' | 'highlights'
-  | 'slides_to_video'
+  | 'slides_to_video' | 'talking_photo'
 
 export type EditorMode = 'simple' | 'advanced' | 'ultimate'
 

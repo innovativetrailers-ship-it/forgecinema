@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   if (!planId || !ROLE_MAP[planId]) return NextResponse.json({ error: 'invalid planId' }, { status: 400 })
 
   // For paid plans, the webhook will have already verified payment
-  // This endpoint is called after Stripe/PayPal webhook confirms, or directly for free plan
+  // This endpoint is called after Stripe webhook confirms, or directly for free plan
   await db.user.update({
     where: { id: uid },
     data: {
