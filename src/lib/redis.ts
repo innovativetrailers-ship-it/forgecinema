@@ -7,7 +7,7 @@ const isBuildTime =
   process.env.NEXT_PHASE === 'phase-export'
 
 // Accepted REDIS_URL patterns (set ONE on Vercel/Railway):
-//   rediss://default:<token>@<host>.upstash.io:6380  (preferred, all-in-one)
+//   rediss://default:<token>@<host>.upstash.io:6379  (preferred, all-in-one)
 //   https://<host>.upstash.io  +  REDIS_TOKEN=<token>
 //   redis://localhost:6379  (local / Docker)
 function buildRedisUrl(): string {
@@ -24,7 +24,7 @@ function buildRedisUrl(): string {
       )
     }
     const host = raw.replace(/^https?:\/\//, '').replace(/\/$/, '')
-    return `rediss://default:${token}@${host}:6380`
+    return `rediss://default:${token}@${host}:6379`
   }
 
   return raw
