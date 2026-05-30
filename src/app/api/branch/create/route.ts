@@ -22,8 +22,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     )
   }
 
-  const creditResult = await checkAndDeductCredits(userId, 'branching_export', CREDIT_COST, 'Interactive branching video export')
-  if (!creditResult.success) {
+  try {
+    await checkAndDeductCredits(userId, 'branching_export', CREDIT_COST, 'Interactive branching video export')
+  } catch {
     return NextResponse.json({ error: `Insufficient credits. Branching export costs ${CREDIT_COST} credits.` }, { status: 402 })
   }
 
