@@ -57,11 +57,14 @@ function makeReconnectOnError(err: Error): boolean {
 export function createRedisConnection(): Redis {
   return suppressTeardown(
     new Redis(buildRedisUrl(), {
-      maxRetriesPerRequest: null,
+      // Serverless-friendly: commands queue until the TLS socket is ready,
+      // avoiding "Stream isn't writeable" on cold-start invocations.
+      maxRetriesPerRequest: 3,
       lazyConnect: true,
       keyPrefix: CINEMA_KEY_PREFIX,
       tls: {},
-      enableOfflineQueue: false,
+      enableOfflineQueue: true,
+      connectTimeout: 10_000,
       retryStrategy: makeRetryStrategy('app'),
       reconnectOnError: makeReconnectOnError,
     })
