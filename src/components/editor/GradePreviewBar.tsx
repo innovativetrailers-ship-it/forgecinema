@@ -62,7 +62,7 @@ export function GradePreviewBar({ clipId }: Props) {
     [recipe, effectiveClipId],
   )
 
-  const grade = clip?.colourGrade ?? null
+  const grade = (clip?.colourGradeJson as ClipColourGrade | null) ?? null
   const points = useMemo(() => gradeToPoints(grade), [grade])
   const path = useMemo(() => catmullRomPath(points), [points])
   const linearPath = `M 0 ${H} L ${W} 0`

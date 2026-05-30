@@ -181,7 +181,7 @@ export function ParticleSystem({ onExport }: Props) {
               className="flex-1 accent-[#00e5c8] h-1"
             />
             <span className="text-[9px] text-white/40 w-10 text-right">
-              {config[key as keyof ParticleConfig]}{unit}
+              {String(config[key as keyof ParticleConfig])}{unit}
             </span>
           </div>
         ))}

@@ -79,7 +79,7 @@ export function ShoppableTagPanel() {
       })
       const data = (await res.json()) as Record<string, unknown>
       if (!res.ok) { setError(typeof data.error === 'string' ? data.error : `HTTP ${res.status}`); return }
-      setEmbedResult(data as EmbedResult)
+      setEmbedResult(data as unknown as EmbedResult)
       addToast('Shoppable embed created!', 'success')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Network error')

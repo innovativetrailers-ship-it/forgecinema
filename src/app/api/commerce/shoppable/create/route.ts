@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@/generated/prisma/client'
 import { db } from '@/lib/db'
 import { generateShoppableEmbed, isProductTag, type ProductTag, type ShoppableConfig } from '@/lib/commerce/ShoppableExport'
 
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           videoUrl: o.videoUrl.trim(),
           projectId: o.projectId.trim(),
           tags,
-        },
+        } as unknown as Prisma.InputJsonValue,
       },
     })
 

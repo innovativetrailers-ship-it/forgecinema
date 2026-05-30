@@ -72,7 +72,7 @@ export function ObjectRemovalPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clipId: selectedClip.id,
-          videoUrl: selectedClip.sourceUrl,
+          videoUrl: selectedClip.videoUrl ?? '',
           objectDescription: description.trim(),
           includeArtifacts,
           blendMode,

@@ -38,7 +38,7 @@ export function EmotionLatticePanel() {
         t.clips.map((c) => ({
           id: c.id,
           prompt: c.prompt ?? '',
-          duration: c.endTime - c.startTime,
+          duration: c.duration,
           startTime: c.startTime,
         })),
       )

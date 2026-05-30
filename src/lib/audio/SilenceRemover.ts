@@ -83,7 +83,7 @@ export async function removeSilence(params: {
     input: { audio_url: audioUrl, task: 'transcribe' },
   })
   const data = result.data as { chunks?: Array<{ timestamp: [number, number] }> }
-  const durationSec = data.chunks?.at(-1)?.[1][1] ?? 60
+  const durationSec = data.chunks?.at(-1)?.timestamp[1] ?? 60
 
   // Build keep ranges (complement of silence)
   const keepRanges: Array<{ start: number; end: number }> = []

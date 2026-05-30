@@ -16,7 +16,6 @@ function isRawVariant(v: unknown): v is RawVariant {
 }
 
 function mapVariant(v: RawVariant): ShopifyProduct['variants'][number] {
-  const imageObj = v.image as Record<string, unknown> | null | undefined
   return {
     id: String(v.id),
     title: typeof v.title === 'string' ? v.title : 'Default',

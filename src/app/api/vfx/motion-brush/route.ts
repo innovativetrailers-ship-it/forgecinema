@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       input: {
         image_url: imageUrl,
         prompt:    prompt || 'cinematic motion, subtle camera movement',
-        duration,
+        duration:  (duration > 5 ? '10' : '5') as '5' | '10',
         cfg_scale: 0.5,
       },
     })

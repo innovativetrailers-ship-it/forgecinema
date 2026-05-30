@@ -2,7 +2,7 @@
  * Diffusion-based physics simulation for VFX (E09).
  * Calls fal.ai video-to-video with physics-conditioned prompts.
  */
-import * as fal from '@fal-ai/serverless-client'
+import { fal } from '@/lib/fal/client'
 import { randomUUID } from 'crypto'
 import { uploadToR2 } from '@/lib/storage/r2'
 

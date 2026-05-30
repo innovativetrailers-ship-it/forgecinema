@@ -5,7 +5,7 @@
  * intermediate frames for smooth results.
  * Speed-up (speedFactor ≥ 1): FFmpeg PTS manipulation via BullMQ.
  */
-import * as fal from '@fal-ai/serverless-client'
+import { fal } from '@/lib/fal/client'
 import { randomUUID } from 'crypto'
 import { uploadToR2 } from '@/lib/storage/r2'
 import { renderQueue } from '@/lib/queue'

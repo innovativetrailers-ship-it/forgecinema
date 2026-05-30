@@ -2,7 +2,7 @@
  * Speaker separation engine (F09).
  * Calls fal.ai audio-separator to decompose mixed audio into stems.
  */
-import * as fal from '@fal-ai/serverless-client'
+import { fal } from '@/lib/fal/client'
 import { randomUUID } from 'crypto'
 import { uploadToR2 } from '@/lib/storage/r2'
 

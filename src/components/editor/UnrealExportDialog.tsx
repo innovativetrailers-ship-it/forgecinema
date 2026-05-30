@@ -35,7 +35,7 @@ export function UnrealExportDialog() {
       })
       const data = (await res.json()) as Record<string, unknown>
       if (!res.ok) { setError(typeof data.error === 'string' ? data.error : `HTTP ${res.status}`); setPhase('error'); return }
-      setResult(data as ExportResult)
+      setResult(data as unknown as ExportResult)
       setPhase('done')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Network error')

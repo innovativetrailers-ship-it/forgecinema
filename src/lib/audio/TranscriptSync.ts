@@ -45,7 +45,6 @@ export async function transcribeAudio(audioUrl: string): Promise<TranscriptResul
       audio_url:  audioUrl,
       task:       'transcribe',
       chunk_level: 'word',
-      version:    '3',
     },
   })
 
