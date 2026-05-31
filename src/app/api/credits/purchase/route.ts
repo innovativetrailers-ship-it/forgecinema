@@ -16,42 +16,62 @@ export async function GET() {
   return NextResponse.json({ packs: CREDIT_PACKS })
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   const userId = request.headers.get('x-user-id')
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { packIndex } = await request.json()
-  const pack = CREDIT_PACKS[packIndex]
+  // Guard — Stripe not configured: return 503 instead of crashing with 500
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json(
+      { error: 'Payments not configured. Add Stripe keys to Vercel environment variables.' },
+      { status: 503 },
+    )
+  }
 
+  let body: Record<string, unknown>
+  try {
+    body = (await request.json()) as Record<string, unknown>
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
+
+  const packIndex = typeof body.packIndex === 'number' ? body.packIndex : -1
+  const pack = CREDIT_PACKS[packIndex]
   if (!pack) {
     return NextResponse.json({ error: 'Invalid pack' }, { status: 400 })
   }
 
-  const session = await getStripe().checkout.sessions.create({
-    payment_method_types: ['card'],
-    line_items: [
-      {
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: `CINÉMA — ${pack.label}`,
-            description: `${pack.credits} credits for CINÉMA AI video production`,
+  try {
+    const session = await getStripe().checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: `CINÉMA — ${pack.label}`,
+              description: `${pack.credits} credits for CINÉMA AI video production`,
+            },
+            unit_amount: pack.price,
           },
-          unit_amount: pack.price,
+          quantity: 1,
         },
-        quantity: 1,
+      ],
+      mode: 'payment',
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/simple?purchase=success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/simple?purchase=cancelled`,
+      metadata: {
+        userId,
+        credits: pack.credits.toString(),
       },
-    ],
-    mode: 'payment',
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/simple?purchase=success`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/simple?purchase=cancelled`,
-    metadata: {
-      userId,
-      credits: pack.credits.toString(),
-    },
-  })
+    })
 
-  return NextResponse.json({ url: session.url })
+    return NextResponse.json({ url: session.url })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Stripe checkout session creation failed'
+    console.error('[credits/purchase]', message)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }

@@ -108,6 +108,38 @@ export default function UltimatePage() {
   const [activeTab, setActiveTab] = useState<UltimateTab>('script')
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightCollapsed, setRightCollapsed] = useState(false)
+  const [leftPanelWidth, setLeftPanelWidth] = useState<number>(() => {
+    if (typeof window === 'undefined') return 320
+    const stored = localStorage.getItem('cinema-left-panel-width')
+    if (!stored) return 320
+    const parsed = parseInt(stored, 10)
+    return isNaN(parsed) ? 320 : Math.max(280, Math.min(600, parsed))
+  })
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  const startLeftResize = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    const panelEl = panelRef.current
+    if (!panelEl) return
+    const panelLeft = panelEl.getBoundingClientRect().left
+
+    const onMouseMove = (ev: MouseEvent) => {
+      const newWidth = Math.max(280, Math.min(600, ev.clientX - panelLeft))
+      setLeftPanelWidth(newWidth)
+      localStorage.setItem('cinema-left-panel-width', String(newWidth))
+    }
+    const onMouseUp = () => {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+  }, [])
 
   // Timeline state
   const [recipe, setRecipe] = useState<TimelineRecipe>(() => buildRecipe(projectId.current))
@@ -413,7 +445,7 @@ export default function UltimatePage() {
       <TopBar />
 
       {/* Body: IconRail | left panel | centre | right panel */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 w-full overflow-hidden">
         <IconRail />
 
         {/* Film-grade left panel — or icon-rail panel when a non-film panel is active */}
@@ -453,7 +485,7 @@ export default function UltimatePage() {
                       ${activeTab === tab.id ? 'text-[var(--teal-bright)] bg-[var(--teal-glow)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
                   >
                     {tab.icon}
-                    <span className="hidden xl:block">{tab.label}</span>
+                    <span className="whitespace-nowrap">{tab.label}</span>
                   </button>
                 ))}
                 <button onClick={() => setLeftCollapsed(true)} className="ml-auto p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors">
@@ -528,10 +560,21 @@ export default function UltimatePage() {
               </Suspense>
             </div>
           )}
+
+          {/* Drag-to-resize handle — right edge */}
+          {!leftCollapsed && !(activePanel && !FILM_PANEL_IDS.has(activePanel)) && (
+            <div
+              onMouseDown={startLeftResize}
+              className="absolute bottom-0 right-0 top-0 z-30 w-2 cursor-col-resize group"
+              title="Drag to resize panel"
+            >
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 h-12 w-0.5 rounded-full bg-[#00e5c8]/0 group-hover:bg-[#00e5c8]/50 transition-colors duration-150" />
+            </div>
+          )}
         </div>
 
         {/* Centre: video preview + timeline */}
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="relative z-10 flex flex-col flex-1 overflow-hidden min-w-0">
           <VideoPreview
             clips={allClips}
             playheadTime={playheadTime}

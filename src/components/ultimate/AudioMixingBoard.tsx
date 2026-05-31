@@ -58,8 +58,6 @@ function VerticalFader({ value, onChange, colour }: { value: number; onChange: (
             className="h-full accent-[#00e5c8]"
         style={{
           writingMode: 'vertical-lr' as const,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          WebkitAppearance: 'slider-vertical' as any,
           appearance: 'none' as const,
           direction: 'rtl',
           width: 24,
