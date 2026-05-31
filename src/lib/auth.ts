@@ -60,24 +60,43 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+  events: {
+    async signIn({ user, isNewUser }) {
+      console.log('[auth] signIn event:', { userId: user?.id, isNewUser })
+    },
+    async session({ session }) {
+      console.log('[auth] session event: user', session?.user?.id)
+    },
+  },
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id                 = user.id
-        token.role               = (user as any).role
-        token.creditBalance      = (user as any).creditBalance
-        token.subscriptionStatus = (user as any).subscriptionStatus
+    async jwt({ token, user, account, profile }) {
+      console.log('[auth] jwt callback:', { hasUser: !!user, hasAccount: !!account })
+      try {
+        if (user) {
+          token.id                 = user.id
+          token.role               = (user as any).role
+          token.creditBalance      = (user as any).creditBalance
+          token.subscriptionStatus = (user as any).subscriptionStatus
+        }
+        return token
+      } catch (err: any) {
+        console.error('[auth] jwt callback error:', err.message)
+        return token
       }
-      return token
     },
     async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = (token.id ?? token.sub) as string
-        ;(session.user as any).role               = token.role ?? 'FREE'
-        ;(session.user as any).creditBalance      = token.creditBalance ?? 0
-        ;(session.user as any).subscriptionStatus = token.subscriptionStatus ?? 'trial'
+      try {
+        if (token && session.user) {
+          session.user.id = (token.id ?? token.sub) as string
+          ;(session.user as any).role               = token.role ?? 'FREE'
+          ;(session.user as any).creditBalance      = token.creditBalance ?? 0
+          ;(session.user as any).subscriptionStatus = token.subscriptionStatus ?? 'trial'
+        }
+        return session
+      } catch (err: any) {
+        console.error('[auth] session callback error:', err.message)
+        return session
       }
-      return session
     },
   },
 })
