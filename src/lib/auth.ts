@@ -22,86 +22,80 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   providers: [
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? '',
+      clientId:     process.env.GOOGLE_CLIENT_ID     ?? '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
     }),
     Credentials({
       name: 'credentials',
       credentials: {
-        email: { label: 'Email', type: 'email' },
+        email:    { label: 'Email',    type: 'email'    },
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
         if (process.env.NODE_ENV === 'development' && credentials?.email === 'dev@cinema.local') {
-          return { id: 'dev-user-001', email: 'dev@cinema.local', name: 'Dev User', role: 'STUDIO', creditBalance: 99999 }
+          return { id: 'dev-user-001', email: 'dev@cinema.local', name: 'Dev User', role: 'ADMIN', creditBalance: 9_999_999 }
         }
 
         if (!credentials?.email || !credentials?.password) return null
 
         const user = await db.user.findUnique({
-          where: { email: credentials.email as string },
+          where:  { email: credentials.email as string },
+          select: { id: true, email: true, name: true, avatarUrl: true, role: true, creditBalance: true, passwordHash: true, subscriptionStatus: true },
         })
 
         if (!user?.passwordHash) return null
 
-        const isValid = await bcrypt.compare(
-          credentials.password as string,
-          user.passwordHash
-        )
-
+        const isValid = await bcrypt.compare(credentials.password as string, user.passwordHash)
         if (!isValid) return null
 
         return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.avatarUrl,
-          role: user.role,
-          creditBalance: user.creditBalance,
+          id:                 user.id,
+          email:              user.email,
+          name:               user.name,
+          image:              user.avatarUrl,
+          role:               user.role,
+          creditBalance:      user.creditBalance,
+          subscriptionStatus: user.subscriptionStatus,
         }
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
+      // Persist extra fields into JWT on first sign-in
       if (user) {
-        token.id            = user.id
-        token.role          = (user as { role?: string }).role
-        token.creditBalance = (user as { creditBalance?: number }).creditBalance
-        token.subscriptionStatus = (user as { subscriptionStatus?: string }).subscriptionStatus
+        token.id                = user.id
+        token.role              = (user as Record<string, unknown>).role              as string | undefined
+        token.creditBalance     = (user as Record<string, unknown>).creditBalance     as number | undefined
+        token.subscriptionStatus = (user as Record<string, unknown>).subscriptionStatus as string | undefined
+      }
+      // For Google OAuth (account present), look up the DB user to get role/credits
+      if (account?.provider === 'google' && token.sub) {
+        try {
+          const dbUser = await db.user.findUnique({
+            where:  { id: token.sub },
+            select: { id: true, role: true, creditBalance: true, subscriptionStatus: true },
+          })
+          if (dbUser) {
+            token.id                = dbUser.id
+            token.role              = dbUser.role
+            token.creditBalance     = dbUser.creditBalance
+            token.subscriptionStatus = dbUser.subscriptionStatus
+          }
+        } catch {
+          // DB lookup failed — proceed with defaults
+        }
       }
       return token
     },
     async session({ session, token }) {
-      if (isBuildTime) return session
-
-      if (token) {
-        session.user.id = token.id as string
-        ;(session.user as { role?: string }).role = (token.role as string) ?? 'USER'
-        ;(session.user as { creditBalance?: number }).creditBalance =
-          token.creditBalance as number
-        ;(session.user as { subscriptionStatus?: string }).subscriptionStatus =
-          token.subscriptionStatus as string | undefined
-
-        // Live DB sync — guarded so a DB hiccup never breaks the auth flow
-        if (token.id) {
-          try {
-            const dbUser = await db.user.findUnique({
-              where:  { id: token.id as string },
-              select: { creditBalance: true, role: true, subscriptionStatus: true },
-            })
-            if (dbUser) {
-              ;(session.user as { creditBalance?: number }).creditBalance = dbUser.creditBalance
-              ;(session.user as { role?: string }).role = dbUser.role
-              ;(session.user as { subscriptionStatus?: string }).subscriptionStatus = dbUser.subscriptionStatus
-            }
-          } catch {
-            // DB unavailable — fall through with token values
-          }
-        }
+      if (token && session.user) {
+        session.user.id = (token.id ?? token.sub) as string
+        ;(session.user as Record<string, unknown>).role              = (token.role              as string)  ?? 'FREE'
+        ;(session.user as Record<string, unknown>).creditBalance     = (token.creditBalance     as number)  ?? 0
+        ;(session.user as Record<string, unknown>).subscriptionStatus = (token.subscriptionStatus as string) ?? null
       }
       return session
     },
   },
 })
-
