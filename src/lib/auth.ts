@@ -65,9 +65,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id
-        token.role = (user as { role?: string }).role
+        token.id            = user.id
+        token.role          = (user as { role?: string }).role
         token.creditBalance = (user as { creditBalance?: number }).creditBalance
+        token.subscriptionStatus = (user as { subscriptionStatus?: string }).subscriptionStatus
       }
       return token
     },
@@ -79,15 +80,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         ;(session.user as { role?: string }).role = token.role as string
         ;(session.user as { creditBalance?: number }).creditBalance =
           token.creditBalance as number
+        ;(session.user as { subscriptionStatus?: string }).subscriptionStatus =
+          token.subscriptionStatus as string | undefined
 
-        // Sync live credit balance from DB on every session check
+        // Sync live data from DB on every session check
         const dbUser = await db.user.findUnique({
           where: { id: token.id as string },
-          select: { creditBalance: true, role: true },
+          select: { creditBalance: true, role: true, subscriptionStatus: true },
         })
         if (dbUser) {
           ;(session.user as { creditBalance?: number }).creditBalance = dbUser.creditBalance
           ;(session.user as { role?: string }).role = dbUser.role
+          ;(session.user as { subscriptionStatus?: string }).subscriptionStatus = dbUser.subscriptionStatus
         }
       }
       return session
