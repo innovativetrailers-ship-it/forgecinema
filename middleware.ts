@@ -1,30 +1,23 @@
-import { getToken } from 'next-auth/jwt'
+import NextAuth         from 'next-auth'
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { authConfig }   from '@/lib/auth.config'
 
-// Uses JWT cookie directly — no DB access required (Edge Runtime compatible)
-export async function middleware(req: NextRequest) {
-  const token = await getToken({
-    req,
-    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
-  })
+const { auth } = NextAuth(authConfig)
 
+// Inject x-user-id / x-user-role / x-user-tier headers for all API + editor routes
+export default auth((req) => {
+  const session = req.auth
   const headers = new Headers(req.headers)
 
-  if (token) {
-    if (token.id)   headers.set('x-user-id',   String(token.id))
-    if (token.role) headers.set('x-user-role',  String(token.role))
-    if (token.subscriptionStatus) {
-      headers.set('x-user-tier', String(token.subscriptionStatus))
-    }
+  if (session?.user?.id) {
+    headers.set('x-user-id',   session.user.id)
+    headers.set('x-user-role', (session.user as { role?: string }).role ?? 'USER')
+    headers.set('x-user-tier', (session.user as { subscriptionStatus?: string }).subscriptionStatus ?? 'free')
   }
 
   return NextResponse.next({ request: { headers } })
-}
+})
 
 export const config = {
-  matcher: [
-    '/api/:path*',
-    '/(editor)/:path*',
-  ],
+  matcher: ['/api/:path*', '/(editor)/:path*'],
 }
