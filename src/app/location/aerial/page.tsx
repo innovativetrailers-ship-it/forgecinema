@@ -24,7 +24,7 @@ export default function AerialViewerPage() {
     const script    = document.createElement('script')
     script.src      = 'https://cesium.com/downloads/cesiumjs/releases/1.113/Build/Cesium/Cesium.js'
     script.onload   = () => {
-      const Cesium = (window as Record<string, unknown>).Cesium as {
+      const Cesium = (window as unknown as Record<string, unknown>).Cesium as {
         Ion:          { defaultAccessToken: string }
         Viewer:       new (el: HTMLDivElement | null, opts: unknown) => { camera: { flyTo: (opts: unknown) => void } }
         createWorldTerrain: () => unknown
