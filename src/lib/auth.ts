@@ -61,39 +61,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user, account }) {
-      // Persist extra fields into JWT on first sign-in
+    async jwt({ token, user }) {
       if (user) {
-        token.id                = user.id
-        token.role              = (user as Record<string, unknown>).role              as string | undefined
-        token.creditBalance     = (user as Record<string, unknown>).creditBalance     as number | undefined
-        token.subscriptionStatus = (user as Record<string, unknown>).subscriptionStatus as string | undefined
-      }
-      // For Google OAuth (account present), look up the DB user to get role/credits
-      if (account?.provider === 'google' && token.sub) {
-        try {
-          const dbUser = await db.user.findUnique({
-            where:  { id: token.sub },
-            select: { id: true, role: true, creditBalance: true, subscriptionStatus: true },
-          })
-          if (dbUser) {
-            token.id                = dbUser.id
-            token.role              = dbUser.role
-            token.creditBalance     = dbUser.creditBalance
-            token.subscriptionStatus = dbUser.subscriptionStatus
-          }
-        } catch {
-          // DB lookup failed — proceed with defaults
-        }
+        token.id                 = user.id
+        token.role               = (user as any).role
+        token.creditBalance      = (user as any).creditBalance
+        token.subscriptionStatus = (user as any).subscriptionStatus
       }
       return token
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = (token.id ?? token.sub) as string
-        ;(session.user as Record<string, unknown>).role              = (token.role              as string)  ?? 'FREE'
-        ;(session.user as Record<string, unknown>).creditBalance     = (token.creditBalance     as number)  ?? 0
-        ;(session.user as Record<string, unknown>).subscriptionStatus = (token.subscriptionStatus as string) ?? null
+        ;(session.user as any).role               = token.role ?? 'FREE'
+        ;(session.user as any).creditBalance      = token.creditBalance ?? 0
+        ;(session.user as any).subscriptionStatus = token.subscriptionStatus ?? 'trial'
       }
       return session
     },

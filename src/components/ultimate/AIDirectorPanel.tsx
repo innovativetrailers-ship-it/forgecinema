@@ -55,8 +55,8 @@ export function AIDirectorPanel({ script, characters, locations, onRecipeGenerat
   const [progressSteps, setProgressSteps] = useState<string[]>([])
   const [showCouncil, setShowCouncil] = useState(true)
 
-  const { tier, isAdmin } = useUserTier()
-  const maxModels = isAdmin ? 999 : (TIER_PERMISSIONS[tier]?.maxDirectorModels ?? 0)
+  const { isAdmin, perms } = useUserTier()
+  const maxModels = isAdmin ? 999 : perms.maxDirectorModels
 
   const toggleModel = (id: string) => {
     setSelectedModels((prev) => {
