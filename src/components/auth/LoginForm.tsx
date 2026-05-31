@@ -40,12 +40,12 @@ export function LoginForm() {
   }
 
   async function handleGoogle() {
-    console.log('Google button clicked!')
     setGoogleLoading(true)
     try {
       await signIn('google', { callbackUrl: '/simple' })
     } catch (err) {
-      console.error('Google sign in error:', err)
+      console.error('[Google sign-in]', err)
+      toast.error('Google sign-in failed. Please try again.')
       setGoogleLoading(false)
     }
   }

@@ -77,21 +77,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (token) {
         session.user.id = token.id as string
-        ;(session.user as { role?: string }).role = token.role as string
+        ;(session.user as { role?: string }).role = (token.role as string) ?? 'USER'
         ;(session.user as { creditBalance?: number }).creditBalance =
           token.creditBalance as number
         ;(session.user as { subscriptionStatus?: string }).subscriptionStatus =
           token.subscriptionStatus as string | undefined
 
-        // Sync live data from DB on every session check
-        const dbUser = await db.user.findUnique({
-          where: { id: token.id as string },
-          select: { creditBalance: true, role: true, subscriptionStatus: true },
-        })
-        if (dbUser) {
-          ;(session.user as { creditBalance?: number }).creditBalance = dbUser.creditBalance
-          ;(session.user as { role?: string }).role = dbUser.role
-          ;(session.user as { subscriptionStatus?: string }).subscriptionStatus = dbUser.subscriptionStatus
+        // Live DB sync — guarded so a DB hiccup never breaks the auth flow
+        if (token.id) {
+          try {
+            const dbUser = await db.user.findUnique({
+              where:  { id: token.id as string },
+              select: { creditBalance: true, role: true, subscriptionStatus: true },
+            })
+            if (dbUser) {
+              ;(session.user as { creditBalance?: number }).creditBalance = dbUser.creditBalance
+              ;(session.user as { role?: string }).role = dbUser.role
+              ;(session.user as { subscriptionStatus?: string }).subscriptionStatus = dbUser.subscriptionStatus
+            }
+          } catch {
+            // DB unavailable — fall through with token values
+          }
         }
       }
       return session
