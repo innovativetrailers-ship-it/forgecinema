@@ -46,10 +46,10 @@ import { useCredits } from '@/hooks/useCredits'
 import { DEFAULT_ZOOM } from '@/components/editor/constants'
 import type { TimelineRecipe, Clip, Track } from '@/lib/timeline/schema'
 
-type UltimateTab = 'script' | 'storyboard' | 'director' | 'cgi' | 'continuity' | 'audio'
+type UltimateTab = 'script' | 'storyboard' | 'director' | 'cgi' | 'continuity' | 'audio' | 'locations'
 
 // Panels that map to a UltimateTab in the bespoke film panel
-const FILM_PANEL_IDS = new Set<PanelId>(['script', 'storyboard', 'ai_director', 'continuity', 'audio_mix', 'cgi'])
+const FILM_PANEL_IDS = new Set<PanelId>(['script', 'storyboard', 'ai_director', 'continuity', 'audio_mix', 'cgi', 'location'])
 
 const PANEL_TO_FILM_TAB: Partial<Record<PanelId, UltimateTab>> = {
   script:      'script',
@@ -58,6 +58,7 @@ const PANEL_TO_FILM_TAB: Partial<Record<PanelId, UltimateTab>> = {
   continuity:  'continuity',
   audio_mix:   'audio',
   cgi:         'cgi',
+  location:    'locations',
 }
 
 const TABS: Array<{ id: UltimateTab; label: string; icon: React.ReactNode }> = [
@@ -67,6 +68,7 @@ const TABS: Array<{ id: UltimateTab; label: string; icon: React.ReactNode }> = [
   { id: 'cgi',         label: 'CGI',         icon: <Layers className="w-3.5 h-3.5" /> },
   { id: 'continuity',  label: 'Continuity',  icon: <ShieldCheck className="w-3.5 h-3.5" /> },
   { id: 'audio',       label: 'Audio Mix',   icon: <Sliders className="w-3.5 h-3.5" /> },
+  { id: 'locations',   label: 'Locations',   icon: <MapPin className="w-3.5 h-3.5" /> },
 ]
 
 const DEFAULT_TRACKS: Track[] = [
