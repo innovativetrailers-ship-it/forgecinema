@@ -7,11 +7,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth }                       from '@/lib/auth'
 import { checkAndDeductCredits,
          refundCredits }              from '@/lib/credits'
+import { checkTierAccess }            from '@/lib/access/guard'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
   const userId  = req.headers.get('x-user-id') ?? session?.user?.id
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // DCP export requires Ultimate tier
+  const tierAccess = await checkTierAccess(userId, 'export_dcp')
+  if (!tierAccess.allowed) {
+    return NextResponse.json({
+      error:        tierAccess.reason,
+      requiredTier: tierAccess.requiredTier,
+      upgradeUrl:   '/pricing',
+    }, { status: 403 })
+  }
 
   const body = await req.json() as {
     videoUrl:      string

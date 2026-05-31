@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { Sparkles, Brain, Zap, ChevronDown, Loader2, Film, Users, MapPin, Music } from 'lucide-react'
 import type { TimelineRecipe } from '@/lib/timeline/schema'
+import { useUserTier } from '@/hooks/useUserTier'
+import { TIER_PERMISSIONS } from '@/lib/access/tiers'
 
 interface Character { id: string; name: string; loraStatus: string }
 interface Location { id: string; name: string }
@@ -53,10 +55,26 @@ export function AIDirectorPanel({ script, characters, locations, onRecipeGenerat
   const [progressSteps, setProgressSteps] = useState<string[]>([])
   const [showCouncil, setShowCouncil] = useState(true)
 
+  const { tier, isAdmin } = useUserTier()
+  const maxModels = isAdmin ? 999 : (TIER_PERMISSIONS[tier]?.maxDirectorModels ?? 0)
+
   const toggleModel = (id: string) => {
-    setSelectedModels((prev) =>
-      prev.includes(id) ? (prev.length > 1 ? prev.filter((m) => m !== id) : prev) : [...prev, id]
-    )
+    setSelectedModels((prev) => {
+      if (prev.includes(id)) {
+        return prev.length > 1 ? prev.filter((m) => m !== id) : prev
+      }
+      if (prev.length >= maxModels) {
+        window.dispatchEvent(new CustomEvent('show-upgrade-modal', {
+          detail: {
+            requiredTier: prev.length < 5 ? 'studio' : 'ultimate',
+            feature:      'director_models',
+            message:      `Your plan allows ${maxModels} model${maxModels === 1 ? '' : 's'} in Director mode.`,
+          },
+        }))
+        return prev
+      }
+      return [...prev, id]
+    })
   }
 
   const estimatedCredits = selectedModels.length * 40 + Math.ceil(targetDuration / 5) * 15
@@ -152,7 +170,16 @@ export function AIDirectorPanel({ script, characters, locations, onRecipeGenerat
             className="w-full flex items-center justify-between mb-2"
           >
             <p className="text-[10px] text-white/35 uppercase tracking-wider font-semibold">Model Council</p>
-            <ChevronDown className={`w-3 h-3 text-white/25 transition-transform ${showCouncil ? 'rotate-180' : ''}`} />
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                selectedModels.length >= maxModels && !isAdmin
+                  ? 'bg-amber-500/20 text-amber-400'
+                  : 'bg-white/5 text-gray-500'
+              }`}>
+                {isAdmin ? `${selectedModels.length} selected (unlimited)` : `${selectedModels.length} / ${maxModels} max`}
+              </span>
+              <ChevronDown className={`w-3 h-3 text-white/25 transition-transform ${showCouncil ? 'rotate-180' : ''}`} />
+            </div>
           </button>
           {showCouncil && (
             <div className="space-y-1.5">

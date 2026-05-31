@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Providers } from '@/components/providers'
 import { ToastContainer } from '@/components/ui/ToastContainer'
+import { UpgradeModal } from '@/components/ui/UpgradeModal'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://cinema.growthengine.ai'
 
@@ -90,6 +91,7 @@ export default function RootLayout({
             {children}
             <Toaster richColors position="bottom-right" />
             <ToastContainer />
+            <UpgradeModal />
           </TooltipProvider>
         </Providers>
       </body>

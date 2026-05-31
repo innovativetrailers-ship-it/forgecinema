@@ -1,8 +1,14 @@
 // Single source of truth for ALL access decisions.
 // ADMIN users: always allowed, credits never deducted.
-// Regular users: gated by creditBalance.
+// Regular users: gated by creditBalance and subscription tier.
 
 import { db } from '@/lib/db'
+import {
+  getUserTier,
+  TIER_PERMISSIONS,
+  getRequiredUpgrade,
+  type SubscriptionTier,
+} from './tiers'
 
 export type AccessResult =
   | { allowed: true;  isAdmin: boolean; credits: number }
@@ -48,6 +54,80 @@ export async function checkAccess(
 
   return { allowed: true, isAdmin: false, credits: balance }
 }
+
+// ─── Tier access ──────────────────────────────────────────────────────────────
+
+export type TierAccessResult =
+  | { allowed: true }
+  | { allowed: false; reason: string; requiredTier: SubscriptionTier }
+
+const TIER_LABELS: Record<string, string> = {
+  pro:      'Pro ($19/mo)',
+  studio:   'Studio ($49/mo)',
+  ultimate: 'Ultimate ($99/mo)',
+}
+
+/**
+ * Check if a user's subscription tier allows a specific feature.
+ * ADMIN always passes.
+ */
+export async function checkTierAccess(
+  userId:     string | null,
+  featureKey: string,
+): Promise<TierAccessResult> {
+  if (!userId) return { allowed: false, reason: 'Not authenticated', requiredTier: 'pro' }
+
+  const user = await db.user.findUnique({
+    where:  { id: userId },
+    select: { role: true, subscriptionStatus: true },
+  })
+
+  const tier = getUserTier(user?.subscriptionStatus ?? null, user?.role ?? 'USER')
+
+  if (tier === 'admin') return { allowed: true }
+
+  const required = getRequiredUpgrade(tier, featureKey)
+  if (required) {
+    return {
+      allowed:      false,
+      reason:       `This feature requires ${TIER_LABELS[required] ?? required}`,
+      requiredTier: required,
+    }
+  }
+
+  return { allowed: true }
+}
+
+/**
+ * Check if a user's plan allows the chosen Director model count.
+ */
+export async function checkDirectorModelLimit(
+  userId:        string | null,
+  selectedCount: number,
+): Promise<TierAccessResult> {
+  if (!userId) return { allowed: false, reason: 'Not authenticated', requiredTier: 'pro' }
+
+  const user = await db.user.findUnique({
+    where:  { id: userId },
+    select: { role: true, subscriptionStatus: true },
+  })
+
+  const tier  = getUserTier(user?.subscriptionStatus ?? null, user?.role ?? 'USER')
+  const perms = TIER_PERMISSIONS[tier]
+
+  if (selectedCount > perms.maxDirectorModels) {
+    const needed: SubscriptionTier = selectedCount <= 3 ? 'pro' : selectedCount <= 5 ? 'studio' : 'ultimate'
+    return {
+      allowed:      false,
+      reason:       `Your plan allows ${perms.maxDirectorModels} model${perms.maxDirectorModels === 1 ? '' : 's'} in Director mode. Select fewer, or upgrade.`,
+      requiredTier: needed,
+    }
+  }
+
+  return { allowed: true }
+}
+
+// ─── Credit deduction ─────────────────────────────────────────────────────────
 
 /**
  * Deduct credits from a regular user.

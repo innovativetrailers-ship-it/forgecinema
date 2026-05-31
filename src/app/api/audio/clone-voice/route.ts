@@ -1,7 +1,7 @@
-import { cloneVoice }                      from '@/lib/engines/elevenLabs'
-import { deductCredits, OPERATION_COSTS }  from '@/lib/credits'
-import { db }                              from '@/lib/db'
-import { checkAccess }                     from '@/lib/access/guard'
+import { cloneVoice }                                from '@/lib/engines/elevenLabs'
+import { deductCredits, OPERATION_COSTS }            from '@/lib/credits'
+import { db }                                        from '@/lib/db'
+import { checkAccess, checkTierAccess }              from '@/lib/access/guard'
 
 export async function POST(req: Request) {
   const userId = req.headers.get('x-user-id')
@@ -11,6 +11,16 @@ export async function POST(req: Request) {
     name:        string
     description: string
     audioUrls:   string[]
+  }
+
+  // Tier check — voice cloning requires Studio or above
+  const tierAccess = await checkTierAccess(userId, 'voice_clone')
+  if (!tierAccess.allowed) {
+    return Response.json({
+      error:        tierAccess.reason,
+      requiredTier: tierAccess.requiredTier,
+      upgradeUrl:   '/pricing',
+    }, { status: 403 })
   }
 
   const cost = OPERATION_COSTS['elevenlabs_clone_voice']
