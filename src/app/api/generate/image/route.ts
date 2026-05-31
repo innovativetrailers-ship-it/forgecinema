@@ -1,6 +1,7 @@
 import { generateWithNanoBanana }          from '@/lib/engines/nanoBanana'
 import { deductCredits, OPERATION_COSTS }  from '@/lib/credits'
 import { db }                              from '@/lib/db'
+import { checkAccess }                     from '@/lib/access/guard'
 
 export async function POST(req: Request) {
   const userId = req.headers.get('x-user-id')
@@ -12,6 +13,9 @@ export async function POST(req: Request) {
   const cost = params.quality === 'pro'
     ? OPERATION_COSTS['nano-banana-pro']
     : OPERATION_COSTS['nano-banana-2']
+
+  const access = await checkAccess(userId, cost)
+  if (!access.allowed) return Response.json({ error: access.reason }, { status: access.code })
 
   await deductCredits(db, userId, cost, `Image: ${params.prompt.slice(0, 60)}`)
   const result = await generateWithNanoBanana(params as Parameters<typeof generateWithNanoBanana>[0])

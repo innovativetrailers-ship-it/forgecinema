@@ -72,7 +72,7 @@ export function TopBar() {
   const pathname = usePathname()
   const router = useRouter()
   const { data: session, status } = useSession()
-  const { balance, isLoading: creditsLoading } = useCredits()
+  const { balance, isAdmin, unlimited, isLoading: creditsLoading } = useCredits()
   const [purchaseOpen, setPurchaseOpen] = useState(false)
 
   const { mode, setMode, activeTier, setTier, zoom, setZoom, isPlaying, setIsPlaying } = useStudioStore()
@@ -251,7 +251,9 @@ export function TopBar() {
               <Hexagon className="w-3 h-3 text-[var(--teal-bright)]" />
               {creditsLoading
                 ? <Loader2 className="w-3 h-3 animate-spin text-[var(--teal-bright)]" />
-                : <span className="text-[11px] font-semibold text-[var(--teal-bright)] tabular-nums">{balance.toLocaleString()}</span>
+                : (isAdmin || unlimited)
+                  ? <span className="text-[11px] font-bold text-[var(--teal-bright)]">∞</span>
+                  : <span className={`text-[11px] font-semibold tabular-nums ${balance < 50 ? 'text-amber-400' : 'text-[var(--teal-bright)]'}`}>{balance.toLocaleString()}</span>
               }
             </button>
           )}

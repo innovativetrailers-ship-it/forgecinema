@@ -99,6 +99,82 @@ export async function POST(req: Request) {
       break
     }
 
+    // Subscription invoice paid → reset credits; credit pack → additive
+    case 'invoice.paid': {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const invoice    = event.data.object as any
+      const customerId = invoice.customer as string
+      const priceId    = invoice.lines?.data?.[0]?.price?.id as string | undefined
+
+      const stripeRecord = await db.stripeCustomer.findUnique({
+        where: { stripeCustomerId: customerId },
+      })
+      if (!stripeRecord) break
+
+      const userId = stripeRecord.userId
+
+      // Never touch admin credits
+      const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } })
+      if (user?.role === 'ADMIN') break
+
+      const PRICE_TO_CREDITS: Record<string, { credits: number; tier: string }> = {
+        [process.env.STRIPE_PRO_MONTHLY_PRICE_ID!]:      { credits: 500,   tier: 'pro' },
+        [process.env.STRIPE_PRO_YEARLY_PRICE_ID!]:       { credits: 500,   tier: 'pro' },
+        [process.env.STRIPE_STUDIO_MONTHLY_PRICE_ID!]:   { credits: 2000,  tier: 'studio' },
+        [process.env.STRIPE_STUDIO_YEARLY_PRICE_ID!]:    { credits: 2000,  tier: 'studio' },
+        [process.env.STRIPE_ULTIMATE_MONTHLY_PRICE_ID!]: { credits: 6000,  tier: 'ultimate' },
+        [process.env.STRIPE_ULTIMATE_YEARLY_PRICE_ID!]:  { credits: 6000,  tier: 'ultimate' },
+        [process.env.STRIPE_CREDITS_100_PRICE_ID!]:      { credits: 100,   tier: '' },
+        [process.env.STRIPE_CREDITS_500_PRICE_ID!]:      { credits: 500,   tier: '' },
+        [process.env.STRIPE_CREDITS_2000_PRICE_ID!]:     { credits: 2000,  tier: '' },
+        [process.env.STRIPE_CREDITS_10000_PRICE_ID!]:    { credits: 10000, tier: '' },
+      }
+
+      const plan = priceId ? PRICE_TO_CREDITS[priceId] : null
+      if (!plan) break
+
+      const isSubscription = !!invoice.subscription
+
+      if (isSubscription) {
+        // Monthly subscription: RESET to plan amount (prevents credit hoarding)
+        await db.$transaction([
+          db.user.update({
+            where: { id: userId },
+            data: {
+              creditBalance:      plan.credits,
+              subscriptionStatus: 'active',
+            },
+          }),
+          db.creditTransaction.create({
+            data: {
+              userId,
+              amount:      plan.credits,
+              description: `Monthly subscription refresh — ${plan.tier} plan`,
+              balanceAfter: plan.credits,
+            },
+          }),
+        ])
+      } else {
+        // Credit pack: ADD on top of existing balance
+        const updated = await db.user.update({
+          where: { id: userId },
+          data:  { creditBalance: { increment: plan.credits } },
+          select: { creditBalance: true },
+        })
+        await db.creditTransaction.create({
+          data: {
+            userId,
+            amount:      plan.credits,
+            description: `Credit pack purchase — ${plan.credits} credits`,
+            balanceAfter: updated.creditBalance,
+          },
+        })
+      }
+
+      console.log(`[Stripe] Invoice paid: ${plan.credits} credits for user ${userId} (${isSubscription ? 'subscription' : 'pack'})`)
+      break
+    }
+
     // Legacy: checkout.session.completed
     case 'checkout.session.completed': {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -5,8 +5,13 @@ import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 
 export interface CreditBalance {
-  balance: number
-  role: string
+  credits:            number
+  balance:            number   // alias for credits — kept for backwards compatibility
+  role:               string
+  isAdmin:            boolean
+  unlimited:          boolean
+  subscriptionStatus: string
+  tier:               string
 }
 
 export const CREDIT_PACKS = [
@@ -67,12 +72,19 @@ export function useCredits() {
     queryClient.invalidateQueries({ queryKey: ['credits', 'balance'] })
   }
 
+  const credits = data?.credits ?? data?.balance ?? 0
+
   return {
-    balance: data?.balance ?? 0,
-    role: data?.role ?? 'FREE',
+    balance:            credits,
+    credits,
+    isAdmin:            data?.isAdmin    ?? false,
+    unlimited:          data?.unlimited  ?? false,
+    subscriptionStatus: data?.subscriptionStatus ?? 'free',
+    tier:               data?.tier       ?? 'free',
+    role:               data?.role       ?? 'FREE',
     isLoading,
-    purchase: purchaseMutation.mutate,
-    isPurchasing: purchaseMutation.isPending,
+    purchase:           purchaseMutation.mutate,
+    isPurchasing:       purchaseMutation.isPending,
     refetchBalance,
   }
 }

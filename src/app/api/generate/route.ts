@@ -3,6 +3,7 @@ import { calculateSimpleCost, deductCredits } from '@/lib/credits'
 import { TIER_ENGINE_MAP }                    from '@/lib/routing/engineRegistry'
 import { db }                                 from '@/lib/db'
 import { renderQueue }                        from '@/lib/queue'
+import { checkAccess }                        from '@/lib/access/guard'
 
 export async function POST(req: Request) {
   const userId = req.headers.get('x-user-id')
@@ -57,9 +58,6 @@ export async function POST(req: Request) {
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
-    if (msg.includes('Insufficient credits')) {
-      return Response.json({ error: msg }, { status: 402 })
-    }
     console.error('[generate]', err)
     return Response.json({ error: msg }, { status: 500 })
   }

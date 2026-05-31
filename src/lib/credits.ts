@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { MODEL_COSTS, TIER_ENGINE_MAP } from './routing/engineRegistry'
+// deductUserCredits is the single source of truth for credit deduction.
+// deductCredits below is kept for backward compatibility and additionally performs Stripe sync.
+export { deductUserCredits } from '@/lib/access/guard'
 
 export class CreditError extends Error {
   constructor(message: string) {

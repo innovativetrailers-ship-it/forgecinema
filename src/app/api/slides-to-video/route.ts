@@ -1,6 +1,7 @@
 import { renderQueue }  from '@/lib/queue'
 import { db }           from '@/lib/db'
 import { deductCredits } from '@/lib/credits'
+import { checkAccess }   from '@/lib/access/guard'
 
 export async function POST(req: Request) {
   const userId = req.headers.get('x-user-id')
@@ -18,6 +19,9 @@ export async function POST(req: Request) {
   if (!fileUrl) return Response.json({ error: 'fileUrl required' }, { status: 400 })
 
   // 5 credits per slide estimated — charged per-slide in the worker
+  const access = await checkAccess(userId, 5)
+  if (!access.allowed) return Response.json({ error: access.reason }, { status: access.code })
+
   await deductCredits(db, userId, 5, 'Slides-to-video: initial reservation')
 
   const job = await db.renderJob.create({

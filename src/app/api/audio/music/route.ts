@@ -3,6 +3,7 @@ import { generateMusic } from '@/lib/engines/suno'
 import { uploadToR2 } from '@/lib/storage/r2'
 import { deductCredits, refundCredits, OPERATION_COSTS } from '@/lib/credits'
 import { db } from '@/lib/db'
+import { checkAccess } from '@/lib/access/guard'
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const userId = req.headers.get('x-user-id')
@@ -26,6 +27,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const durationSecs = duration ?? 60
   const cost = Math.ceil(durationSecs / 30) * (OPERATION_COSTS['suno_music_per_30s'] ?? 5)
+
+  const access = await checkAccess(userId, cost)
+  if (!access.allowed) return NextResponse.json({ error: access.reason }, { status: access.code })
 
   try {
     await deductCredits(db, userId, cost, `Music: ${prompt.slice(0, 40)}`)
