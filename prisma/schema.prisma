@@ -82,6 +82,7 @@ model User {
   stripeDeposits    StripeDeposit[]
   socialConnections SocialConnection[]
   vendorUsage     VendorUsageLog[]
+  locationPlates  LocationPlate[]
 
   @@index([email])
 }
@@ -799,6 +800,24 @@ model BranchingEmbed {
 
   @@index([projectId])
   @@index([embedId])
+}
+
+model LocationPlate {
+  id          String   @id @default(cuid())
+  userId      String
+  imageUrl    String
+  sourceUrl   String
+  type        String   // 'street' | 'satellite'
+  lat         Float?
+  lng         Float?
+  displayName String?
+  city        String?
+  country     String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
 }
 
 model ClipComment {

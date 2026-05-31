@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { nanoid } from 'nanoid'
-import { FileText, Film, Brain, Layers, ShieldCheck, Sliders, Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react'
+import { FileText, Film, Brain, Layers, ShieldCheck, Sliders, Play, Pause, ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { IconRail } from '@/components/layout/IconRail'
 import { LeftPanel } from '@/components/layout/LeftPanel'
@@ -27,6 +27,9 @@ const ContinuityChecker = lazy(() =>
 )
 const AudioMixingBoard = lazy(() =>
   import('@/components/ultimate/AudioMixingBoard').then((m) => ({ default: m.AudioMixingBoard }))
+)
+const LocationPanel = lazy(() =>
+  import('@/components/panels/LocationPanel').then((m) => ({ default: m.LocationPanel }))
 )
 
 // Types still imported statically (no runtime cost)
@@ -557,6 +560,7 @@ export default function UltimatePage() {
                   onTracksApplied={handleAudioTracksApplied}
                 />
               )}
+              {activeTab === 'locations' && <LocationPanel />}
               </Suspense>
             </div>
           )}

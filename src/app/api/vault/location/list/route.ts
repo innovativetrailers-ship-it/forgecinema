@@ -1,22 +1,15 @@
-import { auth } from '@/lib/auth'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
-export async function GET(request: Request) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return Response.json({ error: 'Unauthorised' }, { status: 401 })
-  }
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const userId = req.headers.get('x-user-id')
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(request.url)
-  const projectId = searchParams.get('projectId')
-
-  const locations = await db.vaultLocation.findMany({
-    where: {
-      projectId: projectId ?? undefined,
-      project: { userId: session.user.id },
-    },
+  const plates = await db.locationPlate.findMany({
+    where:   { userId },
     orderBy: { createdAt: 'desc' },
+    take:    100,
   })
 
-  return Response.json({ locations })
+  return NextResponse.json({ plates })
 }
