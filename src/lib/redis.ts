@@ -107,6 +107,23 @@ export function createBullMQConnection(): Redis {
   )
 }
 
+// Producer-side connection for BullMQ queues (e.g. API routes adding jobs).
+// CRITICAL: no `keyPrefix` — BullMQ rejects ioredis keyPrefix and throws at
+// `new Queue()`. Key namespacing is done via BullMQ's own `prefix` option
+// (see `bullMQPrefix`). enableOfflineQueue:true + lazyConnect:true keep this
+// serverless-safe: commands buffer until the TLS socket is ready on cold start.
+export function createQueueConnection(): Redis {
+  return suppressTeardown(
+    new Redis(getRedisOptions({
+      maxRetriesPerRequest: null,
+      lazyConnect: true,
+      enableOfflineQueue: true,
+      retryStrategy: makeRetryStrategy('queue'),
+      reconnectOnError: makeReconnectOnError,
+    }))
+  )
+}
+
 // Build-time stub — never opens a TCP connection
 class RedisStub {
   on() { return this }
@@ -126,6 +143,7 @@ class RedisStub {
 const globalForRedis = globalThis as unknown as {
   redis: Redis | undefined
   bullmqRedis: Redis | undefined
+  queueConnection: Redis | undefined
 }
 
 export const redis: Redis = isBuildTime
@@ -136,9 +154,15 @@ export const bullmqRedis: Redis = isBuildTime
   ? (new RedisStub() as unknown as Redis)
   : (globalForRedis.bullmqRedis ?? createBullMQConnection())
 
+// Prefix-free connection used by BullMQ queue producers (see createQueueConnection).
+export const queueConnection: Redis = isBuildTime
+  ? (new RedisStub() as unknown as Redis)
+  : (globalForRedis.queueConnection ?? createQueueConnection())
+
 if (!isBuildTime && process.env.NODE_ENV !== 'production') {
   globalForRedis.redis = redis
   globalForRedis.bullmqRedis = bullmqRedis
+  globalForRedis.queueConnection = queueConnection
 }
 
 export const bullMQPrefix = CINEMA_KEY_PREFIX
@@ -148,9 +172,11 @@ if (!isBuildTime) {
     await Promise.all([
       globalForRedis.redis?.quit().catch(() => {}),
       globalForRedis.bullmqRedis?.quit().catch(() => {}),
+      globalForRedis.queueConnection?.quit().catch(() => {}),
     ])
     globalForRedis.redis = undefined
     globalForRedis.bullmqRedis = undefined
+    globalForRedis.queueConnection = undefined
   }
   process.on('beforeExit', shutdown)
   process.on('SIGTERM', shutdown)

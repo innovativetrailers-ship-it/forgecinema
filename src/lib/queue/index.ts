@@ -22,10 +22,18 @@ const eventStub = new Proxy({} as object, {
 }) as unknown as QueueEvents
 
 // ─── Lazy connection (imported only when first queue is created) ─────────────
+// Uses the prefix-free `queueConnection` — BullMQ rejects ioredis keyPrefix.
 function getConnection(): Redis {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { redis } = require('../redis') as { redis: Redis }
-  return redis
+  const { queueConnection } = require('../redis') as { queueConnection: Redis }
+  return queueConnection
+}
+
+// Key namespace must match the workers, which pass `prefix: bullMQPrefix`.
+function getQueuePrefix(): string {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { bullMQPrefix } = require('../redis') as { bullMQPrefix: string }
+  return bullMQPrefix
 }
 
 // ─── Default job options ─────────────────────────────────────────────────────
@@ -48,6 +56,7 @@ function lazyQueue(name: string, extraOpts: Omit<QueueOptions, 'connection'> = {
   if (!_queues.has(name)) {
     _queues.set(name, new Queue(name, {
       connection: getConnection(),
+      prefix: getQueuePrefix(),
       defaultJobOptions: DEFAULT_JOB_OPTIONS,
       ...extraOpts,
     }))
@@ -61,6 +70,7 @@ function lazyEvents(name: string): QueueEvents {
   if (!_events.has(name)) {
     _events.set(name, new QueueEvents(name, {
       connection: getConnection(),
+      prefix: getQueuePrefix(),
     }))
   }
   return _events.get(name)!
