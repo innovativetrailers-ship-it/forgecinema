@@ -15,7 +15,7 @@
     "lint": "eslint",
     "worker:render": "tsx src/lib/queue/workers/render.worker.ts",
     "worker:training": "tsx src/lib/queue/workers/training.worker.ts",
-    "worker:export": "tsx src/lib/queue/workers/export.worker.ts",
+    "worker:export": "node scripts/redis-diag.mjs; tsx src/lib/queue/workers/export.worker.ts",
     "worker:das": "tsx src/workers/das-pull.ts",
     "worker:intelligence": "tsx src/workers/intelligence-cron.ts",
     "worker:training-pipeline": "tsx src/workers/training-pipeline.ts",

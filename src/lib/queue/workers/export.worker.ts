@@ -10,35 +10,6 @@ process.on('unhandledRejection', (reason) => {
   console.error('[export-worker] Unhandled rejection:', reason)
 })
 
-// TEMP DIAGNOSTIC: confirm Railway → Upstash network reachability at startup.
-import { lookup } from 'node:dns/promises'
-import { connect as tcpConnect } from 'node:tls'
-;(async () => {
-  const raw = process.env.REDIS_URL ?? ''
-  try {
-    const u = new URL(raw.replace(':6380', ':6379'))
-    console.log('[redis-diag] host=%s port=%s', u.hostname, u.port || '6379')
-    try {
-      const v4 = await lookup(u.hostname, { family: 4 })
-      console.log('[redis-diag] DNS A   =', v4.address)
-    } catch (e) { console.error('[redis-diag] DNS A failed:', (e as Error).message) }
-    try {
-      const v6 = await lookup(u.hostname, { family: 6 })
-      console.log('[redis-diag] DNS AAAA=', v6.address)
-    } catch (e) { console.error('[redis-diag] DNS AAAA failed:', (e as Error).message) }
-    const port = Number(u.port) || 6379
-    const started = Date.now()
-    const sock = tcpConnect({ host: u.hostname, port, servername: u.hostname, timeout: 12_000 }, () => {
-      console.log('[redis-diag] TLS connect OK in %dms', Date.now() - started)
-      sock.end()
-    })
-    sock.on('timeout', () => { console.error('[redis-diag] TLS connect TIMEOUT after %dms', Date.now() - started); sock.destroy() })
-    sock.on('error', (e) => console.error('[redis-diag] TLS connect ERROR:', (e as Error).message))
-  } catch (e) {
-    console.error('[redis-diag] bad REDIS_URL:', (e as Error).message)
-  }
-})()
-
 import { Worker } from 'bullmq'
 import { bullmqRedis, bullMQPrefix } from '../../redis'
 import { db } from '../../db'
