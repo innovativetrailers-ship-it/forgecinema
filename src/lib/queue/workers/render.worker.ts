@@ -427,6 +427,9 @@ export const renderWorker = new Worker<RenderJobPayload>(
     prefix: bullMQPrefix,
     concurrency: 5,
     limiter: { max: 20, duration: 60000 },
+    // Cost safety: a stalled job (worker crash/redeploy mid-render) must NOT be
+    // re-run — re-running re-submits to fal.ai and charges again. Fail it once.
+    maxStalledCount: 0,
   }
 )
 

@@ -194,7 +194,9 @@ export async function POST(request: NextRequest) {
         modelId: model,
         payload,
       },
-      { priority: getPriorityForRole(userRole) }
+      // attempts:1 — never auto-retry a paid fal.ai generation (each retry is
+      // a fresh charge). Failures surface to the user to retry deliberately.
+      { priority: getPriorityForRole(userRole), attempts: 1 }
     )
   } catch (queueErr) {
     // Queue unavailable (Redis down) — mark job failed and refund credits

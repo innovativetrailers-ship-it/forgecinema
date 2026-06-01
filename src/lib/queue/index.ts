@@ -44,6 +44,15 @@ const DEFAULT_JOB_OPTIONS: QueueOptions['defaultJobOptions'] = {
   removeOnFail:     { count: 100 },
 }
 
+// Paid AI generations (render, LoRA training) call external providers (fal.ai)
+// that CHARGE on every submit. Auto-retrying re-submits and multiplies the
+// cost — a single timed-out job at attempts:3 = 3 paid generations. Fail once
+// and let the user retry deliberately.
+const PAID_JOB_OPTIONS: QueueOptions['defaultJobOptions'] = {
+  ...DEFAULT_JOB_OPTIONS,
+  attempts: 1,
+}
+
 // ─── Lazy queue factory ───────────────────────────────────────────────────────
 // Queues are created on first access — not on module import.
 // This prevents ioredis from connecting during `next build`.
@@ -79,8 +88,8 @@ function lazyEvents(name: string): QueueEvents {
 // ─── Queue exports ────────────────────────────────────────────────────────────
 // Using ES getters so callers write `renderQueue.add(...)` unchanged —
 // no `.current` suffix required anywhere.
-export const renderQueue       = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue('render'),       p) })
-export const trainingQueue     = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue('training'),     p) })
+export const renderQueue       = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue('render',   { defaultJobOptions: PAID_JOB_OPTIONS }), p) })
+export const trainingQueue     = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue('training', { defaultJobOptions: PAID_JOB_OPTIONS }), p) })
 export const exportQueue       = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue('export'),       p) })
 export const upscaleQueue      = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue('upscale'),      p) })
 export const cameraQueue       = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue('camera'),       p) })
