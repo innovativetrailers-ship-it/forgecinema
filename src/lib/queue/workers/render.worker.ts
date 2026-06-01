@@ -27,6 +27,31 @@ import type { GenerateVideoOutput } from '../../models/types'
 const POLL_INTERVAL_MS = 4000
 const JOB_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes
 
+// fal.ai (and other providers) throw errors whose useful text lives in
+// `body.detail` rather than `message` (which is just "Forbidden"/"Bad Request").
+// Extract a user-facing message and give the common balance-lock a clear copy.
+function describeProviderError(err: unknown): string {
+  if (err && typeof err === 'object') {
+    const e = err as { status?: number; message?: string; body?: { detail?: unknown } }
+    const detail = e.body?.detail
+    const detailStr =
+      typeof detail === 'string'
+        ? detail
+        : Array.isArray(detail)
+          ? detail
+              .map((d) => (d as { msg?: string; message?: string })?.msg ?? (d as { message?: string })?.message)
+              .filter(Boolean)
+              .join('; ')
+          : ''
+    if (/exhausted balance|user is locked/i.test(detailStr)) {
+      return 'AI provider account is out of balance. Top up fal.ai billing to resume generation.'
+    }
+    if (detailStr) return detailStr
+    if (e.message) return e.status ? `${e.message} (${e.status})` : e.message
+  }
+  return err instanceof Error ? err.message : 'Unknown error'
+}
+
 type JobType =
   | 'GENERATE'
   | 'REPAINT'
@@ -352,7 +377,7 @@ export const renderWorker = new Worker<RenderJobPayload>(
           await handleGenerateJob(data)
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
+      const message = describeProviderError(err)
 
       // Refund credits
       const renderJob = await db.renderJob.findUnique({
