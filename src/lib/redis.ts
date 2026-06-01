@@ -24,7 +24,12 @@ function buildRedisUrl(): string {
       )
     }
     const host = raw.replace(/^https?:\/\//, '').replace(/\/$/, '')
-    return `rediss://default:${token}@${host}:6380`
+    return `rediss://default:${token}@${host}:6379`
+  }
+
+  // Upstash TLS uses port 6379 (6380 times out); normalise legacy URLs.
+  if (raw.startsWith('rediss://') && raw.includes(':6380')) {
+    return raw.replace(':6380', ':6379')
   }
 
   return raw
