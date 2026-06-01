@@ -86,7 +86,7 @@ export async function generateKling30(payload: SwarmPayload): Promise<string> {
   const isI2V = !!payload.startFrameUrl
   return pollUntilDone(
     async () => {
-      const r = await klingClient.pollStatus(job.jobId, isI2V)
+      const r = await klingClient.pollStatus(job.jobId, 'pro', isI2V)
       return { status: r.status === 'complete' ? 'complete' : r.status === 'failed' ? 'failed' : 'pending', result: r.videoUrl }
     },
     5000, 120, 'Kling'
