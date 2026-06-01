@@ -25,7 +25,10 @@ import { loraAutoTrigger, incrementRenderCount } from '../../vault/lora-trigger'
 import type { GenerateVideoOutput } from '../../models/types'
 
 const POLL_INTERVAL_MS = 4000
-const JOB_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes
+// fal video models can sit in-queue for 15+ min under load before execution.
+// Keep this comfortably above observed worst-case so we don't fail jobs that
+// fal will still complete (the result is fetched as soon as it flips COMPLETED).
+const JOB_TIMEOUT_MS = 25 * 60 * 1000 // 25 minutes
 
 // fal.ai (and other providers) throw errors whose useful text lives in
 // `body.detail` rather than `message` (which is just "Forbidden"/"Bad Request").
@@ -152,7 +155,7 @@ async function pollUntilComplete(
 ): Promise<GenerateVideoOutput> {
   while (true) {
     if (Date.now() - startedAt > JOB_TIMEOUT_MS) {
-      throw new Error('Job timed out after 10 minutes')
+      throw new Error('Job timed out after 25 minutes')
     }
 
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
