@@ -1,19 +1,23 @@
-// Kling now routes through FAL (fal-ai/kling-video) — no direct Kling API key needed
+// Kling routes through fal (fal-ai/kling-video) via the async queue API.
+import { fal } from '../fal/client'
 import type { GenerateVideoInput, GenerateVideoOutput } from './types'
 
-const FAL_MODEL_PRO      = 'fal-ai/kling-video/v1.6/pro/text-to-video'
-const FAL_MODEL_STANDARD = 'fal-ai/kling-video/v1.6/standard/text-to-video'
-const FAL_I2V_PRO        = 'fal-ai/kling-video/v1.6/pro/image-to-video'
-const FAL_I2V_STANDARD   = 'fal-ai/kling-video/v1.6/standard/image-to-video'
+const T2V_PRO      = 'fal-ai/kling-video/v1.6/pro/text-to-video'
+const T2V_STANDARD = 'fal-ai/kling-video/v1.6/standard/text-to-video'
+const I2V_PRO      = 'fal-ai/kling-video/v1.6/pro/image-to-video'
+const I2V_STANDARD = 'fal-ai/kling-video/v1.6/standard/image-to-video'
+
+function endpointFor(tier: 'standard' | 'pro', isImageToVideo: boolean): string {
+  if (isImageToVideo) return tier === 'pro' ? I2V_PRO : I2V_STANDARD
+  return tier === 'pro' ? T2V_PRO : T2V_STANDARD
+}
 
 export async function generateVideo(
   input: GenerateVideoInput,
   tier: 'standard' | 'pro' = 'standard'
 ): Promise<GenerateVideoOutput> {
-  const isI2V      = Boolean(input.startFrameUrl)
-  const falModelId = isI2V
-    ? (tier === 'pro' ? FAL_I2V_PRO : FAL_I2V_STANDARD)
-    : (tier === 'pro' ? FAL_MODEL_PRO : FAL_MODEL_STANDARD)
+  const isI2V = Boolean(input.startFrameUrl)
+  const model = endpointFor(tier, isI2V)
 
   const falInput: Record<string, unknown> = {
     prompt:       input.prompt,
@@ -24,69 +28,39 @@ export async function generateVideo(
   if (input.startFrameUrl)      falInput.image_url        = input.startFrameUrl
   if (input.seed !== undefined) falInput.seed             = input.seed
 
-  const res = await fetch(`https://fal.run/${falModelId}`, {
-    method:  'POST',
-    headers: {
-      Authorization:  `Key ${process.env.FAL_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ input: falInput }),
-  })
+  // Async submit — returns immediately with a request id for the worker to poll.
+  interface FalSubmit { request_id: string }
+  const res = (await fal.queue.submit(model, { input: falInput })) as FalSubmit
 
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Kling FAL error ${res.status}: ${err}`)
-  }
-
-  const data = await res.json() as {
-    request_id?: string
-    video?:      { url?: string; cover_image_url?: string }
-    video_url?:  string
-  }
-
-  const jobId        = data.request_id ?? `kling_${Date.now()}`
-  const videoUrl     = data.video?.url ?? data.video_url
-  const thumbnailUrl = data.video?.cover_image_url
-
-  return {
-    jobId,
-    status:       videoUrl ? 'complete' : 'pending',
-    videoUrl,
-    thumbnailUrl,
-    pollUrl: videoUrl ? undefined : `https://queue.fal.run/${falModelId}/requests/${jobId}`,
-  }
+  return { jobId: res.request_id, status: 'pending' }
 }
 
 export async function pollStatus(
   requestId: string,
+  tier: 'standard' | 'pro' = 'standard',
   isImageToVideo = false
 ): Promise<GenerateVideoOutput> {
-  const falModelId = isImageToVideo ? FAL_I2V_PRO : FAL_MODEL_PRO
+  const model = endpointFor(tier, isImageToVideo)
 
-  const res = await fetch(
-    `https://queue.fal.run/${falModelId}/requests/${requestId}`,
-    { headers: { Authorization: `Key ${process.env.FAL_API_KEY}` } }
-  )
+  interface FalStatus { status: string }
+  const status = (await fal.queue.status(model, { requestId, logs: false })) as FalStatus
 
-  if (!res.ok) throw new Error(`Kling poll error ${res.status}`)
-
-  const data = await res.json() as {
-    status?:    string
-    video?:     { url?: string; cover_image_url?: string }
-    video_url?: string
-    error?:     string
-  }
-
-  if (data.status === 'COMPLETED' || data.video?.url || data.video_url) {
+  if (status.status === 'COMPLETED') {
+    interface FalResult {
+      video?: { url?: string; cover_image_url?: string }
+      video_url?: string
+    }
+    const result = (await fal.queue.result(model, { requestId })) as FalResult
     return {
       jobId:        requestId,
       status:       'complete',
-      videoUrl:     data.video?.url ?? data.video_url,
-      thumbnailUrl: data.video?.cover_image_url,
+      videoUrl:     result.video?.url ?? result.video_url,
+      thumbnailUrl: result.video?.cover_image_url,
     }
   }
-  if (data.status === 'FAILED') {
-    return { jobId: requestId, status: 'failed', error: data.error ?? 'Kling generation failed' }
+
+  if (status.status === 'FAILED') {
+    return { jobId: requestId, status: 'failed', error: 'Kling generation failed' }
   }
 
   return { jobId: requestId, status: 'processing' }

@@ -161,10 +161,14 @@ async function pollUntilComplete(
 
     switch (modelId) {
       case 'kling_standard':
-      case 'kling':
+      case 'kling': {
+        const kling = await import('../../models/kling')
+        result = await kling.pollStatus(externalJobId, 'standard')
+        break
+      }
       case 'kling_pro': {
         const kling = await import('../../models/kling')
-        result = await kling.pollStatus(externalJobId)
+        result = await kling.pollStatus(externalJobId, 'pro')
         break
       }
       case 'veo3': {

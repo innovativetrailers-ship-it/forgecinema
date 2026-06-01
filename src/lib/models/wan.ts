@@ -1,8 +1,10 @@
 import { fal } from '../fal/client'
 import type { GenerateVideoInput, GenerateVideoOutput } from './types'
 
-const T2V_MODEL = 'fal-ai/wan/v2.2/t2v'
-const I2V_MODEL = 'fal-ai/wan/v2.2/i2v'
+// fal endpoint ids must match the documented model paths exactly. The old
+// `wan/v2.2/t2v` accepts submissions but its result path 404s on retrieval.
+const T2V_MODEL = 'fal-ai/wan/v2.2-a14b/text-to-video'
+const I2V_MODEL = 'fal-ai/wan/v2.2-a14b/image-to-video'
 
 export async function generateVideo(
   input: GenerateVideoInput
