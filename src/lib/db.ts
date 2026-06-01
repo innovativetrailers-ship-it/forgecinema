@@ -1,11 +1,18 @@
 import dns from 'node:dns'
+import net from 'node:net'
 import { PrismaClient } from '../generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 // Railway containers have no working IPv6 egress, but Neon resolves to both
-// A and AAAA records. node-postgres would otherwise pick IPv6 and hang with
-// ETIMEDOUT. Prefer IPv4 so DB connections succeed on Railway (and anywhere).
+// A and AAAA records. Two changes are needed so node-postgres connects on IPv4:
+//   1. Prefer IPv4 in DNS results.
+//   2. Disable Happy-Eyeballs (autoSelectFamily) — otherwise Node races the
+//      unroutable IPv6 address and the connection dies with a fast ETIMEDOUT
+//      (~750ms) before the IPv4 attempt completes.
 dns.setDefaultResultOrder('ipv4first')
+if (typeof net.setDefaultAutoSelectFamily === 'function') {
+  net.setDefaultAutoSelectFamily(false)
+}
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined }
 
