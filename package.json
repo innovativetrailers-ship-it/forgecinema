@@ -2,6 +2,9 @@
   "name": "cinema",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "concurrently \"next dev\" \"bash scripts/start_services.sh --wait\"",
     "build": "next build",
