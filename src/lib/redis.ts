@@ -62,7 +62,6 @@ export function createRedisConnection(): Redis {
       maxRetriesPerRequest: 3,
       lazyConnect: true,
       keyPrefix: CINEMA_KEY_PREFIX,
-      tls: {},
       enableOfflineQueue: true,
       connectTimeout: 10_000,
       retryStrategy: makeRetryStrategy('app'),
@@ -76,7 +75,6 @@ export function createBullMQConnection(): Redis {
     new Redis(buildRedisUrl(), {
       maxRetriesPerRequest: null,
       lazyConnect: true,
-      tls: {},
       enableOfflineQueue: false,
       retryStrategy: makeRetryStrategy('bullmq'),
       reconnectOnError: makeReconnectOnError,
