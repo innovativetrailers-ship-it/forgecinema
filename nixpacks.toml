@@ -4,7 +4,7 @@
 # this file's Python entries become redundant but harmless.
 
 [phases.setup]
-nixPkgs = ["nodejs_20", "python311", "ffmpeg"]
+nixPkgs = ["nodejs_22", "python311", "ffmpeg"]
 
 [phases.install]
 cmds = [
