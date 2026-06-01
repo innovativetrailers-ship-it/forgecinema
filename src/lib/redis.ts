@@ -1,4 +1,4 @@
-import Redis from 'ioredis'
+import Redis, { type RedisOptions } from 'ioredis'
 
 export const CINEMA_KEY_PREFIX = 'cinema:'
 
@@ -35,6 +35,27 @@ function buildRedisUrl(): string {
   return raw
 }
 
+function getRedisOptions(overrides: Partial<RedisOptions> = {}): RedisOptions {
+  const url = buildRedisUrl()
+
+  // Parse wire URL so TLS + IPv4 are explicit (fixes Railway → Upstash ETIMEDOUT).
+  if (url.startsWith('rediss://') || url.startsWith('redis://')) {
+    const parsed = new URL(url)
+    return {
+      host: parsed.hostname,
+      port: Number(parsed.port) || 6379,
+      username: parsed.username || 'default',
+      password: decodeURIComponent(parsed.password),
+      tls: parsed.protocol === 'rediss:' ? {} : undefined,
+      family: 4,
+      connectTimeout: 15_000,
+      ...overrides,
+    }
+  }
+
+  return { ...overrides }
+}
+
 const TEARDOWN_MSGS = ['Connection is closed', "stream isn't writeable", 'ECONNRESET']
 
 function suppressTeardown(client: Redis): Redis {
@@ -61,29 +82,28 @@ function makeReconnectOnError(err: Error): boolean {
 
 export function createRedisConnection(): Redis {
   return suppressTeardown(
-    new Redis(buildRedisUrl(), {
+    new Redis(getRedisOptions({
       // Serverless-friendly: commands queue until the TLS socket is ready,
       // avoiding "Stream isn't writeable" on cold-start invocations.
       maxRetriesPerRequest: 3,
       lazyConnect: true,
       keyPrefix: CINEMA_KEY_PREFIX,
       enableOfflineQueue: true,
-      connectTimeout: 10_000,
       retryStrategy: makeRetryStrategy('app'),
       reconnectOnError: makeReconnectOnError,
-    })
+    }))
   )
 }
 
 export function createBullMQConnection(): Redis {
   return suppressTeardown(
-    new Redis(buildRedisUrl(), {
+    new Redis(getRedisOptions({
       maxRetriesPerRequest: null,
-      lazyConnect: true,
+      lazyConnect: false,
       enableOfflineQueue: false,
       retryStrategy: makeRetryStrategy('bullmq'),
       reconnectOnError: makeReconnectOnError,
-    })
+    }))
   )
 }
 
