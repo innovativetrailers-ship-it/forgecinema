@@ -406,7 +406,12 @@ export const renderWorker = new Worker<RenderJobPayload>(
 )
 
 renderWorker.on('failed', (job, err) => {
-  console.error(`[render-worker] Job ${job?.id} failed:`, err.message)
+  const e = err as Error & { code?: string; meta?: unknown }
+  console.error(
+    `[render-worker] Job ${job?.id} failed: name=${e?.name} code=${e?.code ?? 'n/a'} msg=${e?.message}`,
+  )
+  if (e?.meta) console.error('[render-worker] meta:', JSON.stringify(e.meta))
+  if (e?.stack) console.error('[render-worker] stack:', e.stack)
 })
 
 renderWorker.on('completed', (job) => {

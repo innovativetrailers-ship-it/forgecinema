@@ -103,7 +103,7 @@ export function ImageToVideoTab({ onGenerated, creditBalance }: Props) {
           onGenerated({ ...newClip, id: jobId, jobId, status: 'processing', progress: data.progress, progressMessage: data.message })
         }
       }
-      sse.onerror = () => { onGenerated({ ...newClip, id: jobId, jobId, status: 'failed', error: 'Connection lost' }); sse.close() }
+      sse.onerror = () => {} // transient — allow EventSource auto-reconnect
     } catch (err) {
       onGenerated({ id: nanoid(), jobId: nanoid(), prompt, model: selectedPill.model, quality, creditsUsed: selectedPill.credits, duration: 5, aspectRatio: '16:9', status: 'failed', error: (err as Error).message, createdAt: new Date() })
     } finally {

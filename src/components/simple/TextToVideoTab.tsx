@@ -117,10 +117,9 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole }: Props) 
         }
       }
 
-      sse.onerror = () => {
-        onGenerated({ ...newClip, id: jobId, jobId, status: 'failed', error: 'Connection lost' })
-        sse.close()
-      }
+      // Transient disconnect — let EventSource auto-reconnect and re-sync from
+      // the DB-polling stream rather than marking the clip failed.
+      sse.onerror = () => {}
     } catch (err) {
       onGenerated({ ...newClip, status: 'failed', error: (err as Error).message })
     } finally {

@@ -138,7 +138,7 @@ export function AudioToVideoTab({ onGenerated, creditBalance }: Props) {
               onGenerated({ ...newClip, id: jobId, jobId, status: 'processing', progress: data.progress, progressMessage: data.message })
             }
           }
-          sse.onerror = () => { sse.close() }
+          sse.onerror = () => {} // transient — allow EventSource auto-reconnect
         }
 
         // Stagger requests slightly to avoid rate limits

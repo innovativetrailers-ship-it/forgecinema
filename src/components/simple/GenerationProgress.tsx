@@ -39,13 +39,15 @@ export function GenerationProgress({ jobId, onComplete, onError }: Props) {
         if (typeof event.progress === 'number') setProgress(event.progress)
         if (event.stage) setStage(event.stage as Stage)
 
-        if (event.status === 'COMPLETED' || event.status === 'COMPLETE') {
+        const status = (event.status ?? '').toLowerCase()
+
+        if (status === 'complete' || status === 'completed') {
           setProgress(100)
           setStage('complete')
           sse.close()
           if (event.outputUrl) onComplete(event.outputUrl)
         }
-        if (event.status === 'FAILED') {
+        if (status === 'failed' || status === 'cancelled') {
           setStage('failed')
           sse.close()
           onError?.(event.error ?? 'Generation failed')
@@ -53,10 +55,10 @@ export function GenerationProgress({ jobId, onComplete, onError }: Props) {
       } catch { /* ignore malformed events */ }
     }
 
+    // Transient disconnects (e.g. serverless function recycle) are not fatal —
+    // the browser EventSource reconnects and the stream re-emits current state.
     sse.onerror = () => {
-      sse.close()
-      setStage('failed')
-      onError?.('Connection lost')
+      // Intentionally do not close or surface an error; allow auto-reconnect.
     }
 
     return () => sse.close()
