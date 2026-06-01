@@ -25,10 +25,12 @@ export async function POST(req: NextRequest) {
     prompt?:     string        // context prompt
   }
 
-  const { imageUrl, strokes, duration = 3, prompt = '' } = body
+  const { imageUrl, strokes, duration = 5, prompt = '' } = body
   if (!imageUrl || !strokes?.length) {
     return NextResponse.json({ error: 'imageUrl and strokes required' }, { status: 400 })
   }
+
+  const klingDuration: '5' | '10' = duration > 5 ? '10' : '5'
 
   await checkAndDeductCredits(userId, 'motion_brush')
 
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
       input: {
         image_url: imageUrl,
         prompt:    prompt || 'cinematic motion, subtle camera movement',
-        duration:  (duration > 5 ? '10' : '5') as '5' | '10',
+        duration:  klingDuration,
         cfg_scale: 0.5,
       },
     })
