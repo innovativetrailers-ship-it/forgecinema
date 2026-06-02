@@ -1,7 +1,7 @@
 // src/lib/orchestration/scriptBreakdown.ts
 // VideoGen-of-Thought style: prompt → structured multi-shot plan
 
-import type { StructuredShot, PatientZeroAssets } from './types'
+import type { StructuredShot, PatientZeroAssets, ContinuityChain } from './types'
 import { MODEL_SPECIALTIES }                       from '@/lib/routing/engineRegistry'
 
 export async function breakdownToShots(
@@ -41,6 +41,10 @@ Design shots that PLAY TO THE STRENGTHS of the available models.
 For example: if Kling is available, design locomotion/action shots; if Seedance, dialogue close-ups.
 If only budget models are available, keep shots simple and achievable.
 Each shot gets the minimum duration needed — don't pad.
+Group shots into continuity chains. Shots that depict ONE continuous unbroken action
+(same location, same moment, camera following through) share a continuityGroup number.
+A hard cut to a different location/time/subject starts a NEW continuityGroup.
+Most narrative films have several short chains rather than one long one.
 Return ONLY valid JSON array. No markdown.`,
       messages: [{
         role:    'user',
@@ -73,16 +77,29 @@ For each shot return:
   "lighting": "natural_day|golden_hour|night|overcast|studio|dramatic|neon",
   "mood": "tension|joy|sorrow|wonder|fear|calm|action",
   "bridgeRequired": boolean (true for all shots after the first),
-  "suggestedModel": "which model from the available pool best suits this shot"
+  "suggestedModel": "which model from the available pool best suits this shot",
+  "continuityGroup": number (shots in the same unbroken action share this),
+  "isChainStart": boolean (true if this is the first shot of its continuityGroup)
 }`,
       }],
     }),
   }).then(r => r.json())
 
   try {
-    const shots: StructuredShot[] = JSON.parse(
+    const parsed: StructuredShot[] = JSON.parse(
       res.content?.[0]?.text?.replace(/```json|```/g, '').trim() ?? '[]'
     )
+
+    // Normalise continuity fields — Claude may omit them; fall back to each shot
+    // being its own chain so downstream scheduling is always well-defined.
+    const seenGroups = new Set<number>()
+    const shots: StructuredShot[] = parsed.map(shot => {
+      const continuityGroup = shot.continuityGroup ?? shot.shotIndex
+      const isChainStart     = shot.isChainStart ?? !seenGroups.has(continuityGroup)
+      seenGroups.add(continuityGroup)
+      return { ...shot, continuityGroup, isChainStart }
+    })
+
     const total = shots.reduce((s, shot) => s + shot.duration, 0)
     if (Math.abs(total - totalSeconds) > 0.5) {
       const scale = totalSeconds / total
@@ -113,6 +130,24 @@ For each shot return:
       lighting:          'natural_day',
       mood:              'calm',
       bridgeRequired:    false,
+      continuityGroup:   0,
+      isChainStart:      true,
     }]
   }
+}
+
+/**
+ * Group shots into continuity chains. Shots sharing a continuityGroup form one
+ * sequential chain (rendered tail-to-head); separate groups render in parallel.
+ */
+export function groupIntoChains(shots: StructuredShot[]): ContinuityChain[] {
+  const groups = new Map<number, StructuredShot[]>()
+  for (const shot of shots) {
+    const g = shot.continuityGroup ?? shot.shotIndex   // fallback: each shot its own chain
+    if (!groups.has(g)) groups.set(g, [])
+    groups.get(g)!.push(shot)
+  }
+  return [...groups.entries()]
+    .map(([groupId, s]) => ({ groupId, shots: s.sort((a, b) => a.shotIndex - b.shotIndex) }))
+    .sort((a, b) => a.shots[0].shotIndex - b.shots[0].shotIndex)
 }

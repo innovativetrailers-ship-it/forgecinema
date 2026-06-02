@@ -61,3 +61,32 @@ Where 1 = perfect quality.${hasFaces ? ' Pay special attention to facial fidelit
     return { overall: 0.8, facialFidelity: 0.8, motionSmoothness: 0.8, artifactLevel: 0.8, passed: true }
   }
 }
+
+/**
+ * Meta-Planner repair: if a segment scored poorly AND we have its storyboard keyframe,
+ * attempt a single corrective regeneration anchored harder to the keyframe.
+ */
+export async function repairSegment(
+  _videoUrl:     string,
+  storyboardUrl: string | undefined,
+  shotPrompt:    string,
+  model:         string,
+  duration:      number
+): Promise<string | null> {
+  if (!storyboardUrl) return null   // nothing to anchor to
+
+  try {
+    const { callVideoModel } = await import('./bridgedGeneration')
+    const repaired = await callVideoModel({
+      model,
+      prompt:   `${shotPrompt}. Match the reference composition exactly. Stable, no distortion.`,
+      duration,
+      imageUrl: storyboardUrl,   // hard re-anchor to the blueprint
+    })
+    return repaired ?? null
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn('[meta-planner] repair failed:', msg)
+    return null
+  }
+}

@@ -22,7 +22,11 @@ export function fastEstimateCost(
   const videoCost      = Math.ceil((avgRate / 5) * duration)
   const patientZeroCost = 10  // reference image generation buffer
 
-  return videoCost + patientZeroCost
+  // Storyboard keyframes (~2cr each, Nano Banana Pro) — one per estimated shot
+  const estimatedShots  = Math.max(1, Math.ceil(duration / 6))
+  const storyboardCost  = estimatedShots * 2
+
+  return videoCost + storyboardCost + patientZeroCost
 }
 
 /**

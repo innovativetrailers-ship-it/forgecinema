@@ -2,11 +2,12 @@
 // Main entry point for the 6-phase orchestration pipeline
 
 import { extractNarrativeEntities, generatePatientZeroAssets } from './patientZero'
-import { breakdownToShots }                                      from './scriptBreakdown'
+import { breakdownToShots, groupIntoChains }                    from './scriptBreakdown'
 import { buildDAG, getTotalPlanCost }                            from './dagRouter'
-import { generateWithBridging }                                  from './bridgedGeneration'
-import { scoreSegment }                                          from './qualityGate'
-import { stitchSegments }                                        from './stitching'
+import { generateStoryboard }                                   from './storyboard'
+import { generateParallel }                                     from './parallelGeneration'
+import { scoreSegment, repairSegment }                          from './qualityGate'
+import { stitchSegments }                                       from './stitching'
 import type { OrchestrationResult, PatientZeroAssets }           from './types'
 
 export interface OrchestrationInput {
@@ -39,9 +40,19 @@ export async function orchestrateGeneration(
   progress('breakdown', 'Planning shot structure...', 20)
   const shots = await breakdownToShots(prompt, totalDuration, patientZero, selectedModels)
 
-  // ── Phase 3: DAG routing ─────────────────────────────────────────────────
-  progress('routing', 'Assigning models to shots...', 30)
-  const dag = buildDAG(shots, selectedModels)
+  // ── Phase 1.5: Storyboard keyframes (parallel pre-vis) ────────────────────
+  progress('storyboard', 'Generating storyboard keyframes...', 25)
+  const shotsWithKeyframes = await generateStoryboard(
+    shots, patientZero,
+    (done, total) => progress('storyboard', `Keyframe ${done}/${total}`, 25 + Math.round((done / total) * 10))
+  )
+
+  // Group into continuity chains (parallelisable units)
+  const chains = groupIntoChains(shotsWithKeyframes)
+  progress('routing', `Planning ${chains.length} parallel chains...`, 36)
+
+  // ── Phase 3: DAG routing (with keyframed shots) ──────────────────────────
+  const dag = buildDAG(shotsWithKeyframes, selectedModels)
 
   const totalCredits = getTotalPlanCost(dag)
 
@@ -55,28 +66,36 @@ export async function orchestrateGeneration(
     modelBreakdown[node.assignedModel].shots.push(node.shot.shotIndex)
   }
 
-  // ── Phase 4: Bridged generation ──────────────────────────────────────────
-  progress('generating', 'Generating segments...', 40)
-  const segments = await generateWithBridging(
+  // ── Phase 4: PARALLEL generation across chains ───────────────────────────
+  progress('generating', `Rendering ${chains.length} chains in parallel...`, 40)
+  const segments = await generateParallel(
+    chains,
     dag,
     patientZero,
     ({ shotIndex, totalShots, status, subMessage }) => {
-      const pct = 40 + Math.round((shotIndex / Math.max(totalShots, 1)) * 50)
-      const detail = subMessage
-        ? `Shot ${shotIndex + 1}/${totalShots}: ${subMessage}`
-        : `Shot ${shotIndex + 1}/${totalShots}: ${status}`
+      const pct = 40 + Math.round((shotIndex / Math.max(totalShots, 1)) * 45)
+      const detail = subMessage ?? `Shot ${shotIndex + 1}/${totalShots}: ${status}`
       progress('generating', detail, pct)
     }
   )
 
-  // ── Phase 5: Quality gate ────────────────────────────────────────────────
-  progress('quality_gate', 'Scoring segments...', 88)
+  // ── Phase 5: Quality gate + Meta-Planner repair ──────────────────────────
+  progress('quality_gate', 'Scoring and repairing segments...', 86)
   const qualityScores: Record<number, number> = {}
   for (const seg of segments) {
-    const shot  = shots[seg.shotIndex]
+    const shot  = shotsWithKeyframes.find(s => s.shotIndex === seg.shotIndex) ?? shotsWithKeyframes[seg.shotIndex]
     const score = await scoreSegment(seg.videoUrl, shot.hasFaces)
     qualityScores[seg.shotIndex] = score.overall
     seg.qualityScore = score.overall
+
+    // Meta-Planner: repair sub-threshold segments by re-anchoring to storyboard
+    if (!score.passed && shot.storyboardUrl) {
+      progress('quality_gate', `Repairing shot ${seg.shotIndex + 1}...`, 88)
+      const repaired = await repairSegment(
+        seg.videoUrl, shot.storyboardUrl, shot.visualPrompt, seg.model, shot.duration
+      )
+      if (repaired) seg.videoUrl = repaired
+    }
   }
 
   // ── Phase 6: Stitching ───────────────────────────────────────────────────

@@ -75,7 +75,7 @@ const T2V_MODEL_IDS: Record<string, string> = {
   'grok-imagine-video': 'grok-imagine-video',
 }
 
-async function extractTailFrame(videoUrl: string): Promise<string> {
+export async function extractTailFrame(videoUrl: string): Promise<string> {
   const result = await fetch('https://fal.run/fal-ai/ffmpeg', {
     method:  'POST',
     headers: { Authorization: `Key ${FAL_KEY()}`, 'Content-Type': 'application/json' },
@@ -133,7 +133,7 @@ async function pollRunwayJob(
   throw new Error('Runway timed out')
 }
 
-async function callVideoModel(params: {
+export async function callVideoModel(params: {
   model:           string
   prompt:          string
   duration:        number

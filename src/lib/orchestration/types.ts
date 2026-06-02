@@ -56,6 +56,17 @@ export interface StructuredShot {
   mood:              string
   bridgeRequired:    boolean
   suggestedModel?:   string
+
+  // Continuity grouping for parallel scheduling
+  continuityGroup:   number   // shots with the same group are one continuous chain
+  isChainStart:      boolean  // first shot of its continuity chain
+  storyboardUrl?:    string   // pre-generated Frame Zero keyframe (Phase 1.5)
+}
+
+// A chain is a sequential run of continuous shots; chains run in parallel
+export interface ContinuityChain {
+  groupId: number
+  shots:   StructuredShot[]   // ordered within the chain
 }
 
 export interface DAGNode {

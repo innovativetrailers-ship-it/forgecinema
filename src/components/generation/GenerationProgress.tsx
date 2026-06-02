@@ -6,6 +6,7 @@ import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
 const PHASE_LABELS: Record<string, string> = {
   patient_zero: 'Creating character references',
   breakdown:    'Planning shots',
+  storyboard:   'Generating storyboard keyframes',
   routing:      'Assigning models',
   generating:   'Generating video',
   quality_gate: 'Checking quality',
