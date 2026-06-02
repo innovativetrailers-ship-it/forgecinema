@@ -103,6 +103,7 @@ async function callVideoModel(params: {
       model:      'gen4_turbo',
       promptText: params.prompt,
       duration:   params.duration as 5 | 10,
+      ratio:      '1280:720',
       ...(params.imageUrl ? { promptImage: params.imageUrl } : {}),
     })
     return await pollRunwayJob(client, task.id)
