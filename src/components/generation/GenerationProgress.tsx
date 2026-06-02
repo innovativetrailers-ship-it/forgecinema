@@ -13,6 +13,21 @@ const PHASE_LABELS: Record<string, string> = {
   complete:     'Complete',
 }
 
+const MODE_LABELS: Record<string, string> = {
+  director: 'Generating film',
+  simple:   'Generating video',
+  music:    'Composing music',
+  voice:    'Synthesising voice',
+}
+
+const VENDOR_LABELS: Record<string, string> = {
+  fal:        'AI engine',
+  runway:     'Runway',
+  xai:        'Grok Imagine',
+  suno:       'Suno',
+  elevenlabs: 'ElevenLabs',
+}
+
 function formatEta(seconds: number | null | undefined): string {
   if (seconds == null || seconds <= 0) return ''
   if (seconds < 60) return `~${seconds}s remaining`
@@ -28,6 +43,8 @@ interface JobStatus {
   etaSeconds?:   number | null
   outputUrl?:    string | null
   errorMessage?: string | null
+  // mode comes from metadata on the job row
+  mode?:         string | null
 }
 
 export function GenerationProgress({
@@ -77,8 +94,17 @@ export function GenerationProgress({
   }
 
   const pct     = job.progressPct ?? 0
-  const phase   = PHASE_LABELS[job.phase ?? ''] ?? job.statusMessage ?? 'Processing…'
-  const etaText = formatEta(job.etaSeconds)
+  // Resolve a human label: phase label → mode label → status message → fallback
+  const modeLabel  = MODE_LABELS[job.mode ?? '']
+  const phaseLabel = PHASE_LABELS[job.phase ?? '']
+  const phase      = phaseLabel ?? modeLabel ?? job.statusMessage ?? 'Processing…'
+  const etaText    = formatEta(job.etaSeconds)
+
+  // Extract vendor name from statusMessage if it contains a known vendor keyword
+  const vendorInMsg = Object.entries(VENDOR_LABELS).find(([k]) =>
+    job.statusMessage?.toLowerCase().includes(k)
+  )
+  const vendorBadge = vendorInMsg ? vendorInMsg[1] : null
 
   return (
     <div className="space-y-2">
@@ -86,6 +112,11 @@ export function GenerationProgress({
         <div className="flex items-center gap-2">
           <Loader2 className="w-3.5 h-3.5 text-[#00e5c8] animate-spin" />
           <span className="text-xs text-white/80">{phase}</span>
+          {vendorBadge && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-white/50 font-medium">
+              {vendorBadge}
+            </span>
+          )}
         </div>
         <span className="text-[10px] text-gray-500 tabular-nums">{pct}%</span>
       </div>

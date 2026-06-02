@@ -86,28 +86,49 @@ async function extractTailFrame(videoUrl: string): Promise<string> {
   return result.image?.url ?? result.output_url
 }
 
-async function pollXAIVideo(requestId: string): Promise<string> {
-  for (let i = 0; i < 60; i++) {
+async function pollXAIVideo(
+  requestId:      string,
+  onSubProgress?: import('./types').SubProgressFn
+): Promise<string> {
+  const MAX = 60
+  for (let i = 0; i < MAX; i++) {
     await new Promise(r => setTimeout(r, 2000))
     const res = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
       headers: { Authorization: `Bearer ${process.env.XAI_API_KEY}` },
     }).then(r => r.json())
-    if (res.status === 'done')   return res.video?.url
-    if (res.status === 'failed') throw new Error(`Grok Imagine failed: ${res.error}`)
+    if (res.status === 'pending') {
+      const pct = Math.min(90, Math.round((i / MAX) * 100))
+      onSubProgress?.({ pct, message: `Grok Imagine generating ${pct}%`, vendor: 'xai' })
+    } else if (res.status === 'done') {
+      onSubProgress?.({ pct: 100, message: 'Grok Imagine complete', vendor: 'xai' })
+      return res.video?.url
+    } else if (res.status === 'failed') {
+      throw new Error(`Grok Imagine failed: ${res.error}`)
+    }
   }
   throw new Error('Grok Imagine timed out')
 }
 
 async function pollRunwayJob(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client: any,
-  taskId: string
+  client:         any,
+  taskId:         string,
+  onSubProgress?: import('./types').SubProgressFn
 ): Promise<string> {
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 100; i++) {
     await new Promise(r => setTimeout(r, 3000))
     const task = await client.tasks.retrieve(taskId)
-    if (task.status === 'SUCCEEDED') return task.output?.[0]
-    if (task.status === 'FAILED')    throw new Error(`Runway failed: ${task.failure}`)
+    if (task.status === 'RUNNING') {
+      const pct = Math.round((task.progress ?? 0.5) * 100)
+      onSubProgress?.({ pct, message: `Runway rendering ${pct}%`, vendor: 'runway' })
+    } else if (task.status === 'PENDING') {
+      onSubProgress?.({ pct: 0, message: 'Runway queued', vendor: 'runway' })
+    } else if (task.status === 'SUCCEEDED') {
+      onSubProgress?.({ pct: 100, message: 'Runway complete', vendor: 'runway' })
+      return task.output?.[0]
+    } else if (task.status === 'FAILED') {
+      throw new Error(`Runway failed: ${task.failure ?? 'unknown'}`)
+    }
   }
   throw new Error('Runway timed out')
 }
@@ -118,7 +139,7 @@ async function callVideoModel(params: {
   duration:        number
   imageUrl?:       string
   patientZeroUrl?: string
-  onSubProgress?:  (pct: number, message: string) => void
+  onSubProgress?:  import('./types').SubProgressFn
 }): Promise<string> {
 
   if (params.model === 'grok-imagine-video') {
@@ -133,7 +154,7 @@ async function callVideoModel(params: {
         ...(params.imageUrl ? { image_url: params.imageUrl } : {}),
       }),
     }).then(r => r.json())
-    return await pollXAIVideo(res.request_id)
+    return await pollXAIVideo(res.request_id, params.onSubProgress)
   }
 
   if (params.model === 'runway-gen4') {
@@ -147,7 +168,7 @@ async function callVideoModel(params: {
       duration:     params.duration as 5 | 10,
       ratio:        '1280:720',
     })
-    return await pollRunwayJob(client, task.id)
+    return await pollRunwayJob(client, task.id, params.onSubProgress)
   }
 
   const useI2V  = !!params.imageUrl
@@ -168,7 +189,9 @@ async function callVideoModel(params: {
   if (params.patientZeroUrl)    input.reference_image_url = params.patientZeroUrl
   if (params.model.includes('ltx') && params.model.includes('fast')) input.quality = 'fast'
 
-  return await callFalModel(modelId, input, params.onSubProgress)
+  return await callFalModel(modelId, input, (pct, message) =>
+    params.onSubProgress?.({ pct, message, vendor: 'fal' })
+  )
 }
 
 export async function generateWithBridging(
@@ -229,13 +252,21 @@ export async function generateWithBridging(
             duration:       node.shot.duration,
             imageUrl:       tailFrameUrl,
             patientZeroUrl: characterRef,
-            onSubProgress:  (pct, msg) => onProgress({
-              shotIndex:   node.shot.shotIndex,
-              totalShots:  total,
-              status:      'generating',
-              subProgress: pct,
-              subMessage:  msg,
-            }),
+            onSubProgress: (sub) => {
+              // Blend per-vendor sub-progress into the overall pipeline band (40-88%)
+              const shotsBefore    = node.shot.shotIndex
+              const currentFrac    = sub.pct / 100
+              const overallShotPct = ((shotsBefore + currentFrac) / Math.max(total, 1)) * 100
+              const bandPct        = 40 + Math.round((overallShotPct / 100) * 48)
+              onProgress({
+                shotIndex:   node.shot.shotIndex,
+                totalShots:  total,
+                status:      'generating',
+                subProgress: sub.pct,
+                subMessage:  `Shot ${node.shot.shotIndex + 1}/${total}: ${sub.message}`,
+              })
+              void bandPct  // consumed by caller via overall % calculation in index.ts
+            },
           }),
           180_000,  // 3-min hard cap per segment
           `Shot ${node.shot.shotIndex}`

@@ -427,6 +427,75 @@ export const renderWorker = new Worker<RenderJobPayload>(
       return
     }
 
+    if (job.name === 'music') {
+      const { jobId, userId: uid, prompt, style, durationSecs, instrumental, title } = data as unknown as {
+        jobId: string; userId: string; prompt: string; style?: string
+        durationSecs?: number; instrumental?: boolean; title?: string
+      }
+      const startTime = Date.now()
+      await db.renderJob.update({ where: { id: jobId }, data: { status: 'PROCESSING', progressPct: 5, statusMessage: 'Suno composing…' } })
+      try {
+        const { generateMusicWithProgress } = await import('@/lib/engines/suno')
+        const result = await generateMusicWithProgress(
+          { prompt, style, duration: durationSecs, instrumental, title },
+          async (pct, message) => {
+            const elapsed    = (Date.now() - startTime) / 1000
+            const etaSeconds = pct > 5 ? Math.max(0, Math.round((elapsed / pct) * (100 - pct))) : null
+            await db.renderJob.update({
+              where: { id: jobId },
+              data: { progressPct: pct, statusMessage: message, ...(etaSeconds !== null ? { etaSeconds } : {}) },
+            }).catch(() => {})
+          }
+        )
+        const { uploadToR2 } = await import('@/lib/storage/r2')
+        const buf    = await fetch(result.audioUrl).then(r => r.arrayBuffer())
+        const r2Url  = await uploadToR2(Buffer.from(buf), `music/${uid}/${Date.now()}.mp3`, 'audio/mpeg')
+        await db.renderJob.update({
+          where: { id: jobId },
+          data: { status: 'COMPLETE', progressPct: 100, etaSeconds: 0, statusMessage: 'Complete', outputUrl: r2Url, completedAt: new Date() },
+        })
+      } catch (err) {
+        const msg = describeProviderError(err)
+        await db.renderJob.update({ where: { id: jobId }, data: { status: 'FAILED', errorMessage: msg, statusMessage: 'Music generation failed' } })
+        throw err
+      }
+      return
+    }
+
+    if (job.name === 'voice') {
+      const { jobId, userId: uid, text, voiceId, stability, similarity } = data as unknown as {
+        jobId: string; userId: string; text: string; voiceId?: string; stability?: number; similarity?: number
+      }
+      await db.renderJob.update({ where: { id: jobId }, data: { status: 'PROCESSING', progressPct: 10, statusMessage: 'Synthesising voice…' } })
+      try {
+        const sentences = text.match(/[^.!?]+[.!?]+/g) ?? [text]
+        const total     = sentences.length
+        const parts: Buffer[] = []
+        for (let i = 0; i < sentences.length; i++) {
+          const { synthesiseVoice } = await import('@/lib/engines/elevenLabs')
+          const buf = await synthesiseVoice({ text: sentences[i].trim(), voiceId, stability, similarity })
+          parts.push(buf)
+          const pct = Math.round(((i + 1) / total) * 90)
+          await db.renderJob.update({
+            where: { id: jobId },
+            data: { progressPct: pct, statusMessage: `Synthesising voice ${i + 1}/${total}` },
+          }).catch(() => {})
+        }
+        const combined = Buffer.concat(parts)
+        const { uploadToR2 } = await import('@/lib/storage/r2')
+        const r2Url = await uploadToR2(combined, `audio/${uid}/${Date.now()}.mp3`, 'audio/mpeg')
+        await db.renderJob.update({
+          where: { id: jobId },
+          data: { status: 'COMPLETE', progressPct: 100, etaSeconds: 0, statusMessage: 'Complete', outputUrl: r2Url, completedAt: new Date() },
+        })
+      } catch (err) {
+        const msg = describeProviderError(err)
+        await db.renderJob.update({ where: { id: jobId }, data: { status: 'FAILED', errorMessage: msg, statusMessage: 'Voice synthesis failed' } })
+        throw err
+      }
+      return
+    }
+
     // ── Legacy GENERATE / REPAINT / TRANSCRIBE jobs ─────────────────────────
     // Mark processing in DB
     await db.renderJob.update({

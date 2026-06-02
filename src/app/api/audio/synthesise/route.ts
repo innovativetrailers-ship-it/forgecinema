@@ -15,6 +15,8 @@ export async function POST(req: Request) {
     similarity?: number
   }
 
+  if (!text?.trim()) return Response.json({ error: 'text is required' }, { status: 400 })
+
   const cost = Math.max(1, Math.ceil(text.length / 100)) * OPERATION_COSTS['elevenlabs_tts_per_100_chars']
 
   const access = await checkAccess(userId, cost)
@@ -22,6 +24,25 @@ export async function POST(req: Request) {
 
   await deductCredits(db, userId, cost, `TTS: ${text.slice(0, 40)}`)
 
+  // Long scripts (>2500 chars) — queue as a job so the frontend can track progress
+  if (text.length > 2500) {
+    const job = await db.renderJob.create({
+      data: {
+        userId,
+        status:        'QUEUED',
+        mode:          'voice',
+        prompt:        text.slice(0, 100),
+        progressPct:   0,
+        statusMessage: 'Queued',
+        metadata:      { voiceId, stability, similarity, cost },
+      },
+    })
+    const { renderQueue } = await import('@/lib/queue')
+    await renderQueue.add('voice', { jobId: job.id, userId, text, voiceId, stability, similarity }, { attempts: 1 })
+    return Response.json({ jobId: job.id, queued: true, cost })
+  }
+
+  // Short text — synchronous, returns the audio URL immediately
   const buf = await synthesiseVoice({ text, voiceId, stability, similarity })
   const url = await uploadToR2(buf, `audio/${userId}/${Date.now()}.mp3`, 'audio/mpeg')
   return Response.json({ audioUrl: url, cost })

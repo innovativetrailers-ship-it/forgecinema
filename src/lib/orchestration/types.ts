@@ -1,5 +1,14 @@
 // src/lib/orchestration/types.ts
 
+// Unified sub-progress callback — every vendor poller calls this
+export interface SubProgress {
+  pct:     number   // 0-100 within this single segment
+  message: string   // human-readable status
+  vendor:  string   // 'fal' | 'runway' | 'xai' | 'suno' | 'elevenlabs'
+}
+
+export type SubProgressFn = (p: SubProgress) => void
+
 export type ContentType =
   | 'aerial_establishing'    // wide aerial, environments → Luma
   | 'dialogue_closeup'       // faces, dialogue, lip sync → Seedance
