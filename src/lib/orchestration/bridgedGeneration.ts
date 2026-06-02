@@ -97,14 +97,15 @@ async function callVideoModel(params: {
   }
 
   if (params.model === 'runway-gen4') {
+    if (!params.imageUrl) throw new Error('runway-gen4 requires an image URL (I2V bridge)')
     const RunwayML = (await import('@runwayml/sdk')).default
     const client   = new RunwayML({ apiKey: process.env.RUNWAY_API_KEY! })
     const task     = await client.imageToVideo.create({
-      model:      'gen4_turbo',
-      promptText: params.prompt,
-      duration:   params.duration as 5 | 10,
-      ratio:      '1280:720',
-      ...(params.imageUrl ? { promptImage: params.imageUrl } : {}),
+      model:        'gen4_turbo',
+      promptText:   params.prompt,
+      promptImage:  params.imageUrl,
+      duration:     params.duration as 5 | 10,
+      ratio:        '1280:720',
     })
     return await pollRunwayJob(client, task.id)
   }
