@@ -200,6 +200,8 @@ model RenderJob {
   duration        Int         @default(10)
   mode            String      @default("simple")
   statusMessage   String?
+  phase           String?     // patient_zero | breakdown | routing | generating | stitching
+  etaSeconds      Int?        // estimated seconds remaining (updated live by worker)
   metadata        Json?
 
   user            User        @relation(fields: [userId], references: [id])

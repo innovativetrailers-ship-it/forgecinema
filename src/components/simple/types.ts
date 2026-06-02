@@ -55,6 +55,8 @@ export interface GeneratedClip {
   status: 'queued' | 'processing' | 'complete' | 'failed'
   progress?: number
   progressMessage?: string
+  phase?: string
+  etaSeconds?: number | null
   error?: string
   createdAt: Date
 }

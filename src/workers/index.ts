@@ -6,7 +6,7 @@ import { orchestrateGeneration } from '@/lib/orchestration'
 import { callEngine }            from '@/lib/routing/MediaRouter'
 import { db }                    from '@/lib/db'
 
-const redisUrl  = new URL(process.env.REDIS_URL!)
+const redisUrl   = new URL(process.env.REDIS_URL!)
 const connection = {
   host:     redisUrl.hostname,
   port:     Number(redisUrl.port) || 6379,
@@ -18,14 +18,16 @@ const connection = {
 const orchestrationWorker = new Worker('render', async (job) => {
   if (job.name !== 'orchestrate') return
 
-  const { jobId, userId, prompt, duration, selectedModels } = job.data as {
+  const { jobId, userId, prompt, duration, selectedModels, creditCost } = job.data as {
     jobId: string; userId: string; prompt: string
-    duration: number; selectedModels: string[]
+    duration: number; selectedModels: string[]; creditCost?: number
   }
+
+  const jobStartTime = Date.now()
 
   await db.renderJob.update({
     where: { id: jobId },
-    data:  { status: 'PROCESSING', progressPct: 5 },
+    data:  { status: 'PROCESSING', progressPct: 2, phase: 'patient_zero', statusMessage: 'Starting…' },
   })
 
   try {
@@ -35,24 +37,55 @@ const orchestrationWorker = new Worker('render', async (job) => {
       selectedModels,
       userId,
       onProgress: async (phase, detail, pct) => {
+        const elapsedSec = (Date.now() - jobStartTime) / 1000
+        const etaSeconds = pct > 5
+          ? Math.max(0, Math.round((elapsedSec / pct) * (100 - pct)))
+          : null
+
         await db.renderJob.update({
           where: { id: jobId },
-          data:  { progressPct: pct, statusMessage: `${phase}: ${detail}` },
-        }).catch(() => {})
+          data: {
+            progressPct:   pct,
+            phase,
+            statusMessage: detail,
+            ...(etaSeconds !== null ? { etaSeconds } : {}),
+          },
+        }).catch(() => {})  // never let a progress write crash the job
       },
     })
+
+    // Cost reconciliation — refund difference between estimate and actual
+    const estimatedCredits = creditCost ?? result.totalCredits
+    const refund           = estimatedCredits - result.totalCredits
+    if (refund > 0) {
+      const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } })
+      if (user?.role !== 'ADMIN') {
+        await db.user.update({
+          where: { id: userId },
+          data:  { creditBalance: { increment: refund } },
+        })
+        await db.creditTransaction.create({
+          data: { userId, amount: refund, description: 'Orchestration cost reconciliation refund', balanceAfter: 0 },
+        })
+      }
+    }
 
     await db.renderJob.update({
       where: { id: jobId },
       data: {
-        status:    'COMPLETE',
-        progressPct: 100,
-        outputUrl: result.finalVideoUrl,
+        status:        'COMPLETE',
+        progressPct:   100,
+        phase:         'complete',
+        etaSeconds:    0,
+        statusMessage: 'Complete',
+        outputUrl:     result.finalVideoUrl,
+        completedAt:   new Date(),
         metadata: {
           segments:       result.segments,
           modelBreakdown: result.modelBreakdown,
           qualityScores:  result.qualityScores,
           patientZero:    result.patientZero,
+          actualCredits:  result.totalCredits,
         },
       },
     })
@@ -61,10 +94,16 @@ const orchestrationWorker = new Worker('render', async (job) => {
     console.error('[orchestration] job failed:', msg)
     await db.renderJob.update({
       where: { id: jobId },
-      data:  { status: 'FAILED', errorMessage: msg },
+      data:  { status: 'FAILED', errorMessage: msg, statusMessage: 'Generation failed' },
     })
   }
-}, { connection, concurrency: 2 })
+}, {
+  connection,
+  concurrency:     2,
+  stalledInterval: 30_000,  // check for stalled jobs every 30s
+  maxStalledCount: 1,       // mark failed after 1 stall (no silent re-submission)
+  lockDuration:    600_000, // 10 min lock — enough for big renders
+})
 
 // ── Simple mode single-model worker ───────────────────────────────────────
 const simpleWorker = new Worker('render', async (job) => {
@@ -76,7 +115,7 @@ const simpleWorker = new Worker('render', async (job) => {
 
   await db.renderJob.update({
     where: { id: jobId },
-    data:  { status: 'PROCESSING', progressPct: 20 },
+    data:  { status: 'PROCESSING', progressPct: 20, phase: 'generating', statusMessage: 'Generating video…' },
   })
 
   try {
@@ -85,9 +124,13 @@ const simpleWorker = new Worker('render', async (job) => {
     await db.renderJob.update({
       where: { id: jobId },
       data: {
-        status:    'COMPLETE',
-        progressPct: 100,
-        outputUrl: result.videoUrl ?? result.imageUrl,
+        status:        'COMPLETE',
+        progressPct:   100,
+        phase:         'complete',
+        etaSeconds:    0,
+        statusMessage: 'Complete',
+        completedAt:   new Date(),
+        outputUrl:     result.videoUrl ?? result.imageUrl,
       },
     })
   } catch (err: unknown) {
@@ -95,10 +138,16 @@ const simpleWorker = new Worker('render', async (job) => {
     console.error('[render-simple] job failed:', msg)
     await db.renderJob.update({
       where: { id: jobId },
-      data:  { status: 'FAILED', errorMessage: msg },
+      data:  { status: 'FAILED', errorMessage: msg, statusMessage: 'Generation failed' },
     })
   }
-}, { connection, concurrency: 4 })
+}, {
+  connection,
+  concurrency:     4,
+  stalledInterval: 30_000,
+  maxStalledCount: 1,
+  lockDuration:    300_000,  // 5 min lock for simple jobs
+})
 
 orchestrationWorker.on('ready', () => console.log('[worker] orchestration ready'))
 simpleWorker.on('ready',        () => console.log('[worker] simple render ready'))

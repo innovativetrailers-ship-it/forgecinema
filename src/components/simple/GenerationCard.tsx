@@ -100,6 +100,11 @@ export function GenerationCard({ clip, onRegenerate, onAddToTimeline, onExpand }
             <p className="text-xs text-white/50 text-center px-3">
               {clip.progressMessage ?? 'Generating…'}
             </p>
+            {clip.etaSeconds != null && clip.etaSeconds > 0 && (
+              <p className="text-[10px] text-white/30">
+                ~{clip.etaSeconds < 60 ? `${clip.etaSeconds}s` : `${Math.ceil(clip.etaSeconds / 60)} min`} left
+              </p>
+            )}
           </div>
         )}
 

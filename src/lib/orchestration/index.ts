@@ -60,9 +60,12 @@ export async function orchestrateGeneration(
   const segments = await generateWithBridging(
     dag,
     patientZero,
-    (shotIdx, status) => {
-      const pct = 40 + Math.round((shotIdx / shots.length) * 50)
-      progress('generating', `Shot ${shotIdx + 1}/${shots.length}: ${status}`, pct)
+    ({ shotIndex, totalShots, status, subMessage }) => {
+      const pct = 40 + Math.round((shotIndex / Math.max(totalShots, 1)) * 50)
+      const detail = subMessage
+        ? `Shot ${shotIndex + 1}/${totalShots}: ${subMessage}`
+        : `Shot ${shotIndex + 1}/${totalShots}: ${status}`
+      progress('generating', detail, pct)
     }
   )
 

@@ -1,11 +1,50 @@
 // src/lib/orchestration/bridgedGeneration.ts
 // FilmWeaver dual cache + tail-to-head keyframe bridging
 
+import { fal }                                           from '@fal-ai/client'
 import { uploadToR2 }                                    from '@/lib/storage/r2'
 import { analyseFrameMotion, injectMotionContext }       from './opticalFlow'
 import type { DAGNode, GeneratedSegment, PatientZeroAssets } from './types'
 
+fal.config({ credentials: process.env.FAL_API_KEY })
+
 const FAL_KEY = () => process.env.FAL_API_KEY!
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms)
+    ),
+  ])
+}
+
+async function callFalModel(
+  modelId:       string,
+  input:         Record<string, unknown>,
+  onSubProgress?: (pct: number, message: string) => void
+): Promise<string> {
+  const result = await fal.subscribe(modelId, {
+    input,
+    logs: true,
+    onQueueUpdate: (update) => {
+      if (update.status === 'IN_QUEUE') {
+        const pos = (update as unknown as Record<string, unknown>).queue_position
+        onSubProgress?.(0, `Queued (position ${pos ?? '?'})`)
+      } else if (update.status === 'IN_PROGRESS') {
+        const logs    = (update as unknown as Record<string, unknown>).logs as Array<{ message: string }> | undefined
+        const lastLog = logs?.slice(-1)[0]?.message ?? 'Generating…'
+        onSubProgress?.(50, lastLog)
+      }
+    },
+  })
+  const data = result.data as Record<string, unknown>
+  const url  = (data.video as { url?: string } | undefined)?.url
+           ?? (data.video_url as string | undefined)
+           ?? ((data.images as Array<{ url: string }> | undefined)?.[0]?.url)
+  if (!url) throw new Error(`fal model ${modelId} returned no video URL`)
+  return url
+}
 
 const I2V_MODEL_IDS: Record<string, string> = {
   'kling-3.0':          'fal-ai/kling-video/v1.6/pro/image-to-video',
@@ -79,6 +118,7 @@ async function callVideoModel(params: {
   duration:        number
   imageUrl?:       string
   patientZeroUrl?: string
+  onSubProgress?:  (pct: number, message: string) => void
 }): Promise<string> {
 
   if (params.model === 'grok-imagine-video') {
@@ -128,29 +168,29 @@ async function callVideoModel(params: {
   if (params.patientZeroUrl)    input.reference_image_url = params.patientZeroUrl
   if (params.model.includes('ltx') && params.model.includes('fast')) input.quality = 'fast'
 
-  const result = await fetch(`https://fal.run/${modelId}`, {
-    method:  'POST',
-    headers: { Authorization: `Key ${FAL_KEY()}`, 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ input }),
-  }).then(r => r.json())
-
-  return result.video?.url ?? result.video_url
+  return await callFalModel(modelId, input, params.onSubProgress)
 }
 
 export async function generateWithBridging(
   dag:        DAGNode[],
   assets:     PatientZeroAssets,
-  onProgress: (shotIndex: number, status: string) => void
+  onProgress: (data: {
+    shotIndex:    number
+    totalShots:   number
+    status:       string
+    subProgress?: number
+    subMessage?:  string
+  }) => void
 ): Promise<GeneratedSegment[]> {
 
   const results: GeneratedSegment[] = []
   const shotMemoryCache: string[]   = []
+  const total = dag.length
 
   for (const node of dag) {
-    onProgress(node.shot.shotIndex, 'generating')
+    onProgress({ shotIndex: node.shot.shotIndex, totalShots: total, status: 'generating' })
 
     let prompt = node.shot.visualPrompt
-
     if (shotMemoryCache.length > 0) {
       prompt += ` Maintain visual consistency with previous shots.`
     }
@@ -165,7 +205,7 @@ export async function generateWithBridging(
           contentType: dag[node.shot.shotIndex - 1]?.shot.contentType ?? '',
           lighting:    dag[node.shot.shotIndex - 1]?.shot.lighting ?? 'natural_day',
         })
-        onProgress(node.shot.shotIndex, 'bridging')
+        onProgress({ shotIndex: node.shot.shotIndex, totalShots: total, status: 'bridging' })
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err)
         console.warn(`[orchestration] tail frame extraction failed for shot ${node.shot.shotIndex}:`, msg)
@@ -178,26 +218,39 @@ export async function generateWithBridging(
 
     let videoUrl = ''
     let retryCount = 0
-    const MAX_RETRIES = 2
+    const MAX_RETRIES = 1  // one retry then LTX fallback
 
     while (retryCount <= MAX_RETRIES) {
       try {
-        videoUrl = await callVideoModel({
-          model:           node.assignedModel,
-          prompt,
-          duration:        node.shot.duration,
-          imageUrl:        tailFrameUrl,
-          patientZeroUrl:  characterRef,
-        })
+        videoUrl = await withTimeout(
+          callVideoModel({
+            model:          node.assignedModel,
+            prompt,
+            duration:       node.shot.duration,
+            imageUrl:       tailFrameUrl,
+            patientZeroUrl: characterRef,
+            onSubProgress:  (pct, msg) => onProgress({
+              shotIndex:   node.shot.shotIndex,
+              totalShots:  total,
+              status:      'generating',
+              subProgress: pct,
+              subMessage:  msg,
+            }),
+          }),
+          180_000,  // 3-min hard cap per segment
+          `Shot ${node.shot.shotIndex}`
+        )
         break
       } catch (err: unknown) {
         retryCount++
         const msg = err instanceof Error ? err.message : String(err)
         console.warn(`[orchestration] shot ${node.shot.shotIndex} attempt ${retryCount} failed:`, msg)
         if (retryCount > MAX_RETRIES) {
+          // LTX fallback — fast and cheap
           videoUrl = await callVideoModel({ model: 'ltx-2.3-fast', prompt, duration: node.shot.duration })
+        } else {
+          await new Promise(r => setTimeout(r, 3000 * retryCount))
         }
-        await new Promise(r => setTimeout(r, 2000 * retryCount))
       }
     }
 
@@ -223,7 +276,7 @@ export async function generateWithBridging(
       qualityScore: 1.0,
       retryCount,
     })
-    onProgress(node.shot.shotIndex, 'complete')
+    onProgress({ shotIndex: node.shot.shotIndex, totalShots: total, status: 'complete' })
   }
 
   return results
