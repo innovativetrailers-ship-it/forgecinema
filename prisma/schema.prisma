@@ -180,12 +180,12 @@ model RenderJob {
   id              String      @id @default(cuid())
   userId          String
   projectId       String?
-  type            JobType
+  type            JobType     @default(GENERATE)
   status          JobStatus   @default(QUEUED)
   priority        Int         @default(1)
   modelUsed       String?
   creditsCharged  Int         @default(0)
-  inputPayload    Json
+  inputPayload    Json        @default("{}")
   outputUrl       String?
   outputUrls      String[]
   proxyUrl        String?
@@ -195,6 +195,12 @@ model RenderJob {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   completedAt     DateTime?
+  // Orchestration V2 fields
+  prompt          String?
+  duration        Int         @default(10)
+  mode            String      @default("simple")
+  statusMessage   String?
+  metadata        Json?
 
   user            User        @relation(fields: [userId], references: [id])
   project         Project?    @relation(fields: [projectId], references: [id])
