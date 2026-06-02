@@ -358,6 +358,76 @@ export const renderWorker = new Worker<RenderJobPayload>(
   async (job) => {
     const data = job.data
 
+    // ── V2: orchestrate / render-simple job names ───────────────────────────
+    if (job.name === 'orchestrate') {
+      const { jobId, userId, prompt, duration, selectedModels, creditCost } = data as unknown as {
+        jobId: string; userId: string; prompt: string
+        duration: number; selectedModels: string[]; creditCost?: number
+      }
+      const jobStartTime = Date.now()
+      await db.renderJob.update({
+        where: { id: jobId },
+        data:  { status: 'PROCESSING', progressPct: 2, phase: 'patient_zero', statusMessage: 'Starting…' },
+      })
+      try {
+        const { orchestrateGeneration } = await import('@/lib/orchestration')
+        const result = await orchestrateGeneration({
+          prompt, totalDuration: duration, selectedModels, userId,
+          onProgress: async (phase, detail, pct) => {
+            const elapsedSec = (Date.now() - jobStartTime) / 1000
+            const etaSeconds = pct > 5 ? Math.max(0, Math.round((elapsedSec / pct) * (100 - pct))) : null
+            await db.renderJob.update({
+              where: { id: jobId },
+              data: { progressPct: pct, phase, statusMessage: detail, ...(etaSeconds !== null ? { etaSeconds } : {}) },
+            }).catch(() => {})
+          },
+        })
+        // Cost reconciliation
+        const estimatedCredits = creditCost ?? result.totalCredits
+        const refund = estimatedCredits - result.totalCredits
+        if (refund > 0) {
+          const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } })
+          if (user?.role !== 'ADMIN') {
+            await db.user.update({ where: { id: userId }, data: { creditBalance: { increment: refund } } })
+            await db.creditTransaction.create({ data: { userId, amount: refund, description: 'Orchestration cost reconciliation refund', balanceAfter: 0 } })
+          }
+        }
+        await db.renderJob.update({
+          where: { id: jobId },
+          data: { status: 'COMPLETE', progressPct: 100, phase: 'complete', etaSeconds: 0, statusMessage: 'Complete', outputUrl: result.finalVideoUrl, completedAt: new Date() },
+        })
+      } catch (err) {
+        const msg = describeProviderError(err)
+        await db.renderJob.update({ where: { id: jobId }, data: { status: 'FAILED', errorMessage: msg, statusMessage: 'Generation failed' } })
+        throw err
+      }
+      return
+    }
+
+    if (job.name === 'render-simple') {
+      const { jobId, prompt, duration, engine, userId } = data as unknown as {
+        jobId: string; prompt: string; duration: number; engine: string; userId: string
+      }
+      await db.renderJob.update({
+        where: { id: jobId },
+        data: { status: 'PROCESSING', progressPct: 20, phase: 'generating', statusMessage: 'Generating video…' },
+      })
+      try {
+        const { callEngine } = await import('@/lib/routing/MediaRouter')
+        const result = await callEngine({ model: engine, prompt, duration })
+        await db.renderJob.update({
+          where: { id: jobId },
+          data: { status: 'COMPLETE', progressPct: 100, phase: 'complete', etaSeconds: 0, statusMessage: 'Complete', outputUrl: result.videoUrl ?? result.imageUrl, completedAt: new Date() },
+        })
+      } catch (err) {
+        const msg = describeProviderError(err)
+        await db.renderJob.update({ where: { id: jobId }, data: { status: 'FAILED', errorMessage: msg, statusMessage: 'Generation failed' } })
+        throw err
+      }
+      return
+    }
+
+    // ── Legacy GENERATE / REPAINT / TRANSCRIBE jobs ─────────────────────────
     // Mark processing in DB
     await db.renderJob.update({
       where: { id: data.jobId },
