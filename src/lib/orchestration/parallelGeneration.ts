@@ -3,6 +3,7 @@
 
 import { callVideoModel, extractTailFrame, getModelTimeout, withTimeout } from './bridgedGeneration'
 import { analyseFrameMotion, injectMotionContext }     from './opticalFlow'
+import { continuityAgent, applyContinuity, type ContinuityState } from '@/lib/cognition/agents/continuityAgent'
 import type { ContinuityChain, DAGNode, GeneratedSegment, PatientZeroAssets } from './types'
 
 // Limit concurrent FAL calls so we don't hit rate limits — tune to your FAL plan
@@ -23,6 +24,9 @@ async function generateChain(
 
   const results: GeneratedSegment[] = []
   let previousTail: string | undefined
+  // Structured continuity (wardrobe/props/environment) carried forward as text,
+  // complementing the visual tail-frame bridge. Best-effort: never blocks a render.
+  let continuity: ContinuityState | null = null
 
   for (const shot of chain.shots) {
     const node = dagByIndex.get(shot.shotIndex)
@@ -43,6 +47,17 @@ async function generateChain(
         prompt = injectMotionContext(prompt, motion, { contentType: shot.contentType, lighting: shot.lighting })
       } catch { /* non-fatal — proceed without motion context */ }
     }
+
+    // Thread structured continuity state through the chain so wardrobe/props/setting
+    // established in earlier shots survive into later cuts.
+    try {
+      continuity = await withTimeout(
+        continuityAgent.execute({ shotPrompt: shot.visualPrompt, prior: continuity }),
+        15_000,
+        `Continuity shot ${shot.shotIndex}`,
+      )
+      prompt = applyContinuity(prompt, continuity)
+    } catch { /* non-fatal — continuity is a best-effort enrichment */ }
 
     const characterRef = shot.charactersPresent.length > 0
       ? assets.characters.find(c => c.name === shot.charactersPresent[0])?.imageUrl
@@ -69,6 +84,7 @@ async function generateChain(
       videoUrl,
       duration:     shot.duration,
       model:        node.assignedModel,
+      contentType:  shot.contentType,
       tailFrameUrl: previousTail ?? '',
       qualityScore: 1.0,
       retryCount:   0,

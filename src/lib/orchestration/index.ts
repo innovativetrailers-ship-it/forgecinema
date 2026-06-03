@@ -52,7 +52,7 @@ export async function orchestrateGeneration(
   progress('routing', `Planning ${chains.length} parallel chains...`, 36)
 
   // ── Phase 3: DAG routing (with keyframed shots) ──────────────────────────
-  const dag = buildDAG(shotsWithKeyframes, selectedModels)
+  const dag = await buildDAG(shotsWithKeyframes, selectedModels)
 
   const totalCredits = getTotalPlanCost(dag)
 

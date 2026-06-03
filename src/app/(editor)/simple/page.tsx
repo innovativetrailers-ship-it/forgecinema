@@ -10,6 +10,7 @@ import { ResultsGallery } from '@/components/simple/ResultsGallery'
 import { TopBar } from '@/components/layout/TopBar'
 import { useCredits } from '@/hooks/useCredits'
 import type { GeneratedClip, SimpleTab } from '@/components/simple/types'
+import { fireRewardSignal } from '@/lib/feedback/signal'
 import { nanoid } from 'nanoid'
 
 const TABS: Array<{ id: SimpleTab; label: string; icon: string }> = [
@@ -40,6 +41,8 @@ export default function SimplePage() {
   }, [])
 
   const handleRegenerate = useCallback((clip: GeneratedClip) => {
+    // Redoing a render is a strong negative reward for the models that made it.
+    fireRewardSignal(clip.jobId, 'regenerate')
     // Re-add the clip as a new generation with same params
     const newClip: GeneratedClip = {
       ...clip,
@@ -85,6 +88,8 @@ export default function SimplePage() {
   }, [handleGenerated])
 
   const handleAddToTimeline = useCallback((clip: GeneratedClip) => {
+    // Keeping a render (carrying it into the edit) is a strong positive reward.
+    fireRewardSignal(clip.jobId, 'export')
     // Persist clip to the editor store for the Advanced timeline
     if (typeof window !== 'undefined') {
       const pending = JSON.parse(localStorage.getItem('cinema:timeline:pending') ?? '[]') as GeneratedClip[]

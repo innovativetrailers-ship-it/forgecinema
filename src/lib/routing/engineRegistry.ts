@@ -20,6 +20,11 @@ export const MODEL_COSTS: Record<string, number> = {
   'nano-banana-2':         2,
   'nano-banana-pro':       5,
   'grok-imagine-video':   20,  // $0.05/s API cost → 20cr/5s covers margin
+  // ── V3 model expansion (target = 21 video models) ──
+  'sora-2':               35,  // replicate (openai/sora-2) — physics lead
+  'happyhorse-1.0':       22,  // fal — dialogue/emotion performance lead
+  'kling-o3':             30,  // fal — premium character emotion
+  'hailuo-2.3':           12,  // fal — CGI character / product hybrid
 }
 
 export const MODEL_SPECIALTIES: Record<string, {
@@ -28,6 +33,31 @@ export const MODEL_SPECIALTIES: Record<string, {
   weaknesses: string[]
   bestFor:    string
 }> = {
+  // ── V3 model expansion ──
+  'sora-2': {
+    costTier:   'premium',
+    strengths:  ['physics_simulation', 'fluid_dynamics', 'realistic_physics', 'photorealism', 'aerial'],
+    weaknesses: ['cost', 'not_on_fal'],
+    bestFor:    'Physics simulation — fluid, fire, structural collapse, realistic dynamics',
+  },
+  'happyhorse-1.0': {
+    costTier:   'premium',
+    strengths:  ['dialogue', 'character_emotion', 'lip_sync', 'physical_action', 'facial_consistency'],
+    weaknesses: ['cost'],
+    bestFor:    'Dialogue close-ups and emotional character performance',
+  },
+  'kling-o3': {
+    costTier:   'premium',
+    strengths:  ['character_emotion', 'dialogue', 'physical_action', 'facial_consistency', 'human_motion'],
+    weaknesses: ['cost'],
+    bestFor:    'Premium character emotion + dialogue close-ups',
+  },
+  'hailuo-2.3': {
+    costTier:   'mid',
+    strengths:  ['cgi_character', 'product_commercial', 'motion_from_still', 'image_to_video'],
+    weaknesses: ['extreme_vfx'],
+    bestFor:    'CGI character and product shots animated from stills',
+  },
   'veo-3.1': {
     costTier:   'premium',
     strengths:  ['fluid_dynamics', 'physics', 'photorealism', 'native_audio', 'realism'],
@@ -164,6 +194,12 @@ export const FAL_MODEL_IDS: Record<string, string> = {
   'hunyuan-world-mirror': 'fal-ai/hunyuan-video',
   'hunyuan-r-dmesh':      'fal-ai/hunyuan-video',
 
+  // V3 model expansion (FAL-hosted). sora-2 intentionally excluded — it runs on
+  // Replicate (openai/sora-2) via REPLICATE_API_TOKEN, not FAL (like grok-imagine-video).
+  'happyhorse-1.0':       'fal-ai/happyhorse-v1',
+  'kling-o3':             'fal-ai/kling-video/v2/pro/text-to-video',
+  'hailuo-2.3':           'fal-ai/minimax-video',
+
   // Image generation — all via FAL
   'nano-banana-2':        'fal-ai/gemini-flash-image',
   'nano-banana-pro':      'fal-ai/gemini-pro-image',
@@ -215,4 +251,8 @@ export const MODEL_COUNCIL_DISPLAY: Array<{
   { id: 'hunyuan-hy-motion',  name: 'HY-Motion',     role: '3D Animator',        tagline: 'Character animation, walk cycles',    dotColor: '#fb7185' },
   { id: 'pika-2.5',           name: 'Pika 2.5',      role: 'Commercial Pro',     tagline: 'Product shots, clean style',          dotColor: '#fbbf24' },
   { id: 'grok-imagine-video', name: 'Grok Imagine',  role: 'Audio-Native',       tagline: 'Fast clips with synced audio',        dotColor: '#e879f9' },
+  { id: 'sora-2',             name: 'Sora 2',        role: 'Physics Lead',       tagline: 'Fluid, fire, realistic dynamics',     dotColor: '#6366f1' },
+  { id: 'happyhorse-1.0',     name: 'HappyHorse',    role: 'Performance Lead',   tagline: 'Dialogue close-ups, emotion',         dotColor: '#ef4444' },
+  { id: 'kling-o3',           name: 'Kling O3',      role: 'Emotion Premium',    tagline: 'Premium character emotion',           dotColor: '#0891b2' },
+  { id: 'hailuo-2.3',         name: 'Hailuo 2.3',    role: 'CGI Hybrid',         tagline: 'CGI character, product, image-to-video', dotColor: '#eab308' },
 ]

@@ -83,6 +83,7 @@ model User {
   socialConnections SocialConnection[]
   vendorUsage     VendorUsageLog[]
   locationPlates  LocationPlate[]
+  episodicMemories EpisodicMemory[]
 
   @@index([email])
 }
@@ -846,4 +847,104 @@ model ClipComment {
   @@index([projectId, clipId])
   @@index([projectId, createdAt])
   @@index([parentId])
+}
+
+// ── Cognitive Director: CoALA memory stores ─────────────────────────────────
+// Episodic memory: every creative decision + its outcome (vector RAG).
+model EpisodicMemory {
+  id           String   @id @default(cuid())
+  userId       String
+  projectId    String?
+  kind         String // 'project' | 'scene' | 'routing_decision' | 'feedback'
+  summary      String
+  intent       Json?
+  brief        Json?
+  outcome      Json?
+  embedding    Unsupported("vector(1024)")?
+  importance   Float    @default(0.5) // 0-1, drives selective forgetting
+  accessCount  Int      @default(0) // recency/frequency for decay
+  lastAccessed DateTime @default(now())
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([kind])
+}
+
+// Semantic memory: consolidated, generalised knowledge.
+model SemanticMemory {
+  id             String   @id @default(cuid())
+  userId         String? // null = global knowledge; set = user-specific taste
+  category       String // 'user_taste' | 'craft_rule' | 'model_insight' | 'genre_pattern'
+  insight        String
+  evidence       Json?
+  confidence     Float    @default(0.5)
+  embedding      Unsupported("vector(1024)")?
+  reinforceCount Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@index([category])
+}
+
+// Procedural memory: learned model-routing policies.
+model RoutingPolicy {
+  id            String   @id @default(cuid())
+  contentType   String
+  model         String
+  successRate   Float    @default(0.5) // rolling avg quality score 0-1
+  sampleCount   Int      @default(0)
+  avgGenSeconds Float    @default(60)
+  lastUpdated   DateTime @default(now())
+
+  @@unique([contentType, model])
+  @@index([contentType])
+}
+
+// ── Cognitive enhancements ──────────────────────────────────────────────────
+// Live performance matrix: real-time latency/cost/success with a circuit breaker.
+model ModelPerformance {
+  id               String   @id @default(cuid())
+  model            String   @unique
+  avgLatencyMs     Float    @default(60000)
+  p95LatencyMs     Float    @default(120000)
+  successRate      Float    @default(1.0) // last-N success ratio
+  recentFailures   Int      @default(0) // consecutive failures (circuit breaker)
+  costPer5sCredits Int      @default(10)
+  status           String   @default("healthy") // healthy | degraded | down
+  lastCheckedAt    DateTime @default(now())
+  sampleCount      Int      @default(0)
+
+  @@index([status])
+}
+
+// Implicit reward signals: learn from export vs regenerate, watch-complete, etc.
+model RewardSignal {
+  id          String   @id @default(cuid())
+  userId      String
+  jobId       String?
+  model       String?
+  contentType String?
+  signal      String // 'export' | 'regenerate' | 'watch_complete' | 'discard' | 'thumbs_up' | 'thumbs_down'
+  reward      Float
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([model])
+}
+
+// Lightweight knowledge graph: relational craft rules for multi-hop reasoning.
+model CraftRule {
+  id             String   @id @default(cuid())
+  subject        String
+  relation       String // 'pairs_with' | 'requires' | 'avoids'
+  object         String
+  confidence     Float    @default(0.6)
+  source         String // 'learned' | 'seeded'
+  reinforceCount Int      @default(1)
+  createdAt      DateTime @default(now())
+
+  @@unique([subject, relation, object])
+  @@index([subject])
 }

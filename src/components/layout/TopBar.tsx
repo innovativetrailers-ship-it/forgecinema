@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { useCredits } from '@/hooks/useCredits'
+import { useUserTier } from '@/hooks/useUserTier'
 import { useStudioStore, useEditorStore, type AppMode, type OutcomeTier } from '@/store/editor'
 import { useUIStore, type FilmToolbarTab, type EditTool } from '@/store/ui'
 import { CreditPurchaseModal } from '@/components/ui/CreditPurchaseModal'
@@ -19,8 +20,45 @@ import {
   Hexagon, LogOut, Settings, CreditCard, Loader2, Share2,
   Download, Undo2, Redo2, ZoomIn, ZoomOut, Maximize2,
   MousePointer2, Scissors, Paintbrush, Wind, Type,
-  Save, AlertCircle,
+  Save, AlertCircle, Monitor, Lock,
 } from 'lucide-react'
+
+// Forge Extreme (V3 desktop app) download CTA — full button for Ultimate/admin,
+// upgrade teaser otherwise. Reuses useUserTier (cached credits/balance query).
+function ForgeExtremeButton() {
+  const { tier, isAdmin } = useUserTier()
+  const isUltimate = isAdmin || tier === 'ultimate'
+
+  if (isUltimate) {
+    return (
+      <Link
+        href="/download"
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide bg-gradient-to-r from-[#00e5c8] to-[#00b8a0] text-black hover:from-[#00f0d5] hover:to-[#00c8ae] transition-all border border-[#00e5c8]/30"
+      >
+        <Monitor className="w-3.5 h-3.5" />
+        Forge Extreme
+        <Download className="w-3 h-3 opacity-70" />
+      </Link>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => window.dispatchEvent(new CustomEvent('show-upgrade-modal', {
+        detail: {
+          requiredTier: 'ultimate',
+          feature: 'Forge Extreme Desktop',
+          message: 'Forge Extreme is the professional desktop studio — full NLE, colour science, compositing, audio mastering, ForgeFlow, and ForgeReview in one app. Included with Ultimate.',
+        },
+      }))}
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border border-white/15 text-white/50 hover:border-[#00e5c8]/40 hover:text-white/70 transition-all group"
+    >
+      <Monitor className="w-3.5 h-3.5" />
+      Forge Extreme
+      <Lock className="w-3 h-3 opacity-50 group-hover:opacity-80" />
+    </button>
+  )
+}
 
 // ── Mode switcher ────────────────────────────────────────────
 const MODES: Array<{ label: string; href: string; mode: AppMode }> = [
@@ -274,6 +312,8 @@ export function TopBar() {
             <Download size={12} />
             Export Film
           </button>
+
+          {status === 'authenticated' && <ForgeExtremeButton />}
 
           {status === 'authenticated' && user ? (
             <DropdownMenu>

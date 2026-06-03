@@ -84,6 +84,7 @@ export interface GeneratedSegment {
   videoUrl:     string
   duration:     number
   model:        string
+  contentType:  ContentType  // carried through so the learning loop can attribute reward per content type
   tailFrameUrl: string
   qualityScore: number
   retryCount:   number

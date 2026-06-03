@@ -23,6 +23,8 @@ import { logApiUsage, logRLHFSelection } from '../../telemetry/rlhf'
 import { captureGeneration } from '../../telemetry/delta'
 import { loraAutoTrigger, incrementRenderCount } from '../../vault/lora-trigger'
 import type { GenerateVideoOutput } from '../../models/types'
+import type { CreativeBrief } from '@/lib/cognition'
+import { Prisma } from '@/generated/prisma/client'
 
 const POLL_INTERVAL_MS = 4000
 // fal video models can sit in-queue for 15+ min under load before execution.
@@ -360,9 +362,9 @@ export const renderWorker = new Worker<RenderJobPayload>(
 
     // ── V2: orchestrate / render-simple job names ───────────────────────────
     if (job.name === 'orchestrate') {
-      const { jobId, userId, prompt, duration, selectedModels, creditCost } = data as unknown as {
+      const { jobId, userId, prompt, duration, selectedModels, creditCost, useCognition } = data as unknown as {
         jobId: string; userId: string; prompt: string
-        duration: number; selectedModels: string[]; creditCost?: number
+        duration: number; selectedModels: string[]; creditCost?: number; useCognition?: boolean
       }
       const jobStartTime = Date.now()
       await db.renderJob.update({
@@ -370,9 +372,34 @@ export const renderWorker = new Worker<RenderJobPayload>(
         data:  { status: 'PROCESSING', progressPct: 2, phase: 'patient_zero', statusMessage: 'Starting…' },
       })
       try {
+        // ── SEAM 1: Cognitive Director (optional, gracefully degrading) ───────
+        // The ONLY change to the pipeline is prompt → finalPrompt. If cognition
+        // throws or times out, the render proceeds on the raw prompt.
+        let finalPrompt = prompt
+        let brief: CreativeBrief | null = null
+        if (useCognition) {
+          const { think } = await import('@/lib/cognition')
+          await db.renderJob.update({
+            where: { id: jobId },
+            data:  { phase: 'thinking', statusMessage: 'The director is thinking…' },
+          }).catch(() => {})
+          try {
+            brief = await think({
+              userId, prompt, durationSec: duration,
+              onProgress: async (detail) => {
+                await db.renderJob.update({ where: { id: jobId }, data: { statusMessage: detail } }).catch(() => {})
+              },
+            })
+            finalPrompt = brief.enrichedPrompt
+          } catch (e) {
+            console.warn('[cognition] director degraded → raw prompt:', e instanceof Error ? e.message : String(e))
+            finalPrompt = prompt
+          }
+        }
+
         const { orchestrateGeneration } = await import('@/lib/orchestration')
         const result = await orchestrateGeneration({
-          prompt, totalDuration: duration, selectedModels, userId,
+          prompt: finalPrompt, totalDuration: duration, selectedModels, userId,
           onProgress: async (phase, detail, pct) => {
             const elapsedSec = (Date.now() - jobStartTime) / 1000
             const etaSeconds = pct > 5 ? Math.max(0, Math.round((elapsedSec / pct) * (100 - pct))) : null
@@ -394,8 +421,32 @@ export const renderWorker = new Worker<RenderJobPayload>(
         }
         await db.renderJob.update({
           where: { id: jobId },
-          data: { status: 'COMPLETE', progressPct: 100, phase: 'complete', etaSeconds: 0, statusMessage: 'Complete', outputUrl: result.finalVideoUrl, completedAt: new Date() },
+          data: {
+            status: 'COMPLETE', progressPct: 100, phase: 'complete', etaSeconds: 0,
+            statusMessage: 'Complete', outputUrl: result.finalVideoUrl, completedAt: new Date(),
+            // Persist segment data so the UI can populate per-shot timeline clips and
+            // the feedback/reward route can attribute signals to the right models.
+            metadata: {
+              segments:       result.segments,
+              modelBreakdown: result.modelBreakdown,
+              qualityScores:  result.qualityScores,
+              patientZero:    result.patientZero,
+              actualCredits:  result.totalCredits,
+            } as unknown as Prisma.InputJsonValue,
+          },
         })
+
+        // ── SEAM 2: learning loop (fire-and-forget — never blocks completion) ─
+        const { learn } = await import('@/lib/cognition')
+        learn({
+          userId,
+          jobId,
+          result: {
+            segments:      result.segments ?? [],
+            qualityScores: Object.fromEntries(Object.entries(result.qualityScores ?? {})),
+          },
+          brief,
+        }).catch(e => console.warn('[learn]', e instanceof Error ? e.message : String(e)))
       } catch (err) {
         const msg = describeProviderError(err)
         await db.renderJob.update({ where: { id: jobId }, data: { status: 'FAILED', errorMessage: msg, statusMessage: 'Generation failed' } })

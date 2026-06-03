@@ -8,7 +8,7 @@ import { TopBar } from '@/components/layout/TopBar'
 import { IconRail } from '@/components/layout/IconRail'
 import { LeftPanel } from '@/components/layout/LeftPanel'
 import { RightPanel } from '@/components/layout/RightPanel'
-import { VideoPreview } from '@/components/editor/VideoPreview'
+import { InteractivePlayer } from '@/components/playback/InteractivePlayer'
 import { Timeline } from '@/components/editor/Timeline'
 import { RepaintModal } from '@/components/editor/RepaintModal'
 import { ReviewPortalModal } from '@/components/review/ReviewPortalModal'
@@ -18,6 +18,7 @@ import { useUIStore } from '@/store/ui'
 import { useCredits } from '@/hooks/useCredits'
 import { toast } from '@/lib/toast'
 import { fetchJsonSafe } from '@/lib/safeFetch'
+import { fireRewardSignal } from '@/lib/feedback/signal'
 import { DEFAULT_ZOOM } from '@/components/editor/constants'
 import type { TimelineRecipe, Clip, Track } from '@/lib/timeline/schema'
 
@@ -273,6 +274,8 @@ export default function AdvancedPage() {
         body: JSON.stringify({ recipe }),
       })
       const { jobId } = await res.json() as { jobId: string }
+      // Exporting the film is the strongest positive signal in the RLAIF loop.
+      fireRewardSignal(jobId, 'export')
       const sse = new EventSource(`/api/jobs/${jobId}/stream`)
       sse.onmessage = (e) => {
         const data = JSON.parse(e.data) as { status: string; outputUrl?: string }
@@ -299,8 +302,9 @@ export default function AdvancedPage() {
 
         {/* Centre: preview + timeline */}
         <div className="flex flex-col flex-1 overflow-hidden">
-          <VideoPreview
+          <InteractivePlayer
             clips={allClips}
+            tracks={recipe.tracks}
             playheadTime={playheadTime}
             isPlaying={isPlaying}
             duration={recipe.durationSeconds}
@@ -309,6 +313,7 @@ export default function AdvancedPage() {
             onSeek={setPlayheadTime}
             onSkipToStart={() => setPlayheadTime(0)}
             onSkipToEnd={() => setPlayheadTime(recipe.durationSeconds)}
+            onClipEdited={(clipId, url) => handleClipUpdate(clipId, { sourceUrl: url })}
           />
 
           <ErrorBoundary>

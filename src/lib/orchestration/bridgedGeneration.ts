@@ -3,6 +3,8 @@
 
 import { fal }                                           from '@fal-ai/client'
 import { uploadToR2 }                                    from '@/lib/storage/r2'
+import { recordPerformance }                            from '@/lib/cognition/routing/performance'
+import { buildPayload }                                  from '@/lib/cognition/routing/schemaPayload'
 import { analyseFrameMotion, injectMotionContext }       from './opticalFlow'
 import type { DAGNode, GeneratedSegment, PatientZeroAssets } from './types'
 
@@ -31,6 +33,10 @@ const MODEL_TIMEOUT_MS: Record<string, number> = {
   'veo-3.1':            900_000,   // 15 min
   'grok-imagine-video': 300_000,   //  5 min — fast model
   'runway-gen4':        900_000,   // 15 min
+  'sora-2':             1_200_000, // 20 min — Replicate physics model
+  'happyhorse-1.0':     900_000,   // 15 min
+  'kling-o3':           900_000,   // 15 min
+  'hailuo-2.3':         600_000,   // 10 min
 }
 
 const DEFAULT_TIMEOUT_MS = 1_200_000  // 20 min fallback
@@ -95,6 +101,9 @@ const I2V_MODEL_IDS: Record<string, string> = {
   'pixverse-c1':        'fal-ai/pixverse/v4.5',
   'hunyuan-video-1.5':  'fal-ai/hunyuan-video',
   'skyreels-v3':        'fal-ai/skyreels-v2-i2v',
+  'happyhorse-1.0':     'fal-ai/happyhorse-v1',
+  'kling-o3':           'fal-ai/kling-video/v2/pro/image-to-video',
+  'hailuo-2.3':         'fal-ai/minimax-video',
 }
 
 const T2V_MODEL_IDS: Record<string, string> = {
@@ -111,6 +120,10 @@ const T2V_MODEL_IDS: Record<string, string> = {
   'runway-gen4':        'runway-gen4',
   'veo-3.1':            'fal-ai/veo3',
   'grok-imagine-video': 'grok-imagine-video',
+  'sora-2':             'sora-2',   // sentinel — handled via Replicate, not FAL
+  'happyhorse-1.0':     'fal-ai/happyhorse-v1',
+  'kling-o3':           'fal-ai/kling-video/v2/pro/text-to-video',
+  'hailuo-2.3':         'fal-ai/minimax-video',
 }
 
 export async function extractTailFrame(videoUrl: string): Promise<string> {
@@ -147,6 +160,27 @@ async function pollXAIVideo(
   throw new Error('Grok Imagine timed out after 10 min')
 }
 
+async function pollReplicate(
+  getUrl:         string,
+  token:          string,
+  onSubProgress?: import('./types').SubProgressFn
+): Promise<string> {
+  for (let i = 0; i < 600; i++) {   // 600 × 2s = 1200s (20 min)
+    await new Promise(r => setTimeout(r, 2000))
+    const res = await fetch(getUrl, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())
+    if (res.status === 'starting' || res.status === 'processing') {
+      const pct = Math.min(90, Math.round((i / 600) * 100))
+      onSubProgress?.({ pct, message: `Sora 2 generating ${pct}%`, vendor: 'replicate' })
+    } else if (res.status === 'succeeded') {
+      onSubProgress?.({ pct: 100, message: 'Sora 2 complete', vendor: 'replicate' })
+      return Array.isArray(res.output) ? res.output[0] : res.output
+    } else if (res.status === 'failed' || res.status === 'canceled') {
+      throw new Error(`Sora 2 ${res.status}: ${res.error ?? 'unknown'}`)
+    }
+  }
+  throw new Error('Sora 2 timed out after 20 min')
+}
+
 async function pollRunwayJob(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   client:         any,
@@ -171,14 +205,31 @@ async function pollRunwayJob(
   throw new Error('Runway timed out after 15 min')
 }
 
-export async function callVideoModel(params: {
+export interface VideoModelParams {
   model:           string
   prompt:          string
   duration:        number
   imageUrl?:       string
   patientZeroUrl?: string
   onSubProgress?:  import('./types').SubProgressFn
-}): Promise<string> {
+}
+
+// Public entry: times every model call and records live performance (latency +
+// success) into the cognitive routing matrix. Non-fatal — a cognition/DB failure
+// is swallowed and never affects the render.
+export async function callVideoModel(params: VideoModelParams): Promise<string> {
+  const t0 = Date.now()
+  let ok = false
+  try {
+    const url = await runVideoModel(params)
+    ok = true
+    return url
+  } finally {
+    void recordPerformance({ model: params.model, latencyMs: Date.now() - t0, success: ok }).catch(() => {})
+  }
+}
+
+async function runVideoModel(params: VideoModelParams): Promise<string> {
 
   if (params.model === 'grok-imagine-video') {
     const res = await fetch('https://api.x.ai/v1/videos/generations', {
@@ -193,6 +244,24 @@ export async function callVideoModel(params: {
       }),
     }).then(r => r.json())
     return await pollXAIVideo(res.request_id, params.onSubProgress)
+  }
+
+  if (params.model === 'sora-2') {
+    const token = process.env.REPLICATE_API_TOKEN
+    if (!token) throw new Error('sora-2 requires REPLICATE_API_TOKEN')
+    const create = await fetch('https://api.replicate.com/v1/models/openai/sora-2/predictions', {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: {
+          prompt:  params.prompt,
+          seconds: Math.min(params.duration, 20),
+          ...(params.imageUrl ? { input_image: params.imageUrl } : {}),
+        },
+      }),
+    }).then(r => r.json())
+    const getUrl = create.urls?.get ?? `https://api.replicate.com/v1/predictions/${create.id}`
+    return await pollReplicate(getUrl, token, params.onSubProgress)
   }
 
   if (params.model === 'runway-gen4') {
@@ -216,15 +285,16 @@ export async function callVideoModel(params: {
 
   if (!modelId) throw new Error(`Unknown model: ${params.model}`)
 
-  const input: Record<string, unknown> = {
+  // Schema-driven payload: read the model's actual accepted inputs so a renamed
+  // FAL param (aspect_ratio vs ratio, duration vs seconds, …) never silently fails.
+  // Falls back to the canonical base payload when the schema is unavailable.
+  const input = await buildPayload(modelId, {
     prompt:       params.prompt,
     duration:     params.duration,
-    aspect_ratio: '16:9',
-    resolution:   '1080p',
-  }
+    imageUrl:     useI2V ? params.imageUrl : undefined,
+    referenceUrl: params.patientZeroUrl,
+  })
 
-  if (useI2V)                   input.image_url           = params.imageUrl
-  if (params.patientZeroUrl)    input.reference_image_url = params.patientZeroUrl
   if (params.model.includes('ltx') && params.model.includes('fast')) input.quality = 'fast'
 
   return await callFalModel(modelId, input, (pct, message) =>
@@ -341,6 +411,7 @@ export async function generateWithBridging(
       videoUrl,
       duration:     node.shot.duration,
       model:        node.assignedModel,
+      contentType:  node.shot.contentType,
       tailFrameUrl: tailFrameUrl ?? '',
       qualityScore: 1.0,
       retryCount,

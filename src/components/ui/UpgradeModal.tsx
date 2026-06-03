@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, Zap } from 'lucide-react'
+import { X, Zap, Monitor } from 'lucide-react'
 
 const PLAN_DETAILS: Record<string, {
   price: string; credits: string; highlights: string[]
@@ -45,15 +45,18 @@ export function UpgradeModal() {
   const [open,     setOpen]     = useState(false)
   const [required, setRequired] = useState<string>('pro')
   const [message,  setMessage]  = useState<string | null>(null)
+  const [feature,  setFeature]  = useState<string | null>(null)
 
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail as {
         requiredTier?: string
         message?:      string
+        feature?:      string
       }
       setRequired(detail.requiredTier ?? 'pro')
       setMessage(detail.message ?? null)
+      setFeature(detail.feature ?? null)
       setOpen(true)
     }
     window.addEventListener('show-upgrade-modal', handler)
@@ -92,6 +95,10 @@ export function UpgradeModal() {
         </div>
 
         <div className="p-4 space-y-4">
+
+          {feature === 'Forge Extreme Desktop' && (
+            <Monitor className="w-10 h-10 text-[#00e5c8] mx-auto" />
+          )}
 
           {message && (
             <p className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">

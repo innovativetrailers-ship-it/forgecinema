@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { Play, Pause, SkipBack, SkipForward, Maximize2, Loader2 } from 'lucide-react'
 import { PREVIEW_HEIGHT } from './constants'
-import type { Clip } from '@/lib/timeline/schema'
+import type { Clip, Track } from '@/lib/timeline/schema'
 
 interface ActiveJob {
   jobId: string
@@ -14,6 +14,8 @@ interface ActiveJob {
 
 interface Props {
   clips: Clip[]
+  /** Full track list — enables multi-track audio mixing (music/voice/sfx). Optional: omit for video-only preview. */
+  tracks?: Track[]
   playheadTime: number
   isPlaying: boolean
   duration: number
@@ -35,6 +37,7 @@ function formatTimecode(seconds: number): string {
 
 export function VideoPreview({
   clips,
+  tracks,
   playheadTime,
   isPlaying,
   duration,
@@ -47,6 +50,7 @@ export function VideoPreview({
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
 
   // Find current clip at playhead (video clips only, identified by having a sourceUrl that looks like video)
   const currentClip = clips
@@ -71,6 +75,43 @@ export function VideoPreview({
       video.currentTime = playheadTime - currentClip.startTime
     }
   }, [currentClip, isPlaying, playheadTime])
+
+  // Multi-track audio mixer: play + sync every active audio-track clip alongside
+  // the video, using one <audio> element per clip. No-op unless `tracks` is passed.
+  useEffect(() => {
+    const audioTracks = (tracks ?? []).filter((t) => t.type === 'audio' && !t.muted)
+    const active = audioTracks.flatMap((t) =>
+      t.clips
+        .filter((c) => c.sourceUrl && c.startTime <= playheadTime && c.endTime >= playheadTime)
+        .map((c) => ({ clip: c, track: t })),
+    )
+    const activeIds = new Set(active.map((a) => a.clip.id))
+
+    // Stop audio that is no longer under the playhead
+    audioRefs.current.forEach((el, id) => {
+      if (!activeIds.has(id)) { el.pause(); audioRefs.current.delete(id) }
+    })
+
+    for (const { clip, track } of active) {
+      let el = audioRefs.current.get(clip.id)
+      if (!el) {
+        el = new Audio(clip.sourceUrl)
+        audioRefs.current.set(clip.id, el)
+      }
+      const raw = clip.audioSettings?.volume ?? track.volume ?? 1
+      el.volume = Math.max(0, Math.min(1, raw > 1 ? raw / 100 : raw))
+      const target = playheadTime - clip.startTime
+      if (Math.abs(el.currentTime - target) > 0.2) el.currentTime = target
+      if (isPlaying && el.paused) el.play().catch(() => {})
+      if (!isPlaying && !el.paused) el.pause()
+    }
+  }, [tracks, playheadTime, isPlaying])
+
+  // Pause + release all audio elements on unmount
+  useEffect(() => {
+    const refs = audioRefs.current
+    return () => { refs.forEach((el) => el.pause()); refs.clear() }
+  }, [])
 
   const handleTimeUpdate = useCallback(() => {
     if (!videoRef.current || !currentClip) return

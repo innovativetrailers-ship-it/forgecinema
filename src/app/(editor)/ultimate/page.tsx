@@ -37,7 +37,7 @@ import type { ScriptScene } from '@/components/ultimate/ScriptEditor'
 import type { StoryboardShot } from '@/components/ultimate/StoryboardViewer'
 
 // Reuse editor components for timeline + preview
-import { VideoPreview } from '@/components/editor/VideoPreview'
+import { InteractivePlayer } from '@/components/playback/InteractivePlayer'
 import { Timeline } from '@/components/editor/Timeline'
 import { PropertiesPanel } from '@/components/editor/PropertiesPanel'
 import { RepaintModal } from '@/components/editor/RepaintModal'
@@ -46,6 +46,7 @@ import { useCredits } from '@/hooks/useCredits'
 import { DEFAULT_ZOOM } from '@/components/editor/constants'
 import type { TimelineRecipe, Clip, Track } from '@/lib/timeline/schema'
 import { fetchJsonSafe } from '@/lib/safeFetch'
+import { fireRewardSignal } from '@/lib/feedback/signal'
 
 type UltimateTab = 'script' | 'storyboard' | 'director' | 'cgi' | 'continuity' | 'audio' | 'locations'
 
@@ -431,6 +432,8 @@ export default function UltimatePage() {
         body: JSON.stringify({ recipe }),
       })
       const { jobId } = await res.json() as { jobId: string }
+      // Exporting the film is the strongest positive signal in the RLAIF loop.
+      fireRewardSignal(jobId, 'export')
       const sse = new EventSource(`/api/jobs/${jobId}/stream`)
       sse.onmessage = (e) => {
         const data = JSON.parse(e.data) as { status: string; outputUrl?: string }
@@ -582,8 +585,9 @@ export default function UltimatePage() {
 
         {/* Centre: video preview + timeline */}
         <div className="relative z-10 flex flex-col flex-1 overflow-hidden min-w-0">
-          <VideoPreview
+          <InteractivePlayer
             clips={allClips}
+            tracks={recipe.tracks}
             playheadTime={playheadTime}
             isPlaying={isPlaying}
             duration={recipe.durationSeconds}
@@ -592,6 +596,7 @@ export default function UltimatePage() {
             onSeek={setPlayheadTime}
             onSkipToStart={() => setPlayheadTime(0)}
             onSkipToEnd={() => setPlayheadTime(recipe.durationSeconds)}
+            onClipEdited={(clipId, url) => handleClipUpdate(clipId, { sourceUrl: url })}
           />
 
           <Timeline

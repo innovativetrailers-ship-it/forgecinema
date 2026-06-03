@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     const { renderQueue } = await import('@/lib/queue')
     await renderQueue.add(
       mode === 'director' ? 'orchestrate' : 'render-simple',
-      { jobId: job.id, userId, prompt, duration, selectedModels, tier, engine, creditCost },
+      { jobId: job.id, userId, prompt, duration, selectedModels, tier, engine, creditCost, useCognition: mode === 'director' },
       { attempts: 1, removeOnComplete: 200, removeOnFail: 500 }
     )
   } catch {
