@@ -45,6 +45,7 @@ import { ReviewPortalModal } from '@/components/review/ReviewPortalModal'
 import { useCredits } from '@/hooks/useCredits'
 import { DEFAULT_ZOOM } from '@/components/editor/constants'
 import type { TimelineRecipe, Clip, Track } from '@/lib/timeline/schema'
+import { fetchJsonSafe } from '@/lib/safeFetch'
 
 type UltimateTab = 'script' | 'storyboard' | 'director' | 'cgi' | 'continuity' | 'audio' | 'locations'
 
@@ -187,11 +188,11 @@ export default function UltimatePage() {
   useEffect(() => {
     if (!session) return
     Promise.all([
-      fetch('/api/vault/character/list').then((r) => r.json()),
-      fetch('/api/vault/location/list').then((r) => r.json()),
+      fetchJsonSafe<{ characters?: Character[] }>('/api/vault/character/list', {}),
+      fetchJsonSafe<{ locations?: Location[] }>('/api/vault/location/list', {}),
     ]).then(([chars, locs]) => {
-      setCharacters((chars as { characters: Character[] }).characters ?? [])
-      setLocations((locs as { locations: Location[] }).locations ?? [])
+      setCharacters(chars.characters ?? [])
+      setLocations(locs.locations ?? [])
     }).catch(console.error)
   }, [session])
 
@@ -460,7 +461,7 @@ export default function UltimatePage() {
 
         <div
           className={`flex flex-col border-r border-[var(--border)] transition-all duration-200 flex-shrink-0 bg-[var(--bg-elevated)]
-            ${leftCollapsed ? 'w-10' : activePanel && !FILM_PANEL_IDS.has(activePanel) ? 'w-0 overflow-hidden' : 'w-72'}`}
+            ${leftCollapsed ? 'w-10' : activePanel && !FILM_PANEL_IDS.has(activePanel) ? 'w-0 overflow-hidden' : 'w-[360px]'}`}
         >
           {/* Tab pills */}
           <div className={`flex flex-col border-b border-[var(--border)] ${leftCollapsed ? 'items-center py-2 gap-1' : 'flex-row flex-wrap gap-0'}`}>

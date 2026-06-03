@@ -188,3 +188,31 @@ export const TIER_ENGINE_MAP: Record<string, string> = {
   'cinematic': 'luma-ray3',
   'film':      'kling-3.0',
 }
+
+// Friendly display data for the AI Director "Model Council" picker — EVERY video model.
+// Registry-driven: adding a model here auto-adds it to the picker (ids match MODEL_COSTS).
+export const MODEL_COUNCIL_DISPLAY: Array<{
+  id:       string
+  name:     string
+  role:     string
+  tagline:  string
+  dotColor: string
+}> = [
+  { id: 'veo-3.1',            name: 'Veo 3',         role: 'Visual Lead',        tagline: 'Photorealism, physics, native audio', dotColor: '#a855f7' },
+  { id: 'kling-3.0',          name: 'Kling Pro',     role: 'Motion Expert',      tagline: 'Camera movement, locomotion',         dotColor: '#3b82f6' },
+  { id: 'seedance-2.0',       name: 'Seedance',      role: 'Scene Architect',    tagline: 'Long scenes, continuity, dialogue',   dotColor: '#22c55e' },
+  { id: 'runway-gen4',        name: 'Runway',        role: 'Style Artist',       tagline: 'Camera control, Motion Brush, Aleph',  dotColor: '#ec4899' },
+  { id: 'luma-ray3',          name: 'Luma',          role: 'Action Director',    tagline: 'Aerial, landscape, dynamic motion',   dotColor: '#10b981' },
+  { id: 'minimax-2.3',        name: 'Minimax',       role: 'Dialogue Expert',    tagline: 'Talking heads, facial sync',          dotColor: '#f59e0b' },
+  { id: 'pixverse-c1',        name: 'PixVerse C1',   role: 'VFX Specialist',     tagline: 'Particles, fluid, atmospheric',       dotColor: '#06b6d4' },
+  { id: 'pixverse-v6',        name: 'PixVerse V6',   role: 'Stylist',            tagline: 'General stylised video',              dotColor: '#0ea5e9' },
+  { id: 'skyreels-v3',        name: 'SkyReels V3',   role: 'Long-form Director', tagline: 'Infinite-length sequences',           dotColor: '#8b5cf6' },
+  { id: 'ltx-2.3',            name: 'LTX 2.3',       role: 'Resolution Master',  tagline: '4K / 50fps high resolution',          dotColor: '#14b8a6' },
+  { id: 'ltx-2.3-fast',       name: 'LTX Fast',      role: 'Draft Artist',       tagline: 'Instant pre-vis drafts',              dotColor: '#2dd4bf' },
+  { id: 'wan-2.2',            name: 'Wan 2.2',       role: 'Budget Workhorse',   tagline: 'Environments, nature, low cost',      dotColor: '#84cc16' },
+  { id: 'cogvideox',          name: 'CogVideoX',     role: 'Open Source',        tagline: 'General-purpose generation',          dotColor: '#a3e635' },
+  { id: 'hunyuan-video-1.5',  name: 'HunyuanVideo',  role: 'Crowd Master',       tagline: 'Urban density, volumetric light',     dotColor: '#f472b6' },
+  { id: 'hunyuan-hy-motion',  name: 'HY-Motion',     role: '3D Animator',        tagline: 'Character animation, walk cycles',    dotColor: '#fb7185' },
+  { id: 'pika-2.5',           name: 'Pika 2.5',      role: 'Commercial Pro',     tagline: 'Product shots, clean style',          dotColor: '#fbbf24' },
+  { id: 'grok-imagine-video', name: 'Grok Imagine',  role: 'Audio-Native',       tagline: 'Fast clips with synced audio',        dotColor: '#e879f9' },
+]

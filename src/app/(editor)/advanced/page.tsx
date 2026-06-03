@@ -17,6 +17,7 @@ import { useStudioStore } from '@/store/editor'
 import { useUIStore } from '@/store/ui'
 import { useCredits } from '@/hooks/useCredits'
 import { toast } from '@/lib/toast'
+import { fetchJsonSafe } from '@/lib/safeFetch'
 import { DEFAULT_ZOOM } from '@/components/editor/constants'
 import type { TimelineRecipe, Clip, Track } from '@/lib/timeline/schema'
 
@@ -102,11 +103,11 @@ export default function AdvancedPage() {
   useEffect(() => {
     if (!session) return
     Promise.all([
-      fetch('/api/vault/character/list').then((r) => r.json()),
-      fetch('/api/vault/location/list').then((r) => r.json()),
+      fetchJsonSafe<{ characters?: Character[] }>('/api/vault/character/list', {}),
+      fetchJsonSafe<{ locations?: Location[] }>('/api/vault/location/list', {}),
     ]).then(([chars, locs]) => {
-      setCharacters((chars as { characters: Character[] }).characters ?? [])
-      setLocations((locs as { locations: Location[] }).locations ?? [])
+      setCharacters(chars.characters ?? [])
+      setLocations(locs.locations ?? [])
     }).catch(console.error)
   }, [session])
 

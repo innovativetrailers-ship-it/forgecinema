@@ -4,27 +4,10 @@ import { useState } from 'react'
 import { Sparkles, Brain, Zap, ChevronDown, Loader2, Film, Users, MapPin, Music } from 'lucide-react'
 import type { TimelineRecipe } from '@/lib/timeline/schema'
 import { useUserTier } from '@/hooks/useUserTier'
-import { TIER_PERMISSIONS } from '@/lib/access/tiers'
+import { MODEL_COUNCIL_DISPLAY } from '@/lib/routing/engineRegistry'
 
 interface Character { id: string; name: string; loraStatus: string }
 interface Location { id: string; name: string }
-
-interface CouncilModel {
-  id: string
-  label: string
-  role: string
-  strength: string
-  colour: string
-}
-
-const COUNCIL_MODELS: CouncilModel[] = [
-  { id: 'veo3', label: 'Veo 3', role: 'Visual Lead', strength: 'Photorealism, physics', colour: '#8b5cf6' },
-  { id: 'kling_pro', label: 'Kling Pro', role: 'Motion Expert', strength: 'Camera movement', colour: '#3b82f6' },
-  { id: 'seedance', label: 'Seedance', role: 'Scene Architect', strength: 'Long scenes, continuity', colour: '#10b981' },
-  { id: 'runway', label: 'Runway', role: 'Style Artist', strength: 'Stylised, editorial', colour: '#ec4899' },
-  { id: 'luma', label: 'Luma', role: 'Action Director', strength: 'Dynamic motion', colour: '#00e5c8' },
-  { id: 'minimax', label: 'Minimax', role: 'Dialogue Expert', strength: 'Talking heads, sync', colour: '#06b6d4' },
-]
 
 const DIRECTOR_PRESETS = [
   { id: 'cinematic_drama', label: 'Cinematic Drama', description: 'Slow burn, rich colour, wide masters', icon: '🎬' },
@@ -44,7 +27,7 @@ interface Props {
 }
 
 export function AIDirectorPanel({ script, characters, locations, onRecipeGenerated, creditBalance }: Props) {
-  const [selectedModels, setSelectedModels] = useState<string[]>(['veo3', 'kling_pro', 'seedance'])
+  const [selectedModels, setSelectedModels] = useState<string[]>(['veo-3.1', 'kling-3.0', 'seedance-2.0'])
   const [stylePreset, setStylePreset] = useState('cinematic_drama')
   const [customInstructions, setCustomInstructions] = useState('')
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '2.39:1'>('16:9')
@@ -124,7 +107,7 @@ export function AIDirectorPanel({ script, characters, locations, onRecipeGenerat
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto bg-[#0a0a12]">
+    <div className="flex flex-col h-full w-full overflow-y-auto bg-[#0a0a12]">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/8 flex-shrink-0">
         <Brain className="w-4 h-4 text-purple-400" />
@@ -182,23 +165,28 @@ export function AIDirectorPanel({ script, characters, locations, onRecipeGenerat
             </div>
           </button>
           {showCouncil && (
-            <div className="space-y-1.5">
-              {COUNCIL_MODELS.map((model) => {
+            <div className="space-y-1.5 max-h-[360px] overflow-y-auto pr-1">
+              {MODEL_COUNCIL_DISPLAY.map((model) => {
                 const active = selectedModels.includes(model.id)
+                const atLimit = !isAdmin && !active && selectedModels.length >= maxModels
                 return (
                   <button
                     key={model.id}
                     onClick={() => toggleModel(model.id)}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl border transition-all text-left
-                      ${active ? 'border-white/20 bg-white/6' : 'border-white/6 bg-white/2 opacity-50 hover:opacity-75'}`}
+                      ${active
+                        ? 'border-white/20 bg-white/6'
+                        : atLimit
+                        ? 'border-white/6 bg-white/2 opacity-30'
+                        : 'border-white/6 bg-white/2 opacity-50 hover:opacity-75'}`}
                   >
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: model.colour }} />
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: model.dotColor }} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-medium text-white/75">{model.label}</span>
-                        <span className="text-[9px] text-white/30">{model.role}</span>
+                        <span className="text-[11px] font-medium text-white/75 truncate">{model.name}</span>
+                        <span className="text-[9px] text-white/30 truncate">{model.role}</span>
                       </div>
-                      <p className="text-[9px] text-white/30 truncate">{model.strength}</p>
+                      <p className="text-[9px] text-white/30 truncate">{model.tagline}</p>
                     </div>
                     <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors
                       ${active ? 'border-[#00e5c8] bg-[#00e5c8]' : 'border-white/20 bg-transparent'}`}>
