@@ -1,7 +1,7 @@
 // src/lib/orchestration/parallelGeneration.ts
 // Hybrid: parallel across continuity chains, sequential within each chain
 
-import { callVideoModel, extractTailFrame }            from './bridgedGeneration'
+import { callVideoModel, extractTailFrame, getModelTimeout, withTimeout } from './bridgedGeneration'
 import { analyseFrameMotion, injectMotionContext }     from './opticalFlow'
 import type { ContinuityChain, DAGNode, GeneratedSegment, PatientZeroAssets } from './types'
 
@@ -48,14 +48,18 @@ async function generateChain(
       ? assets.characters.find(c => c.name === shot.charactersPresent[0])?.imageUrl
       : undefined
 
-    const videoUrl = await callVideoModel({
-      model:          node.assignedModel,
-      prompt,
-      duration:       shot.duration,
-      imageUrl:       startFrame,
-      patientZeroUrl: characterRef,
-      onSubProgress:  (s) => onProgress(shot.shotIndex, 'generating', { pct: s.pct, message: s.message }),
-    })
+    const videoUrl = await withTimeout(
+      callVideoModel({
+        model:          node.assignedModel,
+        prompt,
+        duration:       shot.duration,
+        imageUrl:       startFrame,
+        patientZeroUrl: characterRef,
+        onSubProgress:  (s) => onProgress(shot.shotIndex, 'generating', { pct: s.pct, message: s.message }),
+      }),
+      getModelTimeout(node.assignedModel),  // model-aware hard cap per segment
+      `Shot ${shot.shotIndex} (${node.assignedModel})`
+    )
 
     // Extract tail frame for the next shot IN THIS CHAIN only
     try { previousTail = await extractTailFrame(videoUrl) } catch { previousTail = undefined }

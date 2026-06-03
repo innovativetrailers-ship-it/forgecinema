@@ -100,9 +100,13 @@ const orchestrationWorker = new Worker('render', async (job) => {
 }, {
   connection,
   concurrency:     2,
-  stalledInterval: 30_000,  // check for stalled jobs every 30s
-  maxStalledCount: 1,       // mark failed after 1 stall (no silent re-submission)
-  lockDuration:    600_000, // 10 min lock — enough for big renders
+  // A multi-segment film can run 30-60+ min. Lock must exceed the LONGEST possible
+  // job or BullMQ considers it stalled and retries mid-render.
+  // 8 segments × 20 min max + overhead = generous 3 hour ceiling.
+  lockDuration:    10_800_000, // 3 hours (was 600_000 = 10 min)
+  lockRenewTime:   300_000,    // renew the lock every 5 min so long jobs keep their claim
+  stalledInterval: 300_000,    // check for genuinely stalled jobs every 5 min
+  maxStalledCount: 1,          // only retry a stalled job once (avoid double-charging renders)
 })
 
 // ── Simple mode single-model worker ───────────────────────────────────────

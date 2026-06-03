@@ -15,8 +15,8 @@ const CONTENT_ROUTING: Record<string, string[]> = {
   character_emotion:    ['seedance-2.0',       'minimax-2.3',        'kling-3.0'],
   cgi_character:        ['hunyuan-hy-motion',  'kling-3.0',          'veo-3.1'],
   long_sequence:        ['skyreels-v3',        'minimax-2.3',        'wan-2.2'],
-  fast_draft:           ['ltx-2.3-fast',       'wan-2.2',            'ltx-2.3'],
-  environment_travel:   ['wan-2.2',            'luma-ray3',          'ltx-2.3'],
+  fast_draft:           ['ltx-2.3-fast',       'ltx-2.3',            'wan-2.2'],   // LTX fast preferred; Wan demoted (slow on FAL)
+  environment_travel:   ['luma-ray3',          'ltx-2.3',            'wan-2.2'],   // Wan demoted to last-resort fallback
   product_commercial:   ['pika-2.5',           'runway-gen4',        'kling-3.0'],
   audio_native:         ['veo-3.1',            'grok-imagine-video', 'seedance-2.0'],
 }

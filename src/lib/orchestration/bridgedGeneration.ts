@@ -10,11 +10,40 @@ fal.config({ credentials: process.env.FAL_API_KEY })
 
 const FAL_KEY = () => process.env.FAL_API_KEY!
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+// Per-model generation timeout ceilings (milliseconds).
+// Generous — these are HARD caps to prevent infinite hangs, NOT target times.
+// A draft finishes in ~30s; premium/open-source models can legitimately take 20+ min.
+const MODEL_TIMEOUT_MS: Record<string, number> = {
+  'ltx-2.3-fast':       180_000,   //  3 min — fast draft model
+  'wan-2.2':            1_200_000, // 20 min — open-source, can be slow on FAL
+  'cogvideox':          1_200_000, // 20 min — open-source
+  'ltx-2.3':            600_000,   // 10 min
+  'pika-2.5':           600_000,   // 10 min
+  'luma-ray3':          600_000,   // 10 min
+  'minimax-2.3':        900_000,   // 15 min
+  'hunyuan-video-1.5':  1_200_000, // 20 min — open-source, heavy
+  'hunyuan-hy-motion':  1_200_000, // 20 min
+  'seedance-2.0':       900_000,   // 15 min
+  'skyreels-v3':        1_500_000, // 25 min — long-form generation
+  'kling-3.0':          900_000,   // 15 min
+  'pixverse-c1':        900_000,   // 15 min
+  'pixverse-v6':        600_000,   // 10 min
+  'veo-3.1':            900_000,   // 15 min
+  'grok-imagine-video': 300_000,   //  5 min — fast model
+  'runway-gen4':        900_000,   // 15 min
+}
+
+const DEFAULT_TIMEOUT_MS = 1_200_000  // 20 min fallback
+
+export function getModelTimeout(model: string): number {
+  return MODEL_TIMEOUT_MS[model] ?? DEFAULT_TIMEOUT_MS
+}
+
+export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms)
+      setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)), ms)
     ),
   ])
 }
@@ -24,20 +53,29 @@ async function callFalModel(
   input:         Record<string, unknown>,
   onSubProgress?: (pct: number, message: string) => void
 ): Promise<string> {
+  // Distinguish queue wait from inference time — surfaces FAL congestion vs slow inference.
+  const submittedAt = Date.now()
+  let   inferenceLogged = false
   const result = await fal.subscribe(modelId, {
     input,
     logs: true,
     onQueueUpdate: (update) => {
       if (update.status === 'IN_QUEUE') {
         const pos = (update as unknown as Record<string, unknown>).queue_position
+        console.log(`[fal:${modelId}] in queue ${Math.round((Date.now() - submittedAt) / 1000)}s, position ${pos ?? '?'}`)
         onSubProgress?.(0, `Queued (position ${pos ?? '?'})`)
       } else if (update.status === 'IN_PROGRESS') {
+        if (!inferenceLogged) {
+          console.log(`[fal:${modelId}] inference started after ${Math.round((Date.now() - submittedAt) / 1000)}s queue`)
+          inferenceLogged = true
+        }
         const logs    = (update as unknown as Record<string, unknown>).logs as Array<{ message: string }> | undefined
         const lastLog = logs?.slice(-1)[0]?.message ?? 'Generating…'
         onSubProgress?.(50, lastLog)
       }
     },
   })
+  console.log(`[fal:${modelId}] complete after ${Math.round((Date.now() - submittedAt) / 1000)}s total`)
   const data = result.data as Record<string, unknown>
   const url  = (data.video as { url?: string } | undefined)?.url
            ?? (data.video_url as string | undefined)
@@ -90,7 +128,7 @@ async function pollXAIVideo(
   requestId:      string,
   onSubProgress?: import('./types').SubProgressFn
 ): Promise<string> {
-  const MAX = 60
+  const MAX = 300   // 300 × 2s = 600s (10 min) — was 60 (120s)
   for (let i = 0; i < MAX; i++) {
     await new Promise(r => setTimeout(r, 2000))
     const res = await fetch(`https://api.x.ai/v1/videos/${requestId}`, {
@@ -106,7 +144,7 @@ async function pollXAIVideo(
       throw new Error(`Grok Imagine failed: ${res.error}`)
     }
   }
-  throw new Error('Grok Imagine timed out')
+  throw new Error('Grok Imagine timed out after 10 min')
 }
 
 async function pollRunwayJob(
@@ -115,7 +153,7 @@ async function pollRunwayJob(
   taskId:         string,
   onSubProgress?: import('./types').SubProgressFn
 ): Promise<string> {
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 300; i++) {   // 300 × 3s = 900s (15 min) — was 100 (300s)
     await new Promise(r => setTimeout(r, 3000))
     const task = await client.tasks.retrieve(taskId)
     if (task.status === 'RUNNING') {
@@ -130,7 +168,7 @@ async function pollRunwayJob(
       throw new Error(`Runway failed: ${task.failure ?? 'unknown'}`)
     }
   }
-  throw new Error('Runway timed out')
+  throw new Error('Runway timed out after 15 min')
 }
 
 export async function callVideoModel(params: {
@@ -268,8 +306,8 @@ export async function generateWithBridging(
               void bandPct  // consumed by caller via overall % calculation in index.ts
             },
           }),
-          180_000,  // 3-min hard cap per segment
-          `Shot ${node.shot.shotIndex}`
+          getModelTimeout(node.assignedModel),  // model-aware hard cap per segment
+          `Shot ${node.shot.shotIndex} (${node.assignedModel})`
         )
         break
       } catch (err: unknown) {

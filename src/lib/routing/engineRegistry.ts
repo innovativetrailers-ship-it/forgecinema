@@ -153,7 +153,7 @@ export const FAL_MODEL_IDS: Record<string, string> = {
   'luma-ray3':            'fal-ai/luma-dream-machine',
   'minimax-2.3':          'fal-ai/minimax-video',
   'cogvideox':            'fal-ai/cogvideox-5b',
-  'wan-2.2':              'fal-ai/wan-t2v',
+  'wan-2.2':              'fal-ai/wan/v2.2-a14b/text-to-video',  // fast a14b endpoint (was slow shared fal-ai/wan-t2v)
   'ltx-2.3':              'fal-ai/ltx-video-v0-9-7',
   'ltx-2.3-fast':         'fal-ai/ltx-video-v0-9-7',
   'pika-2.5':             'fal-ai/pika-v2-turbo',

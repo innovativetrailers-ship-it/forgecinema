@@ -135,6 +135,13 @@ export function GenerationProgress({
         </span>
         {etaText && <span className="text-[10px] text-gray-500">{etaText}</span>}
       </div>
+
+      {(job.etaSeconds ?? 0) > 300 && (
+        <p className="text-[10px] text-amber-400/70 mt-1 leading-relaxed">
+          This is a complex render — larger clips can take several minutes.
+          You can leave this page; we&apos;ll keep working and your result will be saved.
+        </p>
+      )}
     </div>
   )
 }
