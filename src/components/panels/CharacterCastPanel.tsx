@@ -1,57 +1,62 @@
 'use client'
 
 import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CharacterOnboarding } from '@/components/vault/CharacterOnboarding'
+import { ForgeCastPanel } from '@/components/vault/ForgeCastPanel'
 import type { CharacterOnboardingData } from '@/components/vault/CharacterOnboarding'
-import { useVaultStore } from '@/store/vault'
 import { toast } from '@/lib/toast'
-import { Users, Plus, Loader2, CheckCircle, Clock, AlertCircle, Trash2 } from 'lucide-react'
+import { Users, Plus, Loader2, Trash2 } from 'lucide-react'
 
-const STATUS_COLOUR: Record<string, string> = {
-  pending:  'text-[var(--text-tertiary)]',
-  training: 'text-[var(--teal-bright)]',
-  ready:    'text-[var(--success)]',
-  failed:   'text-[var(--danger)]',
-}
+const PROJECT_ID = 'global'
 
-const STATUS_ICON: Record<string, React.ReactNode> = {
-  pending:  <Clock size={10} />,
-  training: <Loader2 size={10} className="animate-spin" />,
-  ready:    <CheckCircle size={10} />,
-  failed:   <AlertCircle size={10} />,
+interface ApiCharacter {
+  id: string
+  name: string
+  referenceUrls: string[]
+  loraStatus: string
+  renderCount: number
 }
 
 export function CharacterCastPanel() {
-  const { characters, addCharacter, removeCharacter } = useVaultStore()
+  const queryClient = useQueryClient()
   const [onboardingOpen, setOnboardingOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [forgeCastId, setForgeCastId] = useState<string | null>(null)
+
+  const { data: characters = [], isLoading } = useQuery<ApiCharacter[]>({
+    queryKey: ['vault-characters', PROJECT_ID],
+    queryFn: async () => {
+      const res = await fetch(`/api/vault/character/list?projectId=${PROJECT_ID}`)
+      if (!res.ok) return []
+      return res.json() as Promise<ApiCharacter[]>
+    },
+  })
 
   const handleOnboardingComplete = async (data: CharacterOnboardingData) => {
-    setLoading(true)
+    setCreating(true)
     try {
-      const char = addCharacter({
-        name: data.name,
-        role: 'supporting',
-        description: '',
-        faceReferenceUrls: data.referenceImages.map((f) => URL.createObjectURL(f)),
-        modelFamily: data.modelFamily === 'any' ? 'auto' : data.modelFamily as never,
-        triggerWord: data.triggerWord,
-        loraJobId: data.loraJobId,
-        makeupState: { type: 'clean', effects: [] },
-      })
-
-      // Also persist to API
       const fd = new FormData()
       fd.append('name', data.name)
-      fd.append('projectId', 'global')
+      fd.append('projectId', PROJECT_ID)
       fd.append('triggerWord', data.triggerWord)
       fd.append('modelFamily', data.modelFamily)
       data.referenceImages.forEach((f) => fd.append('images', f))
-      await fetch('/api/vault/character/create', { method: 'POST', body: fd }).catch(() => null)
+      const res = await fetch('/api/vault/character/create', { method: 'POST', body: fd })
+      if (!res.ok) throw new Error('Create failed')
+      await queryClient.invalidateQueries({ queryKey: ['vault-characters', PROJECT_ID] })
       toast.success(`${data.name} added to vault`)
+    } catch {
+      toast.error('Could not create character')
     } finally {
-      setLoading(false)
+      setCreating(false)
     }
+  }
+
+  const removeCharacter = async (id: string, name: string) => {
+    await fetch(`/api/vault/character/${id}`, { method: 'DELETE' })
+    await queryClient.invalidateQueries({ queryKey: ['vault-characters', PROJECT_ID] })
+    toast.info(`${name} removed`)
   }
 
   return (
@@ -70,13 +75,13 @@ export function CharacterCastPanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-        {loading && (
+        {(isLoading || creating) && (
           <div className="flex justify-center py-3">
             <Loader2 size={14} className="text-[var(--text-tertiary)] animate-spin" />
           </div>
         )}
 
-        {!loading && characters.length === 0 && (
+        {!isLoading && !creating && characters.length === 0 && (
           <div className="text-center py-8">
             <Users size={28} className="text-[var(--text-tertiary)] mx-auto mb-3" />
             <p className="text-[11px] text-[var(--text-tertiary)]">No characters yet</p>
@@ -94,10 +99,11 @@ export function CharacterCastPanel() {
             key={c.id}
             draggable
             onDragStart={(e) => e.dataTransfer.setData('characterId', c.id)}
-            className="cinema-card flex items-center gap-2 cursor-grab active:cursor-grabbing group"
+            onClick={() => setForgeCastId(c.id)}
+            className="cinema-card flex items-center gap-2 cursor-pointer group"
           >
-            {c.faceReferenceUrls[0] ? (
-              <img src={c.faceReferenceUrls[0]} alt={c.name} className="w-8 h-8 rounded-lg object-cover shrink-0" />
+            {c.referenceUrls[0] ? (
+              <img src={c.referenceUrls[0]} alt={c.name} className="w-8 h-8 rounded-lg object-cover shrink-0" />
             ) : (
               <div className="w-8 h-8 rounded-lg bg-[var(--bg-active)] flex items-center justify-center shrink-0">
                 <span className="text-[11px] font-bold text-[var(--text-tertiary)]">{c.name[0]}</span>
@@ -105,14 +111,13 @@ export function CharacterCastPanel() {
             )}
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-medium text-[var(--text-primary)] truncate">{c.name}</p>
-              <div className={`flex items-center gap-1 text-[10px] ${STATUS_COLOUR[c.loraStatus] ?? STATUS_COLOUR.pending}`}>
-                {STATUS_ICON[c.loraStatus] ?? STATUS_ICON.pending}
-                {c.loraStatus === 'ready' ? 'LoRA ready' : c.loraStatus}
-                {c.renderCount > 0 && <span className="text-[var(--text-tertiary)] ml-1">· {c.renderCount} renders</span>}
-              </div>
+              <p className="text-[10px] text-[var(--text-tertiary)] capitalize">{c.loraStatus.toLowerCase()}</p>
             </div>
             <button
-              onClick={() => { removeCharacter(c.id); toast.info(`${c.name} removed`) }}
+              onClick={(e) => {
+                e.stopPropagation()
+                void removeCharacter(c.id, c.name)
+              }}
               className="opacity-0 group-hover:opacity-100 p-0.5 text-[var(--text-tertiary)] hover:text-[var(--danger)] transition-all"
             >
               <Trash2 size={11} />
@@ -125,8 +130,12 @@ export function CharacterCastPanel() {
         open={onboardingOpen}
         onOpenChange={setOnboardingOpen}
         onComplete={handleOnboardingComplete}
-        projectId="global"
+        projectId={PROJECT_ID}
       />
+
+      {forgeCastId && (
+        <ForgeCastPanel characterId={forgeCastId} onClose={() => setForgeCastId(null)} />
+      )}
     </div>
   )
 }

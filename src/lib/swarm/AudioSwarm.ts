@@ -1,6 +1,6 @@
 import { redis } from '../redis'
 import { uploadToR2 } from '../storage/r2'
-import { fal } from '../fal/client'
+import { runFal } from '../fal/client'
 import { runModel1 } from '../brain/model1'
 import { writeFile as fsWriteFile } from 'fs/promises'
 import { tmpdir } from 'os'
@@ -112,12 +112,10 @@ export class AudioSwarm {
         // For models with native audio (Seedance 2.0, Veo 3.1, Kling 3.0) this cleans and isolates the track
         if (task.source_video_url) {
           try {
-            const cleaned = await fal.run('fal-ai/whisper', {
-              input: {
+            const cleaned = await runFal('fal-ai/whisper', {
                 audio_url: task.source_video_url,
                 task: 'transcribe',
-              },
-            }) as { audio_url?: string; text?: string }
+              }) as { audio_url?: string; text?: string }
             audioUrl = cleaned.audio_url ?? task.source_video_url
             hasSpeech = (cleaned.text?.length ?? 0) > 0
           } catch {
@@ -159,12 +157,10 @@ export class AudioSwarm {
       }
 
       case 'audiocraft_foley': {
-        const result = await fal.run('fal-ai/stable-audio', {
-          input: {
+        const result = await runFal('fal-ai/stable-audio', {
             prompt: task.foley_description ?? '',
             seconds_total: task.duration_seconds,
-          },
-        }) as { audio_file?: { url: string }; audio_url?: string }
+          }) as { audio_file?: { url: string }; audio_url?: string }
         audioUrl = result.audio_file?.url ?? result.audio_url ?? ''
         break
       }

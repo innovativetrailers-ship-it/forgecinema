@@ -1,4 +1,4 @@
-import { fal } from '../fal/client'
+import { runFal } from '../fal/client'
 
 export interface ModerationResult {
   safe: boolean
@@ -13,9 +13,7 @@ interface NSFWFalResult {
 }
 
 async function checkImage(imageUrl: string): Promise<ModerationResult> {
-  const result = await fal.run('fal-ai/nsfw-detector', {
-    input: { image_url: imageUrl },
-  }) as NSFWFalResult
+  const result = await runFal('fal-ai/nsfw-detector', { image_url: imageUrl }) as NSFWFalResult
 
   const score = result.nsfw_probability ?? 0
   return {
@@ -43,9 +41,7 @@ export async function checkNSFW(
   }
 
   try {
-    const frames = await fal.run('fal-ai/video-frame-extractor', {
-      input: { video_url: mediaUrl, fps: 0.5 },
-    }) as FrameResult
+    const frames = await runFal('fal-ai/video-frame-extractor', { video_url: mediaUrl, fps: 0.5 }) as FrameResult
 
     const frameUrls = frames.frames?.map((f) => f.url) ?? [mediaUrl]
 

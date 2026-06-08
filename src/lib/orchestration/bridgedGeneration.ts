@@ -1,16 +1,12 @@
 // src/lib/orchestration/bridgedGeneration.ts
 // FilmWeaver dual cache + tail-to-head keyframe bridging
 
-import { fal }                                           from '@fal-ai/client'
+import { runFal, extractVideoUrl, extractImageUrl }      from '@/lib/fal/client'
 import { uploadToR2 }                                    from '@/lib/storage/r2'
 import { recordPerformance }                            from '@/lib/cognition/routing/performance'
 import { buildPayload }                                  from '@/lib/cognition/routing/schemaPayload'
 import { analyseFrameMotion, injectMotionContext }       from './opticalFlow'
 import type { DAGNode, GeneratedSegment, PatientZeroAssets } from './types'
-
-fal.config({ credentials: process.env.FAL_API_KEY })
-
-const FAL_KEY = () => process.env.FAL_API_KEY!
 
 // Per-model generation timeout ceilings (milliseconds).
 // Generous — these are HARD caps to prevent infinite hangs, NOT target times.
@@ -62,30 +58,21 @@ async function callFalModel(
   // Distinguish queue wait from inference time — surfaces FAL congestion vs slow inference.
   const submittedAt = Date.now()
   let   inferenceLogged = false
-  const result = await fal.subscribe(modelId, {
-    input,
-    logs: true,
-    onQueueUpdate: (update) => {
-      if (update.status === 'IN_QUEUE') {
-        const pos = (update as unknown as Record<string, unknown>).queue_position
-        console.log(`[fal:${modelId}] in queue ${Math.round((Date.now() - submittedAt) / 1000)}s, position ${pos ?? '?'}`)
-        onSubProgress?.(0, `Queued (position ${pos ?? '?'})`)
-      } else if (update.status === 'IN_PROGRESS') {
-        if (!inferenceLogged) {
-          console.log(`[fal:${modelId}] inference started after ${Math.round((Date.now() - submittedAt) / 1000)}s queue`)
-          inferenceLogged = true
-        }
-        const logs    = (update as unknown as Record<string, unknown>).logs as Array<{ message: string }> | undefined
-        const lastLog = logs?.slice(-1)[0]?.message ?? 'Generating…'
-        onSubProgress?.(50, lastLog)
+  const data = await runFal(modelId, input, (update) => {
+    if (update.status === 'IN_QUEUE') {
+      const pos = update.position
+      console.log(`[fal:${modelId}] in queue ${Math.round((Date.now() - submittedAt) / 1000)}s, position ${pos ?? '?'}`)
+      onSubProgress?.(0, `Queued (position ${pos ?? '?'})`)
+    } else if (update.status === 'IN_PROGRESS') {
+      if (!inferenceLogged) {
+        console.log(`[fal:${modelId}] inference started after ${Math.round((Date.now() - submittedAt) / 1000)}s queue`)
+        inferenceLogged = true
       }
-    },
+      onSubProgress?.(50, update.message ?? 'Generating…')
+    }
   })
   console.log(`[fal:${modelId}] complete after ${Math.round((Date.now() - submittedAt) / 1000)}s total`)
-  const data = result.data as Record<string, unknown>
-  const url  = (data.video as { url?: string } | undefined)?.url
-           ?? (data.video_url as string | undefined)
-           ?? ((data.images as Array<{ url: string }> | undefined)?.[0]?.url)
+  const url = extractVideoUrl(data) ?? extractImageUrl(data)
   if (!url) throw new Error(`fal model ${modelId} returned no video URL`)
   return url
 }
@@ -127,14 +114,12 @@ const T2V_MODEL_IDS: Record<string, string> = {
 }
 
 export async function extractTailFrame(videoUrl: string): Promise<string> {
-  const result = await fetch('https://fal.run/fal-ai/ffmpeg', {
-    method:  'POST',
-    headers: { Authorization: `Key ${FAL_KEY()}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      input: { video_url: videoUrl, command: 'extract_last_frame', output_format: 'jpg' },
-    }),
-  }).then(r => r.json())
-  return result.image?.url ?? result.output_url
+  const result = await runFal<{ image?: { url: string }; output_url?: string }>('fal-ai/ffmpeg', {
+    video_url: videoUrl,
+    command: 'extract_last_frame',
+    output_format: 'jpg',
+  })
+  return extractImageUrl(result) ?? result.output_url ?? ''
 }
 
 async function pollXAIVideo(

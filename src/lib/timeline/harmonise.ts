@@ -1,4 +1,4 @@
-import { fal } from '../fal/client'
+import { runFal } from '../fal/client'
 
 interface HarmoniseResult {
   originalUrl: string
@@ -40,14 +40,12 @@ export async function harmoniseClips(
           image?: { url: string }
         }
 
-        const result = await fal.run('fal-ai/flux/dev/image-to-image', {
-          input: {
+        const result = await runFal('fal-ai/flux/dev/image-to-image', {
             image_url: clip.url,
             prompt: 'cinematic, film grade, consistent colour grading, professional cinematography',
             strength: 0.15,
             num_inference_steps: 20,
-          },
-        }) as Img2ImgResult
+          }) as Img2ImgResult
 
         const normalisedUrl = result.images?.[0]?.url ?? result.image?.url ?? clip.url
         return { originalUrl: clip.url, normalisedUrl, modelFamily: clip.modelFamily }
@@ -76,14 +74,12 @@ export async function matchGrainLevel(
       image?: { url: string }
     }
 
-    const result = await fal.run('fal-ai/flux/dev/image-to-image', {
-      input: {
+    const result = await runFal('fal-ai/flux/dev/image-to-image', {
         image_url: imageUrl,
         prompt: `${targetGrain > 0.5 ? 'heavy' : 'subtle'} film grain, cinematic texture`,
         strength: targetGrain * 0.2,
         num_inference_steps: 10,
-      },
-    }) as GrainResult
+      }) as GrainResult
 
     return result.image?.url ?? imageUrl
   } catch {

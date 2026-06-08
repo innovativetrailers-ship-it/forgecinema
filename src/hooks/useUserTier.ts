@@ -1,13 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  getUserTier,
-  TIER_PERMISSIONS,
+  getEffectiveTier,
   getRequiredUpgrade,
+  resolveSubscriptionTier,
+  TIER_DISPLAY_NAMES,
+  TIER_PERMISSIONS,
+  hasActiveBilling,
   type SubscriptionTier,
 } from '@/lib/access/tiers'
 
 interface BalanceResponse {
   isAdmin?:            boolean
+  subscriptionTier?:   string | null
   subscriptionStatus?: string | null
   credits?:            number
 }
@@ -20,11 +24,30 @@ export function useUserTier() {
   })
 
   const isAdmin = data?.isAdmin ?? false
-  const tier    = (isAdmin ? 'admin' : getUserTier(data?.subscriptionStatus ?? null, 'USER')) as SubscriptionTier
-  const perms   = TIER_PERMISSIONS[tier]
+  const tier = (isAdmin
+    ? 'admin'
+    : resolveSubscriptionTier(data?.subscriptionTier, data?.subscriptionStatus, 'USER')) as SubscriptionTier
+
+  const hasActiveSubscription =
+    isAdmin || !TIER_PERMISSIONS[tier].requiresSubscription || hasActiveBilling(data?.subscriptionStatus)
+
+  const effectiveTier = getEffectiveTier(tier, data?.subscriptionStatus, isAdmin)
+  const perms = TIER_PERMISSIONS[effectiveTier]
 
   const canUse = (featureKey: string): boolean =>
-    isAdmin || !getRequiredUpgrade(tier, featureKey)
+    isAdmin || !getRequiredUpgrade(effectiveTier, featureKey)
 
-  return { tier, isAdmin, perms, canUse }
+  return {
+    tier,
+    effectiveTier,
+    displayName:          TIER_DISPLAY_NAMES[tier],
+    isAdmin,
+    hasActiveSubscription,
+    permissions:          perms,
+    perms,
+    canUseStudio:         perms.studioFeatures,
+    canUseUltimate:       perms.ultimateFeatures,
+    canDownload:          perms.download,
+    canUse,
+  }
 }

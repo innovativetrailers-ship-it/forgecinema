@@ -362,9 +362,11 @@ export const renderWorker = new Worker<RenderJobPayload>(
 
     // ── V2: orchestrate / render-simple job names ───────────────────────────
     if (job.name === 'orchestrate') {
-      const { jobId, userId, prompt, duration, selectedModels, creditCost, useCognition } = data as unknown as {
+      const { jobId, userId, prompt, duration, selectedModels, creditCost, useCognition, fccCognitionContext, projectId } = data as unknown as {
         jobId: string; userId: string; prompt: string
         duration: number; selectedModels: string[]; creditCost?: number; useCognition?: boolean
+        fccCognitionContext?: { name: string; behavioralPrompt?: string; wardrobeSummary?: string; appearanceSummary?: string }
+        projectId?: string
       }
       const jobStartTime = Date.now()
       await db.renderJob.update({
@@ -379,13 +381,23 @@ export const renderWorker = new Worker<RenderJobPayload>(
         let brief: CreativeBrief | null = null
         if (useCognition) {
           const { think } = await import('@/lib/cognition')
+          let characterContext = fccCognitionContext ?? null
+          if (!characterContext && projectId) {
+            try {
+              const { resolveMatchedVaultCharacter, toCognitionContext } = await import('@/lib/character/jobIdentity')
+              const matched = await resolveMatchedVaultCharacter(userId, projectId, prompt)
+              if (matched) characterContext = toCognitionContext(matched)
+            } catch {
+              // non-fatal
+            }
+          }
           await db.renderJob.update({
             where: { id: jobId },
             data:  { phase: 'thinking', statusMessage: 'The director is thinking…' },
           }).catch(() => {})
           try {
             brief = await think({
-              userId, prompt, durationSec: duration,
+              userId, prompt, durationSec: duration, characterContext,
               onProgress: async (detail) => {
                 await db.renderJob.update({ where: { id: jobId }, data: { statusMessage: detail } }).catch(() => {})
               },

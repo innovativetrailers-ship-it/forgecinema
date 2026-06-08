@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db }                        from '@/lib/db'
+import { db } from '@/lib/db'
+import { getEffectiveTier, resolveSubscriptionTier } from '@/lib/access/tiers'
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const userId = req.headers.get('x-user-id')
@@ -7,39 +8,53 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const user = await db.user.findUnique({
     where:  { id: userId },
-    select: { role: true, creditBalance: true, subscriptionStatus: true },
+    select: {
+      role: true,
+      creditBalance: true,
+      subscriptionTier: true,
+      subscriptionStatus: true,
+    },
   })
 
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-  // ADMIN / Dev: unlimited
   if (user.role === 'ADMIN') {
     return NextResponse.json({
       isAdmin:            true,
       credits:            9_999_999,
       unlimited:          true,
-      subscriptionStatus: 'admin',
+      subscriptionTier:   'admin',
+      subscriptionStatus: 'active',
       tier:               'admin',
+      effectiveTier:      'admin',
       message:            'Dev account — unlimited credits',
     })
   }
 
-  // Regular user: real balance from DB
   let stripeBalanceUSD: number | null = null
   try {
     const { getStripeBalance } = await import('@/lib/payments/stripeCustomer')
-    const stripeData            = await getStripeBalance(userId)
-    stripeBalanceUSD            = stripeData?.balanceCents ? stripeData.balanceCents / 100 : null
+    const stripeData = await getStripeBalance(userId)
+    stripeBalanceUSD = stripeData?.balanceCents ? stripeData.balanceCents / 100 : null
   } catch {
-    // Stripe not configured — fall back to DB balance only
+    // Stripe optional
   }
+
+  const tier = resolveSubscriptionTier(
+    user.subscriptionTier,
+    user.subscriptionStatus,
+    user.role,
+  )
+  const effectiveTier = getEffectiveTier(tier, user.subscriptionStatus, false)
 
   return NextResponse.json({
     isAdmin:            false,
     credits:            user.creditBalance ?? 0,
     unlimited:          false,
-    subscriptionStatus: user.subscriptionStatus ?? 'free',
-    tier:               user.subscriptionStatus ?? 'free',
+    subscriptionTier:   user.subscriptionTier,
+    subscriptionStatus: user.subscriptionStatus,
+    tier,
+    effectiveTier,
     stripeBalanceUSD,
   })
 }

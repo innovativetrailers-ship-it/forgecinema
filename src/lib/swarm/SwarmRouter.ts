@@ -5,7 +5,7 @@ import { runModel1 } from '../brain/model1'
 import { callCouncil } from '../brain/council'
 import { redis, channelKey } from '../redis'
 import { db } from '../db'
-import { fal } from '../fal/client'
+import { runFal } from '../fal/client'
 import * as models from '../models'
 import { captureFlywheelSignal } from '../telemetry/flywheel'
 
@@ -279,11 +279,11 @@ export class SwarmRouter extends EventEmitter {
     }
 
     if (shot.requires_face_enhance) {
-      const res = await fal.run('fal-ai/codeformer', { input: { image_url: url, fidelity: 0.75 } }) as { image?: { url: string } }
+      const res = await runFal('fal-ai/codeformer', { image_url: url, fidelity: 0.75 }) as { image?: { url: string } }
       url = res.image?.url ?? url
     }
     if (shot.requires_relight) {
-      const res = await fal.run('fal-ai/ic-light', { input: { image_url: url, prompt: `match ${shot.mood} mood` } }) as { image?: { url: string } }
+      const res = await runFal('fal-ai/ic-light', { image_url: url, prompt: `match ${shot.mood} mood` }) as { image?: { url: string } }
       url = res.image?.url ?? url
     }
 
@@ -343,7 +343,7 @@ export class SwarmRouter extends EventEmitter {
 
   private async makeProxy(url: string): Promise<string> {
     try {
-      const r = await fal.run('fal-ai/video-frame-extractor', { input: { video_url: url, timestamp: 0.5 } }) as unknown as { image_url?: string }
+      const r = await runFal('fal-ai/video-frame-extractor', { video_url: url, timestamp: 0.5 }) as unknown as { image_url?: string }
       return r.image_url ?? url
     } catch {
       return url
@@ -387,9 +387,7 @@ export class SwarmRouter extends EventEmitter {
         if (stitch.colour_normalise) {
           const res = results.find(res => res.shot_id === shots[i].shot_id)
           if (res) {
-            await fal.run('fal-ai/ic-light', {
-              input: { image_url: res.output_url, prompt: stitch.ic_light_instruction },
-            }).catch(() => { /* non-fatal */ })
+            await runFal('fal-ai/ic-light', { image_url: res.output_url, prompt: stitch.ic_light_instruction }).catch(() => { /* non-fatal */ })
           }
         }
       } catch { /* non-fatal — keep default stitch config */ }

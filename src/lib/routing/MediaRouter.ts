@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { runFal, extractVideoUrl, extractImageUrl } from '@/lib/fal/client'
 import { MODEL_COSTS, MODEL_SPECIALTIES, FAL_MODEL_IDS, TIER_ENGINE_MAP } from './engineRegistry'
 import { calculateGenerationCost, calculateOrchestrationCost } from '../credits'
 
@@ -227,19 +228,12 @@ export async function callEngine(params: {
   if (params.imageUrl)                  input.image_url = params.imageUrl
   if (params.model === 'ltx-2.3-fast') input.quality   = 'fast'
 
-  const result: any = await fetch(`https://fal.run/${falModelId}`, {
-    method:  'POST',
-    headers: {
-      Authorization:  `Key ${process.env.FAL_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ input }),
-  }).then(r => r.json())
+  const result = await runFal(falModelId, input)
 
   return {
-    videoUrl: result.video?.url ?? result.video_url ?? result.image?.url,
-    imageUrl: result.image?.url,
-    jobId:    result.request_id ?? `fal_${Date.now()}`,
+    videoUrl: extractVideoUrl(result) ?? extractImageUrl(result),
+    imageUrl: extractImageUrl(result),
+    jobId:    `fal_${Date.now()}`,
   }
 }
 

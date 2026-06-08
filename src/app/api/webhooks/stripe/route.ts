@@ -1,5 +1,11 @@
 import { stripe, usdCentsToCredits } from '@/lib/payments/stripe'
-import { db }                        from '@/lib/db'
+import { db } from '@/lib/db'
+import {
+  STRIPE_CREDIT_PACK_PRICES,
+  STRIPE_PRICE_TO_TIER,
+  SUBSCRIPTION_PLAN_CREDITS,
+} from '@/lib/payments/stripePrices'
+import type { SubscriptionTier } from '@/lib/access/tiers'
 
 export const runtime = 'nodejs'
 
@@ -117,61 +123,108 @@ export async function POST(req: Request) {
       const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } })
       if (user?.role === 'ADMIN') break
 
-      const PRICE_TO_CREDITS: Record<string, { credits: number; tier: string }> = {
-        [process.env.STRIPE_PRO_MONTHLY_PRICE_ID!]:      { credits: 500,   tier: 'pro' },
-        [process.env.STRIPE_PRO_YEARLY_PRICE_ID!]:       { credits: 500,   tier: 'pro' },
-        [process.env.STRIPE_STUDIO_MONTHLY_PRICE_ID!]:   { credits: 2000,  tier: 'studio' },
-        [process.env.STRIPE_STUDIO_YEARLY_PRICE_ID!]:    { credits: 2000,  tier: 'studio' },
-        [process.env.STRIPE_ULTIMATE_MONTHLY_PRICE_ID!]: { credits: 6000,  tier: 'ultimate' },
-        [process.env.STRIPE_ULTIMATE_YEARLY_PRICE_ID!]:  { credits: 6000,  tier: 'ultimate' },
-        [process.env.STRIPE_CREDITS_100_PRICE_ID!]:      { credits: 100,   tier: '' },
-        [process.env.STRIPE_CREDITS_500_PRICE_ID!]:      { credits: 500,   tier: '' },
-        [process.env.STRIPE_CREDITS_2000_PRICE_ID!]:     { credits: 2000,  tier: '' },
-        [process.env.STRIPE_CREDITS_10000_PRICE_ID!]:    { credits: 10000, tier: '' },
+      const tier = priceId ? STRIPE_PRICE_TO_TIER[priceId] : undefined
+      const creditPackCredits: Record<string, number> = {
+        [STRIPE_CREDIT_PACK_PRICES.credits_100]:   100,
+        [STRIPE_CREDIT_PACK_PRICES.credits_500]:   500,
+        [STRIPE_CREDIT_PACK_PRICES.credits_2000]:  2000,
+        [STRIPE_CREDIT_PACK_PRICES.credits_10000]: 10000,
       }
-
-      const plan = priceId ? PRICE_TO_CREDITS[priceId] : null
-      if (!plan) break
 
       const isSubscription = !!invoice.subscription
 
-      if (isSubscription) {
-        // Monthly subscription: RESET to plan amount (prevents credit hoarding)
+      if (isSubscription && tier && tier !== 'free' && tier !== 'admin') {
+        const credits = SUBSCRIPTION_PLAN_CREDITS[tier]
         await db.$transaction([
           db.user.update({
             where: { id: userId },
             data: {
-              creditBalance:      plan.credits,
+              creditBalance:      credits,
+              subscriptionTier:   tier,
               subscriptionStatus: 'active',
             },
           }),
           db.creditTransaction.create({
             data: {
               userId,
-              amount:      plan.credits,
-              description: `Monthly subscription refresh — ${plan.tier} plan`,
-              balanceAfter: plan.credits,
+              amount:       credits,
+              description:  `Subscription refresh — ${tier} plan`,
+              balanceAfter: credits,
             },
           }),
         ])
-      } else {
-        // Credit pack: ADD on top of existing balance
+        console.log(`[Stripe] Subscription paid: ${credits} credits, tier=${tier} for ${userId}`)
+      } else if (priceId && creditPackCredits[priceId]) {
+        const packCredits = creditPackCredits[priceId]
         const updated = await db.user.update({
           where: { id: userId },
-          data:  { creditBalance: { increment: plan.credits } },
+          data:  { creditBalance: { increment: packCredits } },
           select: { creditBalance: true },
         })
         await db.creditTransaction.create({
           data: {
             userId,
-            amount:      plan.credits,
-            description: `Credit pack purchase — ${plan.credits} credits`,
+            amount:       packCredits,
+            description:  `Credit pack purchase — ${packCredits} credits`,
             balanceAfter: updated.creditBalance,
           },
         })
+        console.log(`[Stripe] Credit pack: ${packCredits} credits for ${userId}`)
       }
+      break
+    }
 
-      console.log(`[Stripe] Invoice paid: ${plan.credits} credits for user ${userId} (${isSubscription ? 'subscription' : 'pack'})`)
+    case 'invoice.payment_failed': {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const invoice = event.data.object as any
+      const customerId = invoice.customer as string
+      const stripeRecord = await db.stripeCustomer.findUnique({
+        where: { stripeCustomerId: customerId },
+      })
+      if (stripeRecord) {
+        await db.user.update({
+          where: { id: stripeRecord.userId },
+          data:  { subscriptionStatus: 'past_due' },
+        })
+      }
+      break
+    }
+
+    case 'customer.subscription.created':
+    case 'customer.subscription.updated': {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sub = event.data.object as any
+      const customerId = sub.customer as string
+      const priceId = sub.items?.data?.[0]?.price?.id as string | undefined
+      const tier = (priceId ? STRIPE_PRICE_TO_TIER[priceId] : sub.metadata?.tier) as SubscriptionTier | undefined
+      const stripeRecord = await db.stripeCustomer.findUnique({
+        where: { stripeCustomerId: customerId },
+      })
+      if (stripeRecord && tier) {
+        await db.user.update({
+          where: { id: stripeRecord.userId },
+          data: {
+            subscriptionTier:   tier,
+            subscriptionStatus: sub.status as string,
+          },
+        })
+      }
+      break
+    }
+
+    case 'customer.subscription.deleted': {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sub = event.data.object as any
+      const customerId = sub.customer as string
+      const stripeRecord = await db.stripeCustomer.findUnique({
+        where: { stripeCustomerId: customerId },
+      })
+      if (stripeRecord) {
+        await db.user.update({
+          where: { id: stripeRecord.userId },
+          data:  { subscriptionStatus: 'canceled' },
+        })
+      }
       break
     }
 

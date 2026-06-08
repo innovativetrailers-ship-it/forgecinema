@@ -6,6 +6,7 @@ import { CharacterOnboarding } from '@/components/vault/CharacterOnboarding'
 import type { CharacterOnboardingData } from '@/components/vault/CharacterOnboarding'
 import { useVaultStore } from '@/store/vault'
 import { toast } from '@/lib/toast'
+import { ForgeCastPanel } from '@/components/vault/ForgeCastPanel'
 
 interface Character {
   id: string
@@ -31,6 +32,7 @@ const LORA_STATUS_CONFIG = {
 
 export function VaultPanel({ projectId, characters, onCharacterAdded }: Props) {
   const [onboardingOpen, setOnboardingOpen] = useState(false)
+  const [forgeCastId, setForgeCastId] = useState<string | null>(null)
   const { addCharacter } = useVaultStore()
 
   const handleOnboardingComplete = async (data: CharacterOnboardingData) => {
@@ -89,6 +91,7 @@ export function VaultPanel({ projectId, characters, onCharacterAdded }: Props) {
             <div
               key={c.id}
               className="cinema-card flex items-center gap-2 cursor-pointer hover:border-[var(--border-mid)] transition-all"
+              onClick={() => setForgeCastId(c.id)}
             >
               {c.referenceUrls[0] ? (
                 <img src={c.referenceUrls[0]} alt={c.name} className="w-8 h-8 rounded-lg object-cover shrink-0" />
@@ -118,6 +121,10 @@ export function VaultPanel({ projectId, characters, onCharacterAdded }: Props) {
         onComplete={handleOnboardingComplete}
         projectId={projectId}
       />
+
+      {forgeCastId && (
+        <ForgeCastPanel characterId={forgeCastId} onClose={() => setForgeCastId(null)} />
+      )}
     </div>
   )
 }

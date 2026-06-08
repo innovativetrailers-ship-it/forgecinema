@@ -1,92 +1,137 @@
 // Single source of truth for ALL access decisions.
-// ADMIN users: always allowed, credits never deducted.
-// Regular users: gated by creditBalance and subscription tier.
+// ADMIN: always allowed, credits never deducted.
+// Pro (Simple): credits-only OK — no active subscription required.
+// Studio/Ultimate: require active billing (active | past_due).
 
 import { db } from '@/lib/db'
 import {
-  getUserTier,
-  TIER_PERMISSIONS,
+  getEffectiveTier,
   getRequiredUpgrade,
+  resolveSubscriptionTier,
+  TIER_PERMISSIONS,
   type SubscriptionTier,
+  type TierPermissions,
 } from './tiers'
 
 export type AccessResult =
-  | { allowed: true;  isAdmin: boolean; credits: number }
-  | { allowed: false; reason: string;   code: 401 | 402 | 403 | 503 }
-
-/**
- * Check if a user can perform an operation costing `creditsRequired`.
- * ADMIN: always allowed, credits never deducted, no Stripe check.
- * Regular: must have sufficient creditBalance.
- */
-export async function checkAccess(
-  userId:          string | null,
-  creditsRequired: number = 0,
-): Promise<AccessResult> {
-  if (!userId) {
-    return { allowed: false, reason: 'Not authenticated', code: 401 }
-  }
-
-  const user = await db.user.findUnique({
-    where:  { id: userId },
-    select: { role: true, creditBalance: true, subscriptionStatus: true },
-  })
-
-  if (!user) {
-    return { allowed: false, reason: 'User not found', code: 401 }
-  }
-
-  // ADMIN / DEV — always allowed, unlimited
-  if (user.role === 'ADMIN') {
-    return { allowed: true, isAdmin: true, credits: 9_999_999 }
-  }
-
-  // Regular user — credit balance check
-  const balance = user.creditBalance ?? 0
-
-  if (balance < creditsRequired) {
-    return {
-      allowed: false,
-      reason:  `Insufficient credits. You have ${balance} credits, this costs ${creditsRequired}. Add more credits to continue.`,
-      code:    402,
-    }
-  }
-
-  return { allowed: true, isAdmin: false, credits: balance }
-}
-
-// ─── Tier access ──────────────────────────────────────────────────────────────
+  | { allowed: true;  isAdmin: boolean; credits: number; tier: SubscriptionTier }
+  | { allowed: false; reason: string;   code: 401 | 402 | 403 | 404 | 503; tier?: SubscriptionTier }
 
 export type TierAccessResult =
   | { allowed: true }
   | { allowed: false; reason: string; requiredTier: SubscriptionTier }
 
 const TIER_LABELS: Record<string, string> = {
-  pro:      'Pro ($19/mo)',
-  studio:   'Studio ($49/mo)',
+  pro:      'Simple ($19/mo)',
+  studio:   'Advanced ($49/mo)',
   ultimate: 'Ultimate ($99/mo)',
 }
 
-/**
- * Check if a user's subscription tier allows a specific feature.
- * ADMIN always passes.
- */
+type FeatureFlag = 'studioFeatures' | 'ultimateFeatures' | 'download' | 'directorMode'
+
+async function loadUserAccess(userId: string) {
+  return db.user.findUnique({
+    where:  { id: userId },
+    select: {
+      role: true,
+      creditBalance: true,
+      subscriptionTier: true,
+      subscriptionStatus: true,
+    },
+  })
+}
+
+function tierFromUser(
+  user: { role: string; subscriptionTier: string; subscriptionStatus: string } | null,
+): { tier: SubscriptionTier; effectiveTier: SubscriptionTier; isAdmin: boolean } {
+  const isAdmin = user?.role === 'ADMIN'
+  const tier = resolveSubscriptionTier(
+    user?.subscriptionTier,
+    user?.subscriptionStatus,
+    user?.role ?? 'USER',
+  )
+  const effectiveTier = getEffectiveTier(tier, user?.subscriptionStatus, isAdmin)
+  return { tier, effectiveTier, isAdmin }
+}
+
+export async function checkAccess(
+  userId:          string | null,
+  creditsRequired: number = 0,
+  featureFlag?:    FeatureFlag,
+): Promise<AccessResult> {
+  if (!userId) {
+    return { allowed: false, reason: 'Not authenticated', code: 401 }
+  }
+
+  const user = await loadUserAccess(userId)
+  if (!user) {
+    return { allowed: false, reason: 'User not found', code: 404 }
+  }
+
+  const { tier, effectiveTier, isAdmin } = tierFromUser(user)
+
+  if (isAdmin) {
+    return { allowed: true, isAdmin: true, credits: 9_999_999, tier: 'admin' }
+  }
+
+  const perms = TIER_PERMISSIONS[tier]
+  const effectivePerms = TIER_PERMISSIONS[effectiveTier]
+
+  if (perms.requiresSubscription && effectiveTier === 'free' && tier !== 'free') {
+    return {
+      allowed: false,
+      reason:  `${perms.displayName} features require an active subscription.`,
+      code:    402,
+      tier,
+    }
+  }
+
+  const balance = user.creditBalance ?? 0
+  if (creditsRequired > 0 && balance < creditsRequired) {
+    return {
+      allowed: false,
+      reason:  `Insufficient credits. You have ${balance} credits, this costs ${creditsRequired}.`,
+      code:    402,
+      tier,
+    }
+  }
+
+  if (featureFlag === 'directorMode' && !effectivePerms.maxDirectorModels) {
+    return {
+      allowed: false,
+      reason:  'Director mode requires an upgrade.',
+      code:    403,
+      tier,
+    }
+  }
+
+  if (featureFlag && featureFlag !== 'directorMode') {
+    const allowed = (effectivePerms as TierPermissions)[featureFlag]
+    if (!allowed) {
+      return {
+        allowed: false,
+        reason:  `${String(featureFlag)} requires a higher subscription tier.`,
+        code:    403,
+        tier,
+      }
+    }
+  }
+
+  return { allowed: true, isAdmin: false, credits: balance, tier: effectiveTier }
+}
+
 export async function checkTierAccess(
   userId:     string | null,
   featureKey: string,
 ): Promise<TierAccessResult> {
   if (!userId) return { allowed: false, reason: 'Not authenticated', requiredTier: 'pro' }
 
-  const user = await db.user.findUnique({
-    where:  { id: userId },
-    select: { role: true, subscriptionStatus: true },
-  })
+  const user = await loadUserAccess(userId)
+  const { effectiveTier, isAdmin } = tierFromUser(user)
 
-  const tier = getUserTier(user?.subscriptionStatus ?? null, user?.role ?? 'USER')
+  if (isAdmin) return { allowed: true }
 
-  if (tier === 'admin') return { allowed: true }
-
-  const required = getRequiredUpgrade(tier, featureKey)
+  const required = getRequiredUpgrade(effectiveTier, featureKey)
   if (required) {
     return {
       allowed:      false,
@@ -98,28 +143,24 @@ export async function checkTierAccess(
   return { allowed: true }
 }
 
-/**
- * Check if a user's plan allows the chosen Director model count.
- */
 export async function checkDirectorModelLimit(
   userId:        string | null,
   selectedCount: number,
 ): Promise<TierAccessResult> {
   if (!userId) return { allowed: false, reason: 'Not authenticated', requiredTier: 'pro' }
 
-  const user = await db.user.findUnique({
-    where:  { id: userId },
-    select: { role: true, subscriptionStatus: true },
-  })
+  const user = await loadUserAccess(userId)
+  const { effectiveTier, isAdmin } = tierFromUser(user)
+  const perms = TIER_PERMISSIONS[effectiveTier]
 
-  const tier  = getUserTier(user?.subscriptionStatus ?? null, user?.role ?? 'USER')
-  const perms = TIER_PERMISSIONS[tier]
+  if (isAdmin) return { allowed: true }
 
   if (selectedCount > perms.maxDirectorModels) {
-    const needed: SubscriptionTier = selectedCount <= 3 ? 'pro' : selectedCount <= 5 ? 'studio' : 'ultimate'
+    const needed: SubscriptionTier =
+      selectedCount <= 2 ? 'pro' : selectedCount <= 7 ? 'studio' : 'ultimate'
     return {
       allowed:      false,
-      reason:       `Your plan allows ${perms.maxDirectorModels} model${perms.maxDirectorModels === 1 ? '' : 's'} in Director mode. Select fewer, or upgrade.`,
+      reason:       `Your plan allows ${perms.maxDirectorModels} model${perms.maxDirectorModels === 1 ? '' : 's'} in Director mode.`,
       requiredTier: needed,
     }
   }
@@ -127,12 +168,6 @@ export async function checkDirectorModelLimit(
   return { allowed: true }
 }
 
-// ─── Credit deduction ─────────────────────────────────────────────────────────
-
-/**
- * Deduct credits from a regular user.
- * ADMIN users are never charged — this is a no-op for them.
- */
 export async function deductUserCredits(
   userId:         string,
   amount:         number,
@@ -145,7 +180,6 @@ export async function deductUserCredits(
     select: { role: true, creditBalance: true },
   })
 
-  // ADMIN — never deduct
   if (user?.role === 'ADMIN') return
 
   const newBalance = (user?.creditBalance ?? 0) - amount
@@ -158,7 +192,7 @@ export async function deductUserCredits(
     db.creditTransaction.create({
       data: {
         userId,
-        amount:      -amount,
+        amount:       -amount,
         description,
         balanceAfter: newBalance,
       },

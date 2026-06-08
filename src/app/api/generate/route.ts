@@ -14,14 +14,26 @@ export async function POST(req: Request) {
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const {
-    prompt,
+    prompt: rawPrompt,
     duration       = 10,
     selectedModels = [] as string[],
     mode           = 'simple',
     tier           = 'standard',
+    projectId,
+    characterId,
   } = await req.json()
 
-  if (!prompt) return Response.json({ error: 'prompt is required' }, { status: 400 })
+  if (!rawPrompt) return Response.json({ error: 'prompt is required' }, { status: 400 })
+
+  const { enrichGeneratePayload } = await import('@/lib/character/jobIdentity')
+  const enriched = await enrichGeneratePayload(userId, projectId, {
+    prompt: rawPrompt,
+    characterId,
+  })
+  const prompt = typeof enriched.prompt === 'string' ? enriched.prompt : rawPrompt
+  const fccCognitionContext = enriched.fccCognitionContext as
+    | { name: string; behavioralPrompt: string; wardrobeSummary: string; appearanceSummary: string }
+    | undefined
 
   // FAST estimate — no Claude call, returns instantly
   const creditCost = mode === 'director' && selectedModels.length > 0
@@ -46,7 +58,17 @@ export async function POST(req: Request) {
       progressPct:   0,
       statusMessage: 'Queued — waiting for an available worker',
       etaSeconds,
-      metadata: { selectedModels, tier, engine, estimatedCredits: creditCost },
+      metadata: {
+        selectedModels,
+        tier,
+        engine,
+        estimatedCredits: creditCost,
+        projectId,
+        characterId,
+        fccCognitionContext,
+        characterRefs: Array.isArray(enriched.characterRefs) ? enriched.characterRefs : undefined,
+        loraId: typeof enriched.loraId === 'string' ? enriched.loraId : undefined,
+      },
     },
   })
 
@@ -55,7 +77,19 @@ export async function POST(req: Request) {
     const { renderQueue } = await import('@/lib/queue')
     await renderQueue.add(
       mode === 'director' ? 'orchestrate' : 'render-simple',
-      { jobId: job.id, userId, prompt, duration, selectedModels, tier, engine, creditCost, useCognition: mode === 'director' },
+      {
+        jobId: job.id,
+        userId,
+        prompt,
+        duration,
+        selectedModels,
+        tier,
+        engine,
+        creditCost,
+        useCognition: mode === 'director',
+        fccCognitionContext,
+        projectId,
+      },
       { attempts: 1, removeOnComplete: 200, removeOnFail: 500 }
     )
   } catch {

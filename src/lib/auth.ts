@@ -40,7 +40,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await db.user.findUnique({
           where:  { email: credentials.email as string },
-          select: { id: true, email: true, name: true, avatarUrl: true, role: true, creditBalance: true, passwordHash: true, subscriptionStatus: true },
+          select: { id: true, email: true, name: true, avatarUrl: true, role: true, creditBalance: true, passwordHash: true, subscriptionTier: true, subscriptionStatus: true },
         })
 
         if (!user?.passwordHash) return null
@@ -55,6 +55,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           image:              user.avatarUrl,
           role:               user.role,
           creditBalance:      user.creditBalance,
+          subscriptionTier:   user.subscriptionTier,
           subscriptionStatus: user.subscriptionStatus,
         }
       },
@@ -76,6 +77,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.id                 = user.id
           token.role               = (user as any).role
           token.creditBalance      = (user as any).creditBalance
+          token.subscriptionTier   = (user as any).subscriptionTier
           token.subscriptionStatus = (user as any).subscriptionStatus
         }
         return token
@@ -90,6 +92,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           session.user.id = (token.id ?? token.sub) as string
           ;(session.user as any).role               = token.role ?? 'FREE'
           ;(session.user as any).creditBalance      = token.creditBalance ?? 0
+          ;(session.user as any).subscriptionTier   = token.subscriptionTier ?? 'free'
           ;(session.user as any).subscriptionStatus = token.subscriptionStatus ?? 'trial'
         }
         return session

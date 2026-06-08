@@ -1,12 +1,75 @@
 'use client'
 
-// Forge Extreme (V3 desktop app) download page — Ultimate subscribers + admins.
-// Tier is read from the shared useUserTier hook (no extra endpoint needed).
-
 import { useEffect, useState } from 'react'
-import { Monitor, Apple, CheckCircle2, Lock } from 'lucide-react'
+import Link from 'next/link'
+import {
+  Monitor, Apple, Lock, Cpu, Palette, Music, Layers,
+  Users, Star, Zap, Shield, Globe, Film,
+} from 'lucide-react'
 import { useUserTier } from '@/hooks/useUserTier'
 import { UpgradeModal } from '@/components/ui/UpgradeModal'
+import {
+  FALLBACK_DOWNLOAD_URLS,
+  fetchLatestDesktopDownloads,
+  type DesktopDownloadUrls,
+} from '@/lib/desktop/releases'
+
+const BLOG_FEATURES = [
+  {
+    icon: <Film className="w-5 h-5" />,
+    title: 'Professional NLE — Replaces Adobe Premiere Pro',
+    desc: 'Full non-linear editor with unlimited tracks, multicam, proxy workflows, and frame-accurate cutting on ProRes, BRAW, RED, ARRI, MXF, HEVC, and AV1.',
+  },
+  {
+    icon: <Palette className="w-5 h-5" />,
+    title: 'Complete Colour Science — Replaces DaVinci Resolve',
+    desc: 'Node-based grading with ACES/OCIO, qualifiers, Power Windows, AI shot match, and Forge Micro Colour with HDR nit targeting up to 10,000 nits.',
+  },
+  {
+    icon: <Layers className="w-5 h-5" />,
+    title: 'Full VFX Compositing — Replaces After Effects',
+    desc: '28 blend modes, AI roto, planar tracking, 200+ pre-rendered ProRes 4444 effects, and AI text-to-VFX generation.',
+  },
+  {
+    icon: <Music className="w-5 h-5" />,
+    title: '20-Band Professional DAW — Replaces Logic Pro & Fairlight',
+    desc: 'Unlimited tracks, stem separation, Dolby Atmos 7.1.4, Forge Spectrum EQ, and the 9-stage Forge Master Suite.',
+  },
+  {
+    icon: <Users className="w-5 h-5" />,
+    title: 'ForgeFlow — Replaces Autodesk ShotGrid',
+    desc: 'Shot management, Gantt scheduling, budget reports, and bidirectional timeline linking.',
+  },
+  {
+    icon: <Globe className="w-5 h-5" />,
+    title: 'ForgeReview — Replaces Adobe Frame.io',
+    desc: 'Timestamped annotations, approval workflows, client portal links, and C2PA authenticity.',
+  },
+  {
+    icon: <Zap className="w-5 h-5" />,
+    title: 'AI Generation Studio — 21 Models + Cognitive Director',
+    desc: 'Full model pool with intent modeling, Reflexion critique, and character consistency pipeline.',
+  },
+  {
+    icon: <Shield className="w-5 h-5" />,
+    title: 'Offline-First. Enterprise Secure.',
+    desc: 'Projects in local SQLite .cfp files. API keys in OS keychain. Edit without internet.',
+  },
+  {
+    icon: <Cpu className="w-5 h-5" />,
+    title: 'Native Desktop Performance',
+    desc: 'Electron 34 + WebGPU. Local FFmpeg export on your hardware — no cloud queue.',
+  },
+]
+
+const REPLACES = [
+  { app: 'Adobe Premiere Pro', cost: '$659/yr', what: 'Professional NLE' },
+  { app: 'DaVinci Resolve Studio', cost: '$470 one-off', what: 'Colour science' },
+  { app: 'After Effects', cost: '$659/yr', what: 'VFX & motion graphics' },
+  { app: 'Logic Pro', cost: '$299 one-off', what: 'Audio DAW' },
+  { app: 'Autodesk ShotGrid', cost: '$800+/seat/yr', what: 'Production tracking' },
+  { app: 'Adobe Frame.io', cost: '$180+/yr', what: 'Media review' },
+]
 
 function detectPlatform(): 'mac' | 'windows' | 'unknown' {
   if (typeof navigator === 'undefined') return 'unknown'
@@ -16,141 +79,165 @@ function detectPlatform(): 'mac' | 'windows' | 'unknown' {
   return 'unknown'
 }
 
-// Placeholder release URLs — update when the V3 desktop builds are published.
-const DOWNLOAD_URLS = {
-  mac_arm:   'https://releases.forgecinema.app/v3/latest/CinematicForge-arm64.dmg',
-  mac_intel: 'https://releases.forgecinema.app/v3/latest/CinematicForge-x64.dmg',
-  windows:   'https://releases.forgecinema.app/v3/latest/CinematicForge-Setup.exe',
-}
-
-const FEATURES = [
-  'Full NLE editor — replaces Adobe Premiere Pro',
-  'Professional colour science — replaces DaVinci Resolve',
-  'Node compositor — replaces After Effects',
-  'Complete audio DAW — replaces Logic Pro / Fairlight',
-  'Forge Spectrum EQ — 20-band professional equalizer',
-  'Forge Master Suite — 9-stage mastering chain',
-  '200+ pre-rendered VFX effects library',
-  'ForgeFlow — replaces Autodesk ShotGrid ($800/seat/yr)',
-  'ForgeReview — replaces Adobe Frame.io ($15/seat/mo)',
-  '21 AI video models — routed per shot automatically',
-  'Offline-first — edit without internet',
-  'API keys in OS keychain — enterprise security',
-]
-
 export default function DownloadPage() {
+  const { canDownload } = useUserTier()
   const [platform, setPlatform] = useState<'mac' | 'windows' | 'unknown'>('unknown')
-  const { tier, isAdmin } = useUserTier()
-  const isAllowed = isAdmin || tier === 'ultimate'
+  const [downloads, setDownloads] = useState<DesktopDownloadUrls>(FALLBACK_DOWNLOAD_URLS)
 
-  // Detect platform after mount: navigator is unavailable during SSR, so reading
-  // it lazily in useState would cause a server/client hydration mismatch.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setPlatform(detectPlatform()) }, [])
 
-  const openUpgrade = () =>
-    window.dispatchEvent(new CustomEvent('show-upgrade-modal', {
-      detail: {
-        requiredTier: 'ultimate',
-        feature: 'Forge Extreme Desktop',
-        message: 'Forge Extreme is included with the Ultimate subscription at no extra charge.',
-      },
-    }))
+  useEffect(() => {
+    let cancelled = false
+    void fetchLatestDesktopDownloads().then((urls) => {
+      if (!cancelled) setDownloads(urls)
+    })
+    return () => { cancelled = true }
+  }, [])
 
   return (
     <div className="min-h-screen bg-[#070d1a] text-white">
-      <div className="max-w-3xl mx-auto px-6 py-16">
-        <div className="flex items-center gap-3 mb-2">
-          <Monitor className="w-8 h-8 text-[#00e5c8]" />
-          <h1 className="text-3xl font-bold tracking-tight">Forge Extreme</h1>
-        </div>
-        <p className="text-gray-400 mb-10">
-          The professional desktop studio. Everything in the web app, plus the full NLE, colour
-          science, compositing, audio mastering, ForgeFlow, and ForgeReview — offline-first.
-        </p>
-
-        {!isAllowed ? (
-          <div className="border border-white/10 rounded-2xl p-8 text-center bg-[#0d1425]">
-            <Lock className="w-12 h-12 text-white/20 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold mb-2">Ultimate Plan Required</h2>
-            <p className="text-gray-400 text-sm mb-6">
-              Forge Extreme is included with the Ultimate subscription at no extra charge.
-            </p>
-            <button
-              onClick={openUpgrade}
-              className="px-6 py-3 rounded-xl bg-[#00e5c8] text-black font-bold hover:bg-[#00f0d5]"
-            >
-              Upgrade to Ultimate
-            </button>
+      <div className="border-b border-white/8">
+        <div className="max-w-4xl mx-auto px-6 py-16 text-center">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Monitor className="w-10 h-10 text-[#00e5c8]" />
+            <h1 className="text-4xl font-bold">Forge Extreme</h1>
           </div>
-        ) : (
-          <>
-            <div className="grid gap-4 mb-12">
+          <p className="text-xl text-gray-400 mb-2">The Professional Desktop Studio</p>
+          <p className="text-sm text-gray-500 max-w-2xl mx-auto mb-8">
+            Replace Premiere Pro, DaVinci Resolve, After Effects, Logic Pro, ShotGrid, and Frame.io
+            in one desktop app. Included with Ultimate.
+          </p>
+
+          {canDownload ? (
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               {(platform === 'mac' || platform === 'unknown') && (
                 <>
-                  <a href={DOWNLOAD_URLS.mac_arm}
-                     className="flex items-center justify-between p-5 rounded-xl bg-[#0d1425] border border-[#00e5c8]/30 hover:border-[#00e5c8] transition-all group">
-                    <div className="flex items-center gap-4">
-                      <Apple className="w-7 h-7 text-[#00e5c8]" />
-                      <div>
-                        <p className="font-semibold">macOS — Apple Silicon</p>
-                        <p className="text-xs text-gray-500">M1 / M2 / M3 / M4 (arm64) · Recommended</p>
-                      </div>
-                    </div>
-                    <span className="text-[#00e5c8] text-sm font-medium opacity-0 group-hover:opacity-100">Download →</span>
+                  <a
+                    href={downloads.mac_arm}
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#00e5c8] text-black font-bold hover:bg-[#00f0d5] transition"
+                  >
+                    <Apple className="w-5 h-5" />
+                    Download for Mac — Apple Silicon
                   </a>
-                  <a href={DOWNLOAD_URLS.mac_intel}
-                     className="flex items-center justify-between p-5 rounded-xl bg-[#0d1425] border border-white/10 hover:border-white/25 transition-all group">
-                    <div className="flex items-center gap-4">
-                      <Apple className="w-7 h-7 text-gray-400" />
-                      <div>
-                        <p className="font-semibold text-white/80">macOS — Intel</p>
-                        <p className="text-xs text-gray-500">x86_64 · macOS 13 Ventura minimum</p>
-                      </div>
-                    </div>
-                    <span className="text-gray-400 text-sm font-medium opacity-0 group-hover:opacity-100">Download →</span>
+                  <a
+                    href={downloads.mac_intel}
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl border border-white/20 hover:bg-white/5 transition"
+                  >
+                    <Apple className="w-5 h-5" />
+                    Mac — Intel
                   </a>
                 </>
               )}
               {(platform === 'windows' || platform === 'unknown') && (
-                <a href={DOWNLOAD_URLS.windows}
-                   className="flex items-center justify-between p-5 rounded-xl bg-[#0d1425] border border-white/10 hover:border-white/25 transition-all group">
-                  <div className="flex items-center gap-4">
-                    <Monitor className="w-7 h-7 text-gray-400" />
-                    <div>
-                      <p className="font-semibold text-white/80">Windows</p>
-                      <p className="text-xs text-gray-500">x64 + arm64 · Windows 10/11</p>
-                    </div>
-                  </div>
-                  <span className="text-gray-400 text-sm font-medium opacity-0 group-hover:opacity-100">Download →</span>
+                <a
+                  href={downloads.windows}
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl border border-white/20 hover:bg-white/5 transition"
+                >
+                  <Monitor className="w-5 h-5" />
+                  Download for Windows
                 </a>
               )}
             </div>
-
-            <div className="bg-[#0d1425] border border-white/8 rounded-xl p-5 mb-10 text-sm text-gray-400">
-              <p className="font-medium text-white/70 mb-1">First launch</p>
-              <p>Open the app → enter your Cinematic Forge email + subscription key →
-                 follow the API key setup wizard to store keys in your system keychain.
-                 Your subscription is automatically verified. No re-purchase required.</p>
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex items-center gap-2 text-gray-500">
+                <Lock className="w-5 h-5" />
+                <span>Download requires Ultimate subscription or Dev Account</span>
+              </div>
+              <Link
+                href="/upgrade"
+                className="px-8 py-3 rounded-xl bg-[#00e5c8] text-black font-bold hover:bg-[#00f0d5] transition"
+              >
+                Upgrade to Ultimate
+              </Link>
             </div>
-          </>
-        )}
+          )}
 
-        <h2 className="text-lg font-semibold mb-4 text-white/80">What&apos;s included</h2>
-        <div className="grid grid-cols-1 gap-2">
-          {FEATURES.map((f) => (
-            <div key={f} className="flex items-start gap-3">
-              <CheckCircle2 className="w-4 h-4 text-[#00e5c8] mt-0.5 flex-shrink-0" />
-              <span className="text-sm text-gray-300">{f}</span>
+          {canDownload && downloads.version && (
+            <p className="text-[11px] text-gray-600 mt-4">
+              Version {downloads.version} · macOS 13+ · Windows 10/11 x64
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-6 py-12">
+        <h2 className="text-2xl font-bold text-center mb-2">
+          Replace <span className="text-[#00e5c8]">$2,000–$6,000</span> in software
+        </h2>
+        <p className="text-gray-400 text-center text-sm mb-8">One subscription. Everything you need.</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {REPLACES.map((r) => (
+            <div key={r.app} className="bg-[#0d1425] border border-white/8 rounded-xl p-4">
+              <p className="text-xs text-gray-500 mb-1">{r.what}</p>
+              <p className="font-semibold text-sm">{r.app}</p>
+              <p className="text-[#00e5c8] text-xs mt-1">Saves {r.cost}</p>
             </div>
           ))}
         </div>
-
-        <p className="mt-10 text-xs text-gray-600">
-          Forge Extreme requires macOS 13+ (arm64 or x86_64) or Windows 10/11 (x64 or arm64).
-          Internet required only for AI generation. All editing and playback works offline.
-        </p>
       </div>
+
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        <h2 className="text-2xl font-bold mb-2">What&apos;s inside Forge Extreme</h2>
+        <p className="text-gray-400 text-sm mb-10">Every tool a professional production needs.</p>
+        <div className="space-y-10">
+          {BLOG_FEATURES.map((f) => (
+            <div key={f.title} className="flex gap-5">
+              <div className="w-10 h-10 rounded-xl bg-[#00e5c8]/10 border border-[#00e5c8]/20 flex items-center justify-center flex-shrink-0 text-[#00e5c8]">
+                {f.icon}
+              </div>
+              <div>
+                <h3 className="font-bold text-base mb-2">{f.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">{f.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-6 py-10 border-t border-white/8">
+        <h2 className="text-lg font-bold mb-4">System Requirements</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+          <div>
+            <p className="font-semibold text-[#00e5c8] mb-2 flex items-center gap-2">
+              <Apple className="w-4 h-4" /> macOS
+            </p>
+            <ul className="space-y-1 text-gray-400">
+              <li>macOS 13 Ventura or later</li>
+              <li>Apple Silicon (arm64) recommended</li>
+              <li>Intel (x86_64) supported</li>
+              <li>16GB RAM recommended</li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-semibold text-[#00e5c8] mb-2 flex items-center gap-2">
+              <Monitor className="w-4 h-4" /> Windows
+            </p>
+            <ul className="space-y-1 text-gray-400">
+              <li>Windows 10 or 11</li>
+              <li>x64 architecture</li>
+              <li>DirectX 12 compatible GPU</li>
+              <li>16GB RAM recommended</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {!canDownload && (
+        <div className="border-t border-white/8">
+          <div className="max-w-4xl mx-auto px-6 py-12 text-center">
+            <h2 className="text-2xl font-bold mb-3">Get Forge Extreme with Ultimate</h2>
+            <p className="text-gray-400 mb-6">One subscription. Replace $6,000+ in annual software costs.</p>
+            <Link
+              href="/upgrade"
+              className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-[#00e5c8] text-black font-bold hover:bg-[#00f0d5] transition"
+            >
+              <Star className="w-4 h-4" />
+              Upgrade to Ultimate — $99/mo
+            </Link>
+          </div>
+        </div>
+      )}
 
       <UpgradeModal />
     </div>

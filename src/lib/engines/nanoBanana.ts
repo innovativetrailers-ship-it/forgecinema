@@ -1,4 +1,4 @@
-// Nano Banana routes through FAL — no Google AI SDK needed
+import { runFal, extractImageUrl } from '@/lib/fal/client'
 import { uploadToR2 } from '@/lib/storage/r2'
 
 export interface NanoBananaParams {
@@ -27,16 +27,8 @@ export async function generateWithNanoBanana(
   }
   if (params.referenceImageUrl) input.image_url = params.referenceImageUrl
 
-  const result = await fetch(`https://fal.run/${modelId}`, {
-    method:  'POST',
-    headers: {
-      Authorization:  `Key ${process.env.FAL_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ input }),
-  }).then(r => r.json()) as { images?: Array<{ url: string }>; image?: { url: string } }
-
-  const rawUrl = result.images?.[0]?.url ?? result.image?.url
+  const result = await runFal(modelId, input)
+  const rawUrl = extractImageUrl(result)
   if (!rawUrl) throw new Error('Nano Banana: no image returned from FAL')
 
   const imageBuffer = await fetch(rawUrl).then(r => r.arrayBuffer())

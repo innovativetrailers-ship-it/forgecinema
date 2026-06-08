@@ -4,39 +4,39 @@ import { useEffect, useState } from 'react'
 import { X, Zap, Monitor } from 'lucide-react'
 
 const PLAN_DETAILS: Record<string, {
-  price: string; credits: string; highlights: string[]
+  label: string; price: string; credits: string; highlights: string[]
 }> = {
   pro: {
+    label:      'Simple',
     price:      '$19/mo',
-    credits:    '500 credits/month',
+    credits:    '500 credits/month — or pay-as-you-go',
     highlights: [
+      'No subscription required for credits',
       'Standard + Cinematic quality',
       'Advanced mode',
-      '3 Director models',
-      'Social publishing',
+      '2 Director models',
     ],
   },
   studio: {
+    label:      'Advanced',
     price:      '$49/mo',
     credits:    '2,000 credits/month',
     highlights: [
-      'All quality tiers incl. Film',
-      'Full Director mode',
-      '5 Director models',
-      'Voice cloning',
-      'Collaboration',
-      '4K + ProRes export',
+      'Active subscription required',
+      'Film quality + Director mode',
+      '7 Director models',
+      'Voice cloning & 4K export',
     ],
   },
   ultimate: {
+    label:      'Ultimate',
     price:      '$99/mo',
     credits:    '6,000 credits/month',
     highlights: [
-      'Everything in Studio',
-      'Unlimited Director models',
-      'Film Series mode',
+      'Forge Extreme desktop included',
+      '21 Director models',
+      'ForgeFlow + ForgeReview',
       'DCP + IMF export',
-      'Priority API access',
     ],
   },
 }
@@ -74,8 +74,9 @@ export function UpgradeModal() {
       headers:     { 'Content-Type': 'application/json' },
       body:        JSON.stringify({ plan: required, billing: 'monthly' }),
     })
-    const data = await res.json() as { checkoutUrl?: string }
-    if (data.checkoutUrl) window.location.href = data.checkoutUrl
+    const data = await res.json() as { url?: string; checkoutUrl?: string }
+    const url = data.url ?? data.checkoutUrl
+    if (url) window.location.href = url
   }
 
   return (
@@ -86,7 +87,7 @@ export function UpgradeModal() {
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-[#00e5c8]" />
             <span className="text-white font-semibold text-sm">
-              Upgrade to {required.charAt(0).toUpperCase() + required.slice(1)}
+              Upgrade to {plan.label}
             </span>
           </div>
           <button onClick={() => setOpen(false)} className="text-gray-500 hover:text-white">
@@ -129,7 +130,7 @@ export function UpgradeModal() {
           </button>
 
           <a
-            href="/pricing"
+            href="/upgrade"
             className="block text-center text-[11px] text-gray-500 hover:text-gray-300 transition"
           >
             Compare all plans

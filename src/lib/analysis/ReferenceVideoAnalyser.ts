@@ -1,5 +1,5 @@
 import { runModel1 } from '../brain/model1'
-import { fal } from '../fal/client'
+import { runFal } from '../fal/client'
 
 export interface VideoStyleDNA {
   cinematography: {
@@ -72,9 +72,7 @@ export class ReferenceVideoAnalyser {
 
     const frames = await Promise.all(
       sampleTimestamps.map(ts =>
-        fal.run('fal-ai/video-frame-extractor', {
-          input: { video_url: params.videoUrl, timestamp: ts },
-        }).then((r) => (r as unknown as { image_url: string }).image_url)
+        runFal('fal-ai/video-frame-extractor', { video_url: params.videoUrl, timestamp: ts }).then((r) => (r as unknown as { image_url: string }).image_url)
       )
     )
 

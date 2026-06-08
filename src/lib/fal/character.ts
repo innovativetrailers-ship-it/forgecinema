@@ -1,4 +1,4 @@
-import { fal } from './client'
+import { runFal } from './client'
 
 export interface FaceEmbedding {
   embedding: number[]
@@ -13,16 +13,15 @@ export async function extractFaceEmbedding(imageUrl: string): Promise<FaceEmbedd
   }
 
   try {
-    const result = await fal.run('fal-ai/face-id', {
-      input: { image_url: imageUrl },
-    }) as FaceIdResult
+    const result = await runFal<FaceIdResult>('fal-ai/face-id', {
+      image_url: imageUrl,
+    })
 
     return {
       embedding: result.embedding ?? result.face_embedding ?? [],
       boundingBox: result.bbox,
     }
   } catch {
-    // Return empty embedding if face detection fails
     return { embedding: [] }
   }
 }
@@ -33,9 +32,10 @@ export async function restoreFaceCharacter(imageUrl: string): Promise<string> {
     images?: Array<{ url: string }>
   }
 
-  const result = await fal.run('fal-ai/codeformer', {
-    input: { image_url: imageUrl, fidelity: 0.7 },
-  }) as CodeformerResult
+  const result = await runFal<CodeformerResult>('fal-ai/codeformer', {
+    image_url: imageUrl,
+    fidelity: 0.7,
+  })
 
   return result.image?.url ?? result.images?.[0]?.url ?? imageUrl
 }
@@ -72,7 +72,6 @@ export async function extractCharacterFeatures(imageUrls: string[]): Promise<{
   hairColor: string
   skinTone: string
 }> {
-  // Use Anthropic Vision to extract character features for prompt enrichment
   try {
     const { default: Anthropic } = await import('@anthropic-ai/sdk')
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })

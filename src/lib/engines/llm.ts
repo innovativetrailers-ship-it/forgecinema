@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { runFal } from '@/lib/fal/client'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
@@ -55,22 +56,13 @@ export async function callLLM(params: {
   const openrouterModel = OPENROUTER_IDS[params.model]
   if (!openrouterModel) throw new Error(`Unknown LLM: ${params.model}`)
 
-  const result = await fetch('https://fal.run/openrouter/router', {
-    method:  'POST',
-    headers: {
-      Authorization:  `Key ${process.env.FAL_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      input: {
-        model:      openrouterModel,
-        messages:   params.system
-          ? [{ role: 'system', content: params.system }, ...params.messages]
-          : params.messages,
-        max_tokens: params.maxTokens ?? 1024,
-      },
-    }),
-  }).then(r => r.json()) as FalOpenRouterResponse
+  const result = await runFal<FalOpenRouterResponse>('openrouter/router', {
+    model:      openrouterModel,
+    messages:   params.system
+      ? [{ role: 'system', content: params.system }, ...params.messages]
+      : params.messages,
+    max_tokens: params.maxTokens ?? 1024,
+  })
 
   return {
     content: result.output?.choices?.[0]?.message?.content ?? '',

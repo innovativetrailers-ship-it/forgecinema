@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { uploadToR2 } from '@/lib/storage/r2'
 import { relightImage } from '@/lib/fal/lighting'
-import { fal } from '@/lib/fal/client'
+import { runFal, extractImageUrl } from '@/lib/fal/client'
 import type { MaskOperation } from '@/lib/playback/interactiveTypes'
 
 export const runtime = 'nodejs'
@@ -86,16 +86,14 @@ export async function POST(req: NextRequest) {
         ? `${prompt?.trim() || OP_PROMPTS[operation]}, ${OP_PROMPTS.fill_ai}`
         : OP_PROMPTS[operation]
 
-    const result = (await fal.run('fal-ai/flux-pro/v1/fill', {
-      input: {
-        image_url: frameUrl,
-        mask_url: maskUrl,
-        prompt: finalPrompt,
-        enhance_prompt: true,
-      },
-    })) as FluxFillResult
+    const result = await runFal<FluxFillResult>('fal-ai/flux-pro/v1/fill', {
+      image_url: frameUrl,
+      mask_url: maskUrl,
+      prompt: finalPrompt,
+      enhance_prompt: true,
+    })
 
-    const url = result.images?.[0]?.url ?? result.image?.url
+    const url = extractImageUrl(result)
     if (!url) return NextResponse.json({ error: 'Edit produced no image' }, { status: 502 })
     return NextResponse.json({ url })
   } catch (err) {

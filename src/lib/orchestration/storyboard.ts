@@ -2,6 +2,7 @@
 // Phase 1.5: generate a Frame-Zero keyframe still for each shot
 // Conditioned on Patient Zero character + location references
 
+import { runFal, extractImageUrl } from '@/lib/fal/client'
 import { uploadToR2 } from '@/lib/storage/r2'
 import type { StructuredShot, PatientZeroAssets } from './types'
 
@@ -28,13 +29,8 @@ Film still, photorealistic, composed exactly as the first frame of the shot.`
   if (charRef) input.image_url           = charRef    // primary reference
   if (locRef)  input.reference_image_url = locRef     // location plate
 
-  const res = await fetch('https://fal.run/fal-ai/gemini-pro-image', {
-    method:  'POST',
-    headers: { Authorization: `Key ${process.env.FAL_API_KEY}`, 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ input }),
-  }).then(r => r.json())
-
-  const rawUrl = res.images?.[0]?.url ?? res.image?.url
+  const res = await runFal('fal-ai/gemini-pro-image', input)
+  const rawUrl = extractImageUrl(res)
   if (!rawUrl) throw new Error('storyboard keyframe returned no image')
   const buf = await fetch(rawUrl).then(r => r.arrayBuffer())
   return uploadToR2(Buffer.from(buf), `storyboard/${shot.shotIndex}_${Date.now()}.jpg`, 'image/jpeg')

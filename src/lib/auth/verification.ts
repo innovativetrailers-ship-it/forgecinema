@@ -56,6 +56,7 @@ export async function activateUser(params: {
     data: {
       role,
       creditBalance: credits,
+      subscriptionTier:   params.planId === 'free' ? 'free' : params.planId,
       subscriptionStatus: params.planId === 'free' ? 'trial' : 'active',
     },
   })

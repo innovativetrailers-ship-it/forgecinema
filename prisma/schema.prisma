@@ -61,6 +61,7 @@ model User {
   role               UserRole  @default(FREE)
   creditBalance      Int       @default(50)
   totalGenerated     Int       @default(0)
+  subscriptionTier     String    @default("free")
   subscriptionStatus String    @default("trial")
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -143,7 +144,13 @@ model VaultCharacter {
   projectId       String
   name            String
   referenceUrls   String[]
+  refProfile      String?
+  ref3Quarter     String?
+  refBack         String?
   faceEmbedding   Json?
+  bodyEmbedding   Json?
+  appearance      Json?
+  behavioralPrompt String?
   loraModelId     String?
   loraStatus      LoraStatus  @default(PENDING)
   modelFamily     String?
@@ -156,8 +163,22 @@ model VaultCharacter {
   updatedAt       DateTime    @updatedAt
 
   project         Project     @relation(fields: [projectId], references: [id])
+  wardrobe        WardrobeItem[]
 
   @@index([projectId])
+}
+
+model WardrobeItem {
+  id           String         @id @default(cuid())
+  characterId  String
+  region       String
+  prompt       String
+  refImageUrl  String
+  lockedHash   String
+  appliedAt    DateTime       @default(now())
+  character    VaultCharacter @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@index([characterId])
 }
 
 model VaultLocation {

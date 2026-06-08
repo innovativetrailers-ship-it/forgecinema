@@ -1,4 +1,4 @@
-import { fal } from '../fal/client'
+import { runFal } from '../fal/client'
 import { uploadToR2 } from '../storage/r2'
 import { nanoid } from 'nanoid'
 import { getOpenRouterClient } from '../brain/openai-client'
@@ -121,14 +121,12 @@ export async function renderStoryboardFrames(
           image?: { url: string }
         }
 
-        const result = await fal.run('fal-ai/flux/dev', {
-          input: {
+        const result = await runFal('fal-ai/flux/dev', {
             prompt: `${shot.generationPrompt}, storyboard illustration, cinematic composition, film still`,
             image_size: 'landscape_16_9' as const,
             num_inference_steps: 28,
             guidance_scale: 3.5,
-          },
-        }) as FluxResult
+          }) as FluxResult
 
         const imageUrl = result.images?.[0]?.url ?? result.image?.url
 

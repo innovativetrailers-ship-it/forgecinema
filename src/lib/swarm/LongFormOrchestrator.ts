@@ -1,4 +1,4 @@
-import { fal } from '../fal/client'
+import { runFal } from '../fal/client'
 import { SwarmRouter } from './SwarmRouter'
 import { SeamlessBlender } from './SeamlessBlender'
 import { redis, channelKey } from '../redis'
@@ -143,9 +143,7 @@ export class LongFormOrchestrator {
     if (lastResult) {
       newContext.lastShotDescription = lastShot.description
       try {
-        const frameResult = await fal.run('fal-ai/video-frame-extractor', {
-          input: { video_url: lastResult.output_url, timestamp: 999 },
-        }) as unknown as { image_url?: string }
+        const frameResult = await runFal('fal-ai/video-frame-extractor', { video_url: lastResult.output_url, timestamp: 999 }) as unknown as { image_url?: string }
 
         lastShot.character_ids.forEach(charId => {
           const existing = newContext.establishedCharacters.findIndex(c => c.characterId === charId)

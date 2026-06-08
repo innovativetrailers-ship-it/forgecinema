@@ -26,10 +26,9 @@ import {
 // Forge Extreme (V3 desktop app) download CTA — full button for Ultimate/admin,
 // upgrade teaser otherwise. Reuses useUserTier (cached credits/balance query).
 function ForgeExtremeButton() {
-  const { tier, isAdmin } = useUserTier()
-  const isUltimate = isAdmin || tier === 'ultimate'
+  const { canDownload } = useUserTier()
 
-  if (isUltimate) {
+  if (canDownload) {
     return (
       <Link
         href="/download"

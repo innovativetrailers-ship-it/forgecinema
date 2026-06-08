@@ -9,6 +9,7 @@ import { decomposeClip } from '@/lib/routing/SceneDecomposer'
 import { dispatchClip } from '@/lib/routing/MediaDispatcher'
 import { blendMultiEngineClip } from '@/lib/routing/SeamlessBlender'
 import type { QualityTier, SceneType } from '@/lib/models/types'
+import { enrichGeneratePayload } from '@/lib/character/jobIdentity'
 
 const createJobSchema = z.object({
   projectId: z.string().optional(),
@@ -49,7 +50,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { projectId, type, quality, sceneType, payload } = parsed.data
+  let { projectId, type, quality, sceneType, payload } = parsed.data
+
+  if (type === 'GENERATE') {
+    payload = await enrichGeneratePayload(userId, projectId, payload)
+  }
 
   // ── Multi-engine omnichannel path for GENERATE jobs ──────────────────────
   if (type === 'GENERATE') {

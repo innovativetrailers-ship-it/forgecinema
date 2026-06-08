@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { fal } from '@/lib/fal/client'
+import { runFal } from '@/lib/fal/client'
 import { extractDepthMap } from '@/lib/fal/enhancement'
 import { matchLocationLighting } from '@/lib/fal/lighting'
 import { checkAndDeductCredits } from '@/lib/credits'
@@ -81,9 +81,7 @@ export async function POST(request: NextRequest) {
     video?: { url: string }
   }
 
-  const tripoResult = await fal.run('fal-ai/triposg', {
-    input: { prompt },
-  }) as TripoResult
+  const tripoResult = await runFal<TripoResult>('fal-ai/triposg', { prompt })
 
   // ── 3. Extract depth map and match lighting ────────────────────────────
   const [depthResult, lightResult] = await Promise.allSettled([
@@ -99,13 +97,11 @@ export async function POST(request: NextRequest) {
     video?: { url: string }
   }
 
-  const compResult = await fal.run('fal-ai/kling-video/v1.5/pro/image-to-video', {
-    input: {
-      image_url: relitUrl ?? frameToAnalyse,
-      prompt: `${prompt}, photorealistic CGI composite, depth-aware, matched lighting`,
-      duration: (Math.min(Math.ceil(insertDuration), 5) <= 5 ? '5' : '10') as '5' | '10',
-    },
-  }) as CompResult
+  const compResult = await runFal<CompResult>('fal-ai/kling-video/v1.5/pro/image-to-video', {
+    image_url: relitUrl ?? frameToAnalyse,
+    prompt: `${prompt}, photorealistic CGI composite, depth-aware, matched lighting`,
+    duration: (Math.min(Math.ceil(insertDuration), 5) <= 5 ? '5' : '10') as '5' | '10',
+  })
 
   const compositeVideoUrl = compResult.video?.url ?? tripoResult.model_mesh?.url
 

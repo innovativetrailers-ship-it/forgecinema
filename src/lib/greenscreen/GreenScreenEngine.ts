@@ -1,4 +1,4 @@
-import { fal } from '../fal/client'
+import { runFal } from '../fal/client'
 import { runModel1 } from '../brain/model1'
 import ffmpeg from 'fluent-ffmpeg'
 import { uploadToR2 } from '../storage/r2'
@@ -123,31 +123,23 @@ export class GreenScreenEngine {
       return { alphaVideoUrl: alphaUrl, lightingInfo: lighting }
 
     } else if (job.extractionMode === 'ai_matting') {
-      const result = await fal.run('fal-ai/birefnet-general', {
-        input: {
+      const result = await runFal('fal-ai/birefnet-general', {
           image_url: job.sourceVideoUrl,
           model: 'General Use (Heavy)',
           operating_resolution: '1024x1024',
           output_format: 'webp',
           refine_foreground: true,
-        },
-      }) as unknown as { image: { url: string } }
+        }) as unknown as { image: { url: string } }
 
-      const depth = await fal.run('fal-ai/depth-anything-v2', {
-        input: { image_url: job.sourceVideoUrl },
-      }) as unknown as { image_url: string }
+      const depth = await runFal('fal-ai/depth-anything-v2', { image_url: job.sourceVideoUrl }) as unknown as { image_url: string }
 
       const lighting = await this.extractLightingInfo(job.sourceVideoUrl)
       return { alphaVideoUrl: result.image.url, depthMapUrl: depth.image_url, lightingInfo: lighting }
 
     } else {
-      const depth = await fal.run('fal-ai/depth-anything-v2', {
-        input: { image_url: job.sourceVideoUrl },
-      }) as unknown as { image_url: string }
+      const depth = await runFal('fal-ai/depth-anything-v2', { image_url: job.sourceVideoUrl }) as unknown as { image_url: string }
 
-      const rembgResult = await fal.run('fal-ai/imageutils/rembg', {
-        input: { image_url: job.sourceVideoUrl },
-      }) as unknown as { image: { url: string } }
+      const rembgResult = await runFal('fal-ai/imageutils/rembg', { image_url: job.sourceVideoUrl }) as unknown as { image: { url: string } }
 
       const lighting = await this.extractLightingInfo(job.sourceVideoUrl)
       return { alphaVideoUrl: rembgResult.image.url, depthMapUrl: depth.image_url, lightingInfo: lighting }
@@ -161,9 +153,7 @@ export class GreenScreenEngine {
     switch (config.source) {
       case 'ai_generated': {
         const bgPrompt = `${config.prompt}. ${config.timeOfDay ?? 'natural daylight'}, ${config.weather ?? 'clear weather'}. No people in frame. Photorealistic environment, wide shot, background plate for compositing.`
-        const result = await fal.run('fal-ai/wan-t2v-14b', {
-          input: { prompt: bgPrompt, num_frames: 81 },
-        }) as unknown as { video: { url: string } }
+        const result = await runFal('fal-ai/wan-t2v-14b', { prompt: bgPrompt, num_frames: 81 }) as unknown as { video: { url: string } }
         return result.video.url
       }
 
@@ -177,12 +167,10 @@ export class GreenScreenEngine {
       }
 
       case 'hdri_environment': {
-        const result = await fal.run('fal-ai/ic-light', {
-          input: {
+        const result = await runFal('fal-ai/ic-light', {
             image_url: config.hdriUrl!,
             prompt: `Panoramic environment background, ${config.timeOfDay ?? 'natural light'}`,
-          },
-        }) as unknown as { image_url: string }
+          }) as unknown as { image_url: string }
         return result.image_url
       }
 
@@ -207,12 +195,10 @@ export class GreenScreenEngine {
     })
     const bdLighting = JSON.parse(backdropLighting.content)
 
-    const relitResult = await fal.run('fal-ai/ic-light', {
-      input: {
+    const relitResult = await runFal('fal-ai/ic-light', {
         image_url: foregroundUrl,
         prompt: `Relight to match: ${bdLighting.direction} ${bdLighting.temperature} lighting, ${bdLighting.intensity} quality, ${bdLighting.ambient}`,
-      },
-    }) as unknown as { image_url: string }
+      }) as unknown as { image_url: string }
 
     return relitResult.image_url
   }
@@ -270,9 +256,7 @@ export class GreenScreenEngine {
   }
 
   private async extractLightingInfo(videoUrl: string): Promise<LightingInfo> {
-    const frame = await fal.run('fal-ai/video-frame-extractor', {
-      input: { video_url: videoUrl, timestamp: 0.5 },
-    }) as unknown as { image_url: string }
+    const frame = await runFal('fal-ai/video-frame-extractor', { video_url: videoUrl, timestamp: 0.5 }) as unknown as { image_url: string }
     const analysis = await runModel1({
       systemPrompt: 'Analyse lighting. Return JSON: {"direction": "string", "temperature_kelvin": number, "intensity": "soft|medium|hard", "shadows": "direction"}',
       userMessage: 'Analyse the lighting in this frame.',

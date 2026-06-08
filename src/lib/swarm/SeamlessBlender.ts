@@ -1,4 +1,4 @@
-import { fal } from '../fal/client'
+import { runFal } from '../fal/client'
 import ffmpeg from 'fluent-ffmpeg'
 import fs from 'fs/promises'
 import path from 'path'
@@ -127,13 +127,11 @@ export class SeamlessBlender {
           const lastFrameUrl = await this.extractFrameFromLocal(normalised[i].localPath, 'last')
           const firstFrameUrl = await this.extractFrameFromLocal(normalised[i + 1].localPath, 'first')
 
-          const adjusted = await fal.run('fal-ai/ic-light', {
-            input: {
+          const adjusted = await runFal('fal-ai/ic-light', {
               image_url: firstFrameUrl,
               prompt: 'match lighting temperature and colour tone of reference',
               reference_image: lastFrameUrl,
-            },
-          }) as unknown as { image_url?: string }
+            }) as unknown as { image_url?: string }
 
           await this.applyProgressiveBoundaryGrade(
             normalised[i + 1].localPath,
@@ -245,7 +243,7 @@ export class SeamlessBlender {
     const fileBuffer = await fs.readFile(clipPath)
     const tempUrl = await uploadToR2(fileBuffer, `temp/frame-extract-${Date.now()}.mp4`, 'video/mp4')
     const timestamp = position === 'first' ? 0.1 : 999
-    const result = await fal.run('fal-ai/video-frame-extractor', { input: { video_url: tempUrl, timestamp } }) as unknown as { image_url?: string }
+    const result = await runFal('fal-ai/video-frame-extractor', { video_url: tempUrl, timestamp }) as unknown as { image_url?: string }
     return result.image_url ?? tempUrl
   }
 

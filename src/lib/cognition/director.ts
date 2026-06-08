@@ -17,13 +17,21 @@ export interface CreativeBrief {
   cognitionUsed: boolean // false if everything degraded — render uses raw prompt
 }
 
+export interface CharacterDirectorContext {
+  name: string
+  behavioralPrompt?: string
+  wardrobeSummary?: string
+  appearanceSummary?: string
+}
+
 export async function runCognitiveDirector(params: {
   userId: string
   prompt: string
   durationSec: number
+  characterContext?: CharacterDirectorContext | null
   onProgress?: (detail: string) => void
 }): Promise<CreativeBrief> {
-  const { userId, prompt, durationSec, onProgress } = params
+  const { userId, prompt, durationSec, characterContext, onProgress } = params
   let anyOk = false
 
   onProgress?.('Understanding intent...')
@@ -80,15 +88,27 @@ export async function runCognitiveDirector(params: {
     direction = critR.value
   }
 
+  const castBlock = characterContext
+    ? [
+        `Lead character ${characterContext.name}.`,
+        characterContext.appearanceSummary,
+        characterContext.wardrobeSummary,
+        characterContext.behavioralPrompt,
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : ''
+
   const enrichedPrompt = anyOk
     ? [
         direction.concept || prompt,
+        castBlock,
         direction.visualStyle ? `Visual style: ${direction.visualStyle}.` : '',
         emotionalArc.shape ? `Emotional journey: ${emotionalArc.shape} — ${emotionalArc.rhythmNote ?? ''}.` : '',
         direction.scenes?.length ? `Scenes: ${direction.scenes.join(' / ')}.` : '',
         intent.targetEmotion ? `Evoke: ${intent.targetEmotion}.` : '',
       ].filter(Boolean).join(' ')
-    : prompt // total degradation → raw prompt, render still proceeds
+    : [prompt, castBlock].filter(Boolean).join(' ')
 
   recordEpisode({
     userId,

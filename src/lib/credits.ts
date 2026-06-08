@@ -78,6 +78,11 @@ export const OPERATION_COSTS: Record<string, number> = {
   'storyboard_per_scene':           3,
   'slides_to_video_per_slide':      2,
   'brand_kit_apply':                0,
+  'character_wardrobe':            12,
+  'character_appearance_bake':      8,
+  'character_mocap':               18,
+  'character_anime':               15,
+  'character_roto':                20,
 }
 
 export async function deductCredits(
