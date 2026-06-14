@@ -36,14 +36,25 @@ export function CharacterCastPanel() {
   const handleOnboardingComplete = async (data: CharacterOnboardingData) => {
     setCreating(true)
     try {
-      const fd = new FormData()
-      fd.append('name', data.name)
-      fd.append('projectId', PROJECT_ID)
-      fd.append('triggerWord', data.triggerWord)
-      fd.append('modelFamily', data.modelFamily)
-      data.referenceImages.forEach((f) => fd.append('images', f))
-      const res = await fetch('/api/vault/character/create', { method: 'POST', body: fd })
-      if (!res.ok) throw new Error('Create failed')
+      if (!data.characterId) {
+        const fd = new FormData()
+        fd.append('name', data.name)
+        if (data.description?.trim()) fd.append('description', data.description.trim())
+        fd.append('projectId', PROJECT_ID)
+        fd.append('triggerWord', data.triggerWord)
+        fd.append('modelFamily', data.modelFamily)
+        fd.append('trainLora', data.trainLora ? 'true' : 'false')
+        data.referenceImages.forEach((f) => fd.append('images', f))
+        const res = await fetch('/api/vault/character/create', {
+          method: 'POST',
+          body: fd,
+          credentials: 'include',
+        })
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({})) as { error?: string }
+          throw new Error(body.error ?? 'Create failed')
+        }
+      }
       await queryClient.invalidateQueries({ queryKey: ['vault-characters', PROJECT_ID] })
       toast.success(`${data.name} added to vault`)
     } catch {

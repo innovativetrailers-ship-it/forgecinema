@@ -11,9 +11,18 @@ interface Props {
   onRegenerate: (clip: GeneratedClip) => void
   onAddToTimeline: (clip: GeneratedClip) => void
   onDelete: (id: string) => void
+  onClearFailed?: () => void
+  onOpenEditor?: () => void
 }
 
-export function ResultsGallery({ clips, onRegenerate, onAddToTimeline, onDelete }: Props) {
+export function ResultsGallery({
+  clips,
+  onRegenerate,
+  onAddToTimeline,
+  onDelete,
+  onClearFailed,
+  onOpenEditor,
+}: Props) {
   const [expandedClip, setExpandedClip] = useState<GeneratedClip | null>(null)
   const [filter, setFilter] = useState<'all' | 'done' | 'generating' | 'failed'>('all')
 
@@ -26,6 +35,7 @@ export function ResultsGallery({ clips, onRegenerate, onAddToTimeline, onDelete 
 
   const generating = clips.filter((c) => c.status === 'queued' || c.status === 'processing').length
   const done = clips.filter((c) => c.status === 'complete').length
+  const failed = clips.filter((c) => c.status === 'failed').length
 
   if (clips.length === 0) {
     return (
@@ -54,7 +64,16 @@ export function ResultsGallery({ clips, onRegenerate, onAddToTimeline, onDelete 
           )}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          {failed > 0 && onClearFailed && (
+            <button
+              type="button"
+              onClick={onClearFailed}
+              className="px-2.5 py-1 rounded-lg text-[11px] font-medium text-red-400/80 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+            >
+              Clear {failed} failed
+            </button>
+          )}
           {(['all', 'done', 'generating', 'failed'] as const).map((f) => (
             <button
               key={f}
@@ -79,6 +98,7 @@ export function ResultsGallery({ clips, onRegenerate, onAddToTimeline, onDelete 
               onRegenerate={onRegenerate}
               onAddToTimeline={onAddToTimeline}
               onExpand={setExpandedClip}
+              onOpenEditor={onOpenEditor}
             />
             <button
               onClick={() => onDelete(clip.id)}
@@ -97,7 +117,8 @@ export function ResultsGallery({ clips, onRegenerate, onAddToTimeline, onDelete 
           clip={expandedClip}
           onClose={() => setExpandedClip(null)}
           onRegenerate={(c) => { onRegenerate(c); setExpandedClip(null) }}
-          onAddToTimeline={(c) => { onAddToTimeline(c); setExpandedClip(null) }}
+          onAddToTimeline={onAddToTimeline}
+          onOpenEditor={onOpenEditor}
         />
       )}
     </>

@@ -23,7 +23,7 @@ export type ContentType =
   | 'fast_draft'             // pre-vis, speed check → LTX Fast
   | 'environment_travel'     // landscape, nature → Wan 2.2
   | 'product_commercial'     // product shots → Pika 2.5
-  | 'audio_native'           // needs dialogue/audio sync → Veo 3.1 / Seedance
+  | 'audio_native'           // dialogue/audio shot — visual via council; audio via ElevenLabs post
 
 export interface PatientZeroAssets {
   characters: Array<{
@@ -57,11 +57,40 @@ export interface StructuredShot {
   bridgeRequired:    boolean
   suggestedModel?:   string
 
-  // Continuity grouping for parallel scheduling
-  continuityGroup:   number   // shots with the same group are one continuous chain
-  isChainStart:      boolean  // first shot of its continuity chain
-  storyboardUrl?:    string   // pre-generated Frame Zero keyframe (Phase 1.5)
+  sceneNumber?:      number   // narrative scene (sequential across film)
+  scriptBeatId?:     string   // links to script beat for dialogue extraction
+  // Continuity grouping (legacy; sceneNumber drives sequential scheduling)
+  continuityGroup:   number
+  isChainStart:      boolean  // true only for first clip of the entire film
+  startsAtHardCut?:  boolean
+  storyboardUrl?:    string
 }
+
+/** Internal clip for sequential chain dispatch. */
+export interface ChainedClip {
+  id:             string
+  sceneId:        string
+  sceneNumber:    number
+  shotNumber:     number
+  prompt:         string
+  duration:       number
+  aspectRatio:    string
+  assignedModel:  string
+  resolution?:    '480p' | '720p' | '1080p'
+  keyframeUrl?:   string
+  anchorPolicy:   AnchorPolicy
+  startFrameUrl?: string
+  scriptBeatId?:  string
+  shotIndex:      number
+  contentType:    ContentType
+  visualPrompt:   string
+  hasDialogue:    boolean
+  hasFaces:       boolean
+  charactersPresent: string[]
+  lighting:       string
+}
+
+export type AnchorPolicy = 'previous-frame' | 'keyframe' | 'none'
 
 // A chain is a sequential run of continuous shots; chains run in parallel
 export interface ContinuityChain {
@@ -81,6 +110,7 @@ export interface DAGNode {
 
 export interface GeneratedSegment {
   shotIndex:    number
+  shotId?:      string
   videoUrl:     string
   duration:     number
   model:        string

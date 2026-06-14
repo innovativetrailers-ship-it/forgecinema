@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { JobProgressBadge } from '@/components/ui/JobProgressBadge'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 import { cn } from '@/lib/utils'
 import {
   Hexagon, LogOut, Settings, CreditCard, Loader2, Share2,
@@ -23,39 +24,26 @@ import {
   Save, AlertCircle, Monitor, Lock,
 } from 'lucide-react'
 
-// Forge Extreme (V3 desktop app) download CTA — full button for Ultimate/admin,
-// upgrade teaser otherwise. Reuses useUserTier (cached credits/balance query).
+// Forge Extreme (V3 desktop) — always links to /download (page handles tier gating).
 function ForgeExtremeButton() {
   const { canDownload } = useUserTier()
 
-  if (canDownload) {
-    return (
-      <Link
-        href="/download"
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide bg-gradient-to-r from-[#00e5c8] to-[#00b8a0] text-black hover:from-[#00f0d5] hover:to-[#00c8ae] transition-all border border-[#00e5c8]/30"
-      >
-        <Monitor className="w-3.5 h-3.5" />
-        Forge Extreme
-        <Download className="w-3 h-3 opacity-70" />
-      </Link>
-    )
-  }
-
   return (
-    <button
-      onClick={() => window.dispatchEvent(new CustomEvent('show-upgrade-modal', {
-        detail: {
-          requiredTier: 'ultimate',
-          feature: 'Forge Extreme Desktop',
-          message: 'Forge Extreme is the professional desktop studio — full NLE, colour science, compositing, audio mastering, ForgeFlow, and ForgeReview in one app. Included with Ultimate.',
-        },
-      }))}
-      className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border border-white/15 text-white/50 hover:border-[#00e5c8]/40 hover:text-white/70 transition-all group"
+    <Link
+      href="/download"
+      className={cn(
+        'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide transition-all border',
+        canDownload
+          ? 'bg-gradient-to-r from-[#00e5c8] to-[#00b8a0] text-black hover:from-[#00f0d5] hover:to-[#00c8ae] border-[#00e5c8]/30'
+          : 'border-white/15 text-white/60 hover:border-[#00e5c8]/40 hover:text-white/80',
+      )}
     >
       <Monitor className="w-3.5 h-3.5" />
-      Forge Extreme
-      <Lock className="w-3 h-3 opacity-50 group-hover:opacity-80" />
-    </button>
+      Download
+      {canDownload
+        ? <Download className="w-3 h-3 opacity-70" />
+        : <Lock className="w-3 h-3 opacity-50" />}
+    </Link>
   )
 }
 
@@ -64,6 +52,11 @@ const MODES: Array<{ label: string; href: string; mode: AppMode }> = [
   { label: 'Simple',   href: '/simple',   mode: 'simple' },
   { label: 'Advanced', href: '/advanced', mode: 'advanced' },
   { label: 'Ultimate', href: '/ultimate', mode: 'ultimate' },
+]
+
+const APP_NAV: Array<{ label: string; href: string; mode?: AppMode }> = [
+  ...MODES,
+  { label: 'Download', href: '/download' },
 ]
 
 const TIERS: Array<{ label: string; value: OutcomeTier }> = [
@@ -224,9 +217,7 @@ export function TopBar() {
       <div className="flex items-center gap-3 px-3 h-[42px] border-b border-[var(--border)] bg-[var(--bg-elevated)]">
         {/* Logo + project name */}
         <div className="flex items-center gap-2 shrink-0">
-          <Link href="/simple" className="text-sm font-bold tracking-[0.18em] text-[var(--teal-bright)] hover:opacity-80 transition-opacity">
-            CINÉMA
-          </Link>
+          <BrandLogo href="/simple" size={28} wordmark="CINÉMA" />
           <span className="text-[var(--text-tertiary)]">·</span>
           <input
             value={projectName}
@@ -237,13 +228,13 @@ export function TopBar() {
 
         {/* Mode switcher + tier */}
         <nav className="flex items-center gap-0.5 flex-1 justify-center">
-          {MODES.map((m) => {
-            const active = mode === m.mode
+          {APP_NAV.map((m) => {
+            const active = m.mode ? mode === m.mode : pathname.startsWith(m.href)
             return (
               <Link
                 key={m.href}
                 href={m.href}
-                onClick={() => setMode(m.mode)}
+                onClick={() => { if (m.mode) setMode(m.mode) }}
                 className={cn(
                   'relative px-4 py-1 rounded-md text-xs font-medium transition-all',
                   active
@@ -289,7 +280,7 @@ export function TopBar() {
               {creditsLoading
                 ? <Loader2 className="w-3 h-3 animate-spin text-[var(--teal-bright)]" />
                 : (isAdmin || unlimited)
-                  ? <span className="text-[11px] font-bold text-[var(--teal-bright)]">∞</span>
+                  ? <span className="text-[10px] font-semibold text-[var(--teal-bright)]">DEV</span>
                   : <span className={`text-[11px] font-semibold tabular-nums ${balance < 50 ? 'text-amber-400' : 'text-[var(--teal-bright)]'}`}>{balance.toLocaleString()}</span>
               }
             </button>
@@ -312,7 +303,7 @@ export function TopBar() {
             Export Film
           </button>
 
-          {status === 'authenticated' && <ForgeExtremeButton />}
+          <ForgeExtremeButton />
 
           {status === 'authenticated' && user ? (
             <DropdownMenu>
@@ -336,6 +327,12 @@ export function TopBar() {
                 <DropdownMenuSeparator className="bg-[var(--border)]" />
                 <DropdownMenuItem onClick={() => setPurchaseOpen(true)} className="gap-2 text-[12px] cursor-pointer text-[var(--text-secondary)]">
                   <CreditCard className="w-3.5 h-3.5" /> Buy credits
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => router.push('/download')}
+                  className="gap-2 text-[12px] cursor-pointer text-[var(--text-secondary)]"
+                >
+                  <Download className="w-3.5 h-3.5" /> Forge Extreme Download
                 </DropdownMenuItem>
                 <DropdownMenuItem className="gap-2 text-[12px] cursor-pointer text-[var(--text-secondary)]">
                   <Settings className="w-3.5 h-3.5" /> Settings

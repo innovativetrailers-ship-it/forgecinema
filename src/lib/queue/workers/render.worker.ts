@@ -13,8 +13,10 @@ process.on('unhandledRejection', (reason) => {
 })
 
 import { Worker } from 'bullmq'
+import { Queue } from 'bullmq'
 import { redis, bullmqRedis, bullMQPrefix } from '../../redis'
 import { startHeartbeat } from '../heartbeat'
+import { RENDER_QUEUE_NAME } from '../names'
 import { db } from '../../db'
 import { broadcastJobEvent } from '../events'
 import { refundCredits } from '../../credits'
@@ -23,8 +25,7 @@ import { logApiUsage, logRLHFSelection } from '../../telemetry/rlhf'
 import { captureGeneration } from '../../telemetry/delta'
 import { loraAutoTrigger, incrementRenderCount } from '../../vault/lora-trigger'
 import type { GenerateVideoOutput } from '../../models/types'
-import type { CreativeBrief } from '@/lib/cognition'
-import { Prisma } from '@/generated/prisma/client'
+import { startShotWatchdog } from '../../studio/watchdog'
 
 const POLL_INTERVAL_MS = 4000
 // fal video models can sit in-queue for 15+ min under load before execution.
@@ -79,81 +80,76 @@ interface RenderJobPayload {
 }
 
 async function dispatchToModel(
-  modelId: string,
+  rawModelId: string,
   payload: Record<string, unknown>
 ): Promise<GenerateVideoOutput> {
-  const input = {
-    prompt: (payload.prompt as string) ?? '',
-    negativePrompt: payload.negativePrompt as string | undefined,
-    duration: (payload.duration as number) ?? 5,
-    aspectRatio: ((payload.aspectRatio as string) ?? '16:9') as GenerateVideoOutput extends { status: string } ? never : '16:9' | '9:16' | '1:1' | '4:3' | '21:9',
-    startFrameUrl: payload.startFrameUrl as string | undefined,
-    endFrameUrl: payload.endFrameUrl as string | undefined,
-    characterRefs: payload.characterRefs as string[] | undefined,
-    loraId: payload.loraId as string | undefined,
-    cameraMotion: payload.cameraMotion as string | undefined,
-    motionStrength: payload.motionStrength as number | undefined,
-    seed: payload.seed as number | undefined,
+  const { normaliseModelId } = await import('../../models/normaliseId')
+  const modelId = normaliseModelId(rawModelId)
+  const prompt = typeof payload.prompt === 'string' ? payload.prompt.trim() : ''
+  if (!prompt) {
+    throw new Error('Prompt is required for video generation')
   }
 
-  const aspectRatio = (input.aspectRatio ?? '16:9') as '16:9' | '9:16' | '1:1' | '4:3' | '21:9'
-  const validInput = { ...input, aspectRatio }
+  const startFrameUrl =
+    (payload.startFrameUrl as string | undefined) ??
+    (payload.imageUrl as string | undefined) ??
+    (payload.image_url as string | undefined)
 
-  switch (modelId) {
-    case 'kling_standard':
-    case 'kling': {
-      const kling = await import('../../models/kling')
-      return kling.generateVideo(validInput, 'standard')
+  const duration = Number(payload.duration ?? 5)
+  const aspectRatio = (payload.aspectRatio as string | undefined) ?? '16:9'
+  const quality = payload.quality as string | undefined
+
+  const { resolveEngineModel, ASYNC_POLL_ENGINES } = await import('../../jobs/workerEngineMap')
+  const engineModel = resolveEngineModel(modelId)
+
+  // Runway + Sora submit async provider jobs — keep dedicated clients for poll loops.
+  if (ASYNC_POLL_ENGINES.has(modelId) || ASYNC_POLL_ENGINES.has(engineModel)) {
+    const aspect = aspectRatio as '16:9' | '9:16' | '1:1' | '4:3' | '21:9'
+    const validInput = {
+      prompt,
+      negativePrompt: payload.negativePrompt as string | undefined,
+      duration,
+      aspectRatio: aspect,
+      startFrameUrl,
+      seed: payload.seed as number | undefined,
+      quality,
     }
-    case 'kling_pro': {
-      const kling = await import('../../models/kling')
-      return kling.generateVideo(validInput, 'pro')
+    if (engineModel === 'sora-2' || modelId === 'sora' || modelId === 'sora-2') {
+      const m = await import('../../models/sora')
+      return m.generateVideo(validInput)
     }
-    case 'veo3': {
-      const veo3 = await import('../../models/veo3')
-      return veo3.generateVideo(validInput)
-    }
-    case 'luma': {
-      const luma = await import('../../models/luma')
-      return luma.generateVideo(validInput)
-    }
-    case 'runway': {
-      const runway = await import('../../models/runway')
-      return runway.generateVideo(validInput)
-    }
-    case 'pika': {
-      const pika = await import('../../models/pika')
-      return pika.generateVideo(validInput)
-    }
-    case 'minimax': {
-      const minimax = await import('../../models/minimax')
-      return minimax.generateVideo(validInput)
-    }
-    case 'seedance': {
-      const seedance = await import('../../models/seedance')
-      return seedance.generateVideo(validInput)
-    }
-    case 'wan':
-    case 'animatediff': {
-      const wan = await import('../../models/wan')
-      return wan.generateVideo(validInput)
-    }
-    case 'svd': {
-      const svd = await import('../../models/svd')
-      return svd.generateVideo(validInput)
-    }
-    default: {
-      const wan = await import('../../models/wan')
-      return wan.generateVideo(validInput)
+    const m = await import('../../models/runway')
+    return m.generateVideo(validInput)
+  }
+
+  // All FAL + xAI models — single registry via MediaRouter (correct fal-ai/* endpoints).
+  const { callEngine } = await import('../../routing/MediaRouter')
+  const result = await callEngine({
+    model: engineModel,
+    prompt,
+    duration,
+    aspectRatio,
+    quality,
+    imageUrl: startFrameUrl,
+  })
+
+  if (result.videoUrl) {
+    return {
+      jobId: result.jobId,
+      status: 'complete',
+      videoUrl: result.videoUrl,
     }
   }
+
+  return { jobId: result.jobId, status: 'processing' }
 }
 
 async function pollUntilComplete(
   modelId: string,
   externalJobId: string,
   internalJobId: string,
-  startedAt: number
+  startedAt: number,
+  pollUrl?: string,
 ): Promise<GenerateVideoOutput> {
   while (true) {
     if (Date.now() - startedAt > JOB_TIMEOUT_MS) {
@@ -166,9 +162,11 @@ async function pollUntilComplete(
 
     switch (modelId) {
       case 'kling_standard':
-      case 'kling': {
+      case 'kling':
+      case 'kling-3.0':
+      case 'kling-o3': {
         const kling = await import('../../models/kling')
-        result = await kling.pollStatus(externalJobId, 'standard')
+        result = await kling.pollStatus(externalJobId, modelId === 'kling_standard' || modelId === 'kling' ? 'standard' : 'pro')
         break
       }
       case 'kling_pro': {
@@ -176,39 +174,112 @@ async function pollUntilComplete(
         result = await kling.pollStatus(externalJobId, 'pro')
         break
       }
-      case 'veo3': {
+      case 'veo3':
+      case 'veo-3.1': {
         const veo3 = await import('../../models/veo3')
-        result = await veo3.pollStatus(externalJobId)
+        result = await veo3.pollStatus(externalJobId, pollUrl)
         break
       }
-      case 'luma': {
+      case 'luma':
+      case 'luma-ray3': {
         const luma = await import('../../models/luma')
         result = await luma.pollStatus(externalJobId)
         break
       }
-      case 'runway': {
+      case 'runway':
+      case 'runway-gen4': {
         const runway = await import('../../models/runway')
         result = await runway.pollStatus(externalJobId)
         break
       }
-      case 'pika': {
+      case 'pika':
+      case 'pika-2.5': {
         const pika = await import('../../models/pika')
         result = await pika.pollStatus(externalJobId)
         break
       }
-      case 'minimax': {
+      case 'minimax':
+      case 'minimax-2.3': {
         const minimax = await import('../../models/minimax')
         result = await minimax.pollStatus(externalJobId)
         break
       }
-      case 'seedance': {
+      case 'seedance':
+      case 'seedance-2.0': {
         const seedance = await import('../../models/seedance')
         result = await seedance.pollStatus(externalJobId)
         break
       }
-      default: {
+      case 'skyreels':
+      case 'skyreels-v3': {
+        const skyreels = await import('../../models/skyreels')
+        result = await skyreels.pollStatus(externalJobId)
+        break
+      }
+      case 'ltx':
+      case 'ltx-2.3':
+      case 'ltx-2.3-fast':
+      case 'animatediff': {
+        const ltx = await import('../../models/ltx')
+        result = await ltx.pollStatus(externalJobId)
+        break
+      }
+      case 'pixverse':
+      case 'pixverse-c1':
+      case 'pixverse-v6': {
+        const pixverse = await import('../../models/pixverse')
+        result = await pixverse.pollStatus(externalJobId)
+        break
+      }
+      case 'hunyuan':
+      case 'hunyuan-video':
+      case 'hunyuan-video-1.5':
+      case 'hunyuan-hy-motion': {
+        const hunyuan = await import('../../models/hunyuan')
+        result = await hunyuan.pollStatus(externalJobId, false, pollUrl)
+        break
+      }
+      case 'happyhorse':
+      case 'happyhorse-1.0': {
+        const happyhorse = await import('../../models/happyhorse')
+        result = await happyhorse.pollStatus(externalJobId)
+        break
+      }
+      case 'hailuo':
+      case 'hailuo-2.3': {
+        const hailuo = await import('../../models/hailuo')
+        result = await hailuo.pollStatus(externalJobId)
+        break
+      }
+      case 'grok_video':
+      case 'grok-imagine-video': {
+        const grok = await import('../../models/grokVideo')
+        result = await grok.pollStatus(externalJobId)
+        break
+      }
+      case 'sora':
+      case 'sora-2': {
+        const sora = await import('../../models/sora')
+        result = await sora.pollStatus(externalJobId)
+        break
+      }
+      case 'wan':
+      case 'wan-2.2':
+      case 'wan-2.6': {
         const wan = await import('../../models/wan')
-        result = await wan.pollStatus(externalJobId)
+        const stored = (await db.renderJob.findUnique({
+          where: { id: internalJobId },
+          select: { inputPayload: true },
+        }))?.inputPayload as { startFrameUrl?: string; image_url?: string; imageUrl?: string } | undefined
+        const i2v = Boolean(stored?.startFrameUrl ?? stored?.image_url ?? stored?.imageUrl)
+        const { WAN_I2V_MODEL, WAN_T2V_MODEL } = await import('../../models/wan')
+        result = await wan.pollStatus(externalJobId, i2v ? WAN_I2V_MODEL : WAN_T2V_MODEL)
+        break
+      }
+      default: {
+        console.warn(`[worker] pollUntilComplete: unknown model "${modelId}" — falling back to wan`)
+        const wan = await import('../../models/wan')
+        result = await wan.pollStatus(externalJobId, undefined, pollUrl)
         break
       }
     }
@@ -247,20 +318,20 @@ async function handleGenerateJob(data: RenderJobPayload): Promise<void> {
     throw new Error(initial.error ?? 'Model submission failed')
   }
 
-  // Poll until done
-  const result = await pollUntilComplete(
-    modelName,
-    initial.jobId,
-    jobId,
-    startedAt
-  )
+  const result =
+    initial.status === 'complete' && initial.videoUrl
+      ? initial
+      : await pollUntilComplete(modelName, initial.jobId, jobId, startedAt, initial.pollUrl)
 
   if (result.status === 'failed') {
     throw new Error(result.error ?? 'Model generation failed')
   }
-
-  const videoUrl = result.videoUrl!
+  const providerUrl = result.videoUrl!
   const latencyMs = Date.now() - startedAt
+
+  await broadcastJobEvent({ jobId, status: 'processing', progress: 75, message: 'Saving to vault…' })
+  const { persistVideoToR2 } = await import('../../storage/persistMedia')
+  const videoUrl = await persistVideoToR2(providerUrl, jobId, userId)
 
   // Content moderation check
   await broadcastJobEvent({ jobId, status: 'processing', progress: 85, message: 'Running safety check…' })
@@ -355,115 +426,176 @@ async function handleTranscribeJob(data: RenderJobPayload): Promise<void> {
   void userId
 }
 
-export const renderWorker = new Worker<RenderJobPayload>(
-  'render',
-  async (job) => {
+function maskUrl(url: string | undefined): string {
+  if (!url) return 'unset'
+  try {
+    const u = new URL(url)
+    return `${u.protocol}//${u.hostname}:${u.port || 'default'}`
+  } catch {
+    return 'invalid'
+  }
+}
+
+async function withBootTimeout<T>(
+  name: string,
+  ms: number,
+  fn: () => Promise<T>,
+  results: Record<string, string>,
+): Promise<void> {
+  try {
+    await Promise.race([
+      fn(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`${name} timeout after ${ms}ms`)), ms),
+      ),
+    ])
+    results[name] = 'ok'
+  } catch (err) {
+    results[name] = err instanceof Error ? err.message : String(err)
+  }
+}
+
+async function bootSelfTest(): Promise<void> {
+  const results: Record<string, string> = {}
+
+  await withBootTimeout('redis', 8_000, async () => {
+    await new Promise<void>((resolve, reject) => {
+      if (bullmqRedis.status === 'ready') {
+        resolve()
+        return
+      }
+      const onReady = () => { cleanup(); resolve() }
+      const onError = (err: Error) => { cleanup(); reject(err) }
+      const timer = setTimeout(() => { cleanup(); reject(new Error('redis ready timeout')) }, 7_000)
+      const cleanup = () => {
+        clearTimeout(timer)
+        bullmqRedis.off('ready', onReady)
+        bullmqRedis.off('error', onError)
+      }
+      bullmqRedis.once('ready', onReady)
+      bullmqRedis.once('error', onError)
+    })
+    const pong = await bullmqRedis.ping()
+    if (pong !== 'PONG') throw new Error(`unexpected ping response: ${pong}`)
+  }, results)
+
+  await withBootTimeout('database', 8_000, async () => {
+    await db.$queryRaw`SELECT 1`
+  }, results)
+
+  await withBootTimeout('fal_auth', 8_000, async () => {
+    const { hasFalKey, getFalKey } = await import('@/lib/config/keys')
+    if (!hasFalKey()) throw new Error('FAL_KEY not set on THIS service')
+    const { probeEndpoint } = await import('@/lib/fal/probeEndpoint')
+    const probe = await probeEndpoint('fal-ai/flux/dev', getFalKey())
+    if (probe.status === 'AUTH_ERROR') {
+      throw new Error(`FAIL ${probe.code ?? 401} — key invalid on THIS service`)
+    }
+    if (probe.status === 'LOCKED') {
+      throw new Error(`FAIL ${probe.code ?? 403} — fal account locked on THIS service`)
+    }
+  }, results)
+
+  console.log('[worker_boot_selftest]', JSON.stringify(results))
+  if (Object.values(results).some((v) => v !== 'ok')) {
+    console.error('[worker_boot_FAILED — exiting so Railway restarts + alerts]', JSON.stringify(results))
+    process.exit(1)
+  }
+
+  const dbUrl = process.env.WORKER_DATABASE_URL ?? process.env.DATABASE_URL ?? ''
+  if (!dbUrl.includes('connection_limit') && !dbUrl.includes('pgbouncer')) {
+    console.warn('[worker_boot] DATABASE_URL missing pgbouncer/connection_limit — set WORKER_DATABASE_URL with ?pgbouncer=true&connection_limit=5&pool_timeout=10')
+  }
+}
+
+function startEndpointProbeBanner(): void {
+  void (async () => {
+    try {
+      const { hasFalKey, getFalKey } = await import('@/lib/config/keys')
+      if (!hasFalKey()) return
+      const { probeAllFalEndpoints } = await import('@/lib/fal/registryProbe')
+      const result = await probeAllFalEndpoints(getFalKey(), { skipSchema: true })
+      const dead = result.existence.filter((e) => !e.alive).map((e) => e.id)
+      console.log('[endpoint_probe]', JSON.stringify({
+        alive: result.summary.alive,
+        dead,
+        total: result.existence.length,
+      }))
+    } catch (err) {
+      console.warn('[endpoint_probe_error]', err instanceof Error ? err.message : err)
+    }
+  })()
+}
+
+const workerProcessor = async (job: { name: string; data: RenderJobPayload; id?: string }) => {
     const data = job.data
 
     // ── V2: orchestrate / render-simple job names ───────────────────────────
     if (job.name === 'orchestrate') {
-      const { jobId, userId, prompt, duration, selectedModels, creditCost, useCognition, fccCognitionContext, projectId } = data as unknown as {
-        jobId: string; userId: string; prompt: string
-        duration: number; selectedModels: string[]; creditCost?: number; useCognition?: boolean
+      const {
+        jobId, userId, duration, selectedModels, creditCost, useCognition,
+        fccCognitionContext, projectId, generationMode, source,
+      } = data as unknown as {
+        jobId: string; userId: string; prompt?: string; script?: string
+        duration: number; selectedModels?: string[]; creditCost?: number; useCognition?: boolean
         fccCognitionContext?: { name: string; behavioralPrompt?: string; wardrobeSummary?: string; appearanceSummary?: string }
-        projectId?: string
+        projectId?: string; generationMode?: 'draft' | 'production'; source?: string
       }
-      const jobStartTime = Date.now()
-      await db.renderJob.update({
-        where: { id: jobId },
-        data:  { status: 'PROCESSING', progressPct: 2, phase: 'patient_zero', statusMessage: 'Starting…' },
+      const { resolveOrchestrationScript } = await import('@/lib/jobs/resolveOrchestrationScript')
+      const prompt = await resolveOrchestrationScript(jobId, data as { prompt?: string; script?: string })
+      console.log('[orchestrate] Received job payload:', {
+        prompt: prompt.slice(0, 100),
+        jobId,
+        source: source ?? 'unknown',
       })
-      try {
-        // ── SEAM 1: Cognitive Director (optional, gracefully degrading) ───────
-        // The ONLY change to the pipeline is prompt → finalPrompt. If cognition
-        // throws or times out, the render proceeds on the raw prompt.
-        let finalPrompt = prompt
-        let brief: CreativeBrief | null = null
-        if (useCognition) {
-          const { think } = await import('@/lib/cognition')
-          let characterContext = fccCognitionContext ?? null
-          if (!characterContext && projectId) {
-            try {
-              const { resolveMatchedVaultCharacter, toCognitionContext } = await import('@/lib/character/jobIdentity')
-              const matched = await resolveMatchedVaultCharacter(userId, projectId, prompt)
-              if (matched) characterContext = toCognitionContext(matched)
-            } catch {
-              // non-fatal
-            }
-          }
-          await db.renderJob.update({
-            where: { id: jobId },
-            data:  { phase: 'thinking', statusMessage: 'The director is thinking…' },
-          }).catch(() => {})
-          try {
-            brief = await think({
-              userId, prompt, durationSec: duration, characterContext,
-              onProgress: async (detail) => {
-                await db.renderJob.update({ where: { id: jobId }, data: { statusMessage: detail } }).catch(() => {})
-              },
-            })
-            finalPrompt = brief.enrichedPrompt
-          } catch (e) {
-            console.warn('[cognition] director degraded → raw prompt:', e instanceof Error ? e.message : String(e))
-            finalPrompt = prompt
-          }
-        }
-
-        const { orchestrateGeneration } = await import('@/lib/orchestration')
-        const result = await orchestrateGeneration({
-          prompt: finalPrompt, totalDuration: duration, selectedModels, userId,
-          onProgress: async (phase, detail, pct) => {
-            const elapsedSec = (Date.now() - jobStartTime) / 1000
-            const etaSeconds = pct > 5 ? Math.max(0, Math.round((elapsedSec / pct) * (100 - pct))) : null
-            await db.renderJob.update({
-              where: { id: jobId },
-              data: { progressPct: pct, phase, statusMessage: detail, ...(etaSeconds !== null ? { etaSeconds } : {}) },
-            }).catch(() => {})
-          },
-        })
-        // Cost reconciliation
-        const estimatedCredits = creditCost ?? result.totalCredits
-        const refund = estimatedCredits - result.totalCredits
-        if (refund > 0) {
-          const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } })
-          if (user?.role !== 'ADMIN') {
-            await db.user.update({ where: { id: userId }, data: { creditBalance: { increment: refund } } })
-            await db.creditTransaction.create({ data: { userId, amount: refund, description: 'Orchestration cost reconciliation refund', balanceAfter: 0 } })
-          }
-        }
-        await db.renderJob.update({
+      let councilModels = selectedModels ?? []
+      if (!councilModels.length) {
+        const row = await db.renderJob.findUnique({
           where: { id: jobId },
-          data: {
-            status: 'COMPLETE', progressPct: 100, phase: 'complete', etaSeconds: 0,
-            statusMessage: 'Complete', outputUrl: result.finalVideoUrl, completedAt: new Date(),
-            // Persist segment data so the UI can populate per-shot timeline clips and
-            // the feedback/reward route can attribute signals to the right models.
-            metadata: {
-              segments:       result.segments,
-              modelBreakdown: result.modelBreakdown,
-              qualityScores:  result.qualityScores,
-              patientZero:    result.patientZero,
-              actualCredits:  result.totalCredits,
-            } as unknown as Prisma.InputJsonValue,
-          },
+          select: { metadata: true },
         })
-
-        // ── SEAM 2: learning loop (fire-and-forget — never blocks completion) ─
-        const { learn } = await import('@/lib/cognition')
-        learn({
-          userId,
-          jobId,
-          result: {
-            segments:      result.segments ?? [],
-            qualityScores: Object.fromEntries(Object.entries(result.qualityScores ?? {})),
-          },
-          brief,
-        }).catch(e => console.warn('[learn]', e instanceof Error ? e.message : String(e)))
-      } catch (err) {
-        const msg = describeProviderError(err)
-        await db.renderJob.update({ where: { id: jobId }, data: { status: 'FAILED', errorMessage: msg, statusMessage: 'Generation failed' } })
-        throw err
+        const meta = row?.metadata as { selectedModels?: string[] } | null
+        councilModels = meta?.selectedModels ?? []
       }
+      const { processOrchestrateJobWithRefund } = await import('@/lib/jobs/processOrchestrateJob')
+      await processOrchestrateJobWithRefund({
+        jobId, userId, prompt, duration, selectedModels: councilModels, creditCost,
+        useCognition, fccCognitionContext, projectId, generationMode, source,
+      })
+      return
+    }
+
+    if (job.name === 'audio-generate') {
+      const { trackId } = data as unknown as { trackId: string }
+      const { processAudioTrackJob } = await import('@/lib/jobs/processAudioTrackJob')
+      await processAudioTrackJob(trackId)
+      return
+    }
+
+    if (job.name === 'shot-generate') {
+      const { jobId, userId, projectId, clipId, prompt, anchorFrameUrl, modelOverride, mode } = data as unknown as {
+        jobId: string; userId: string; projectId: string; clipId: string
+        prompt?: string; anchorFrameUrl?: string; modelOverride?: string; mode?: 'draft' | 'production'
+      }
+      const { processShotGenerateJob } = await import('@/lib/jobs/processShotGenerateJob')
+      await processShotGenerateJob({ jobId, userId, projectId, clipId, prompt, anchorFrameUrl, modelOverride, mode })
+      return
+    }
+
+    if (job.name === 'scene-generate') {
+      const {
+        jobId, userId, projectId, sceneId, sceneNumber, isFirstScene,
+        crossSceneAnchor, selectedModels, mode,
+      } = data as unknown as {
+        jobId: string; userId: string; projectId: string; sceneId: string
+        sceneNumber: number; isFirstScene: boolean; crossSceneAnchor?: string
+        selectedModels: string[]; mode?: 'draft' | 'production'
+      }
+      const { processSceneGenerateJob } = await import('@/lib/jobs/processSceneGenerateJob')
+      await processSceneGenerateJob({
+        jobId, userId, projectId, sceneId, sceneNumber, isFirstScene,
+        crossSceneAnchor, selectedModels, mode: mode ?? 'draft',
+      })
       return
     }
 
@@ -471,22 +603,8 @@ export const renderWorker = new Worker<RenderJobPayload>(
       const { jobId, prompt, duration, engine, userId } = data as unknown as {
         jobId: string; prompt: string; duration: number; engine: string; userId: string
       }
-      await db.renderJob.update({
-        where: { id: jobId },
-        data: { status: 'PROCESSING', progressPct: 20, phase: 'generating', statusMessage: 'Generating video…' },
-      })
-      try {
-        const { callEngine } = await import('@/lib/routing/MediaRouter')
-        const result = await callEngine({ model: engine, prompt, duration })
-        await db.renderJob.update({
-          where: { id: jobId },
-          data: { status: 'COMPLETE', progressPct: 100, phase: 'complete', etaSeconds: 0, statusMessage: 'Complete', outputUrl: result.videoUrl ?? result.imageUrl, completedAt: new Date() },
-        })
-      } catch (err) {
-        const msg = describeProviderError(err)
-        await db.renderJob.update({ where: { id: jobId }, data: { status: 'FAILED', errorMessage: msg, statusMessage: 'Generation failed' } })
-        throw err
-      }
+      const { processRenderSimpleJob } = await import('@/lib/jobs/processOrchestrateJob')
+      await processRenderSimpleJob({ jobId, userId, prompt, duration, engine })
       return
     }
 
@@ -630,41 +748,82 @@ export const renderWorker = new Worker<RenderJobPayload>(
       // Re-throw so BullMQ can handle retries
       throw err
     }
-  },
-  {
+}
+
+const WORKER_OPTS = {
+  connection: bullmqRedis,
+  prefix: bullMQPrefix,
+  concurrency: 5,
+  limiter: { max: 20, duration: 60000 },
+  lockDuration:    10_800_000,
+  lockRenewTime:   300_000,
+  stalledInterval: 30_000,
+  maxStalledCount: 1,
+} as const
+
+let renderWorker: Worker<RenderJobPayload> | null = null
+
+async function startRenderWorker(): Promise<void> {
+  await bootSelfTest()
+
+  console.log('[render_worker_online]', JSON.stringify({
+    queue: RENDER_QUEUE_NAME,
+    redis: maskUrl(process.env.REDIS_URL),
+    pid: process.pid,
+  }))
+
+  startEndpointProbeBanner()
+
+  renderWorker = new Worker<RenderJobPayload>(RENDER_QUEUE_NAME, workerProcessor, WORKER_OPTS)
+
+  renderWorker.on('error', (e) => {
+    console.error('[worker_error]', String(e))
+  })
+
+  renderWorker.on('failed', (job, err) => {
+    const e = err as Error & { code?: string; meta?: unknown }
+    console.error(
+      `[render-worker] Job ${job?.id} failed: name=${e?.name} code=${e?.code ?? 'n/a'} msg=${e?.message}`,
+    )
+    if (e?.meta) console.error('[render-worker] meta:', JSON.stringify(e.meta))
+    if (e?.stack) console.error('[render-worker] stack:', e.stack)
+  })
+
+  renderWorker.on('completed', (job) => {
+    console.log(`[render-worker] Job ${job.id} completed`)
+  })
+
+  const depthQueue = new Queue(RENDER_QUEUE_NAME, {
     connection: bullmqRedis,
     prefix: bullMQPrefix,
-    concurrency: 5,
-    limiter: { max: 20, duration: 60000 },
-    // A full Director-mode film (multi-segment, slow open-source models) can run
-    // 30-60+ min. Lock must exceed the longest possible render or BullMQ marks the
-    // job stalled and (with maxStalledCount>0) re-runs it mid-flight.
-    lockDuration:    10_800_000, // 3 hours
-    lockRenewTime:   300_000,    // renew every 5 min so long jobs keep their claim
-    stalledInterval: 300_000,    // check for genuinely stalled jobs every 5 min
-    // Cost safety: a stalled job (worker crash/redeploy mid-render) must NOT be
-    // re-run — re-running re-submits to fal.ai and charges again. Fail it once.
-    maxStalledCount: 0,
+  })
+  setInterval(async () => {
+    try {
+      const counts = await depthQueue.getJobCounts('waiting', 'active', 'failed')
+      console.log('[worker_heartbeat]', JSON.stringify(counts))
+    } catch (e) {
+      console.error('[worker_heartbeat_error]', String(e))
+    }
+  }, 30_000).unref()
+
+  const stopWatchdog = startShotWatchdog()
+  const stopRedisHeartbeat = startHeartbeat('render-worker')
+
+  const shutdown = () => {
+    stopWatchdog()
+    stopRedisHeartbeat()
+    void renderWorker?.close().finally(() => process.exit(0))
   }
-)
+  process.on('SIGTERM', shutdown)
+  process.on('SIGINT', shutdown)
+}
 
-renderWorker.on('failed', (job, err) => {
-  const e = err as Error & { code?: string; meta?: unknown }
-  console.error(
-    `[render-worker] Job ${job?.id} failed: name=${e?.name} code=${e?.code ?? 'n/a'} msg=${e?.message}`,
-  )
-  if (e?.meta) console.error('[render-worker] meta:', JSON.stringify(e.meta))
-  if (e?.stack) console.error('[render-worker] stack:', e.stack)
+void startRenderWorker().catch((err) => {
+  console.error('[render-worker] Boot failed:', err)
+  process.exit(1)
 })
 
-renderWorker.on('completed', (job) => {
-  console.log(`[render-worker] Job ${job.id} completed`)
-})
-
-// Publish liveness heartbeat
-const stopHeartbeat = startHeartbeat('render-worker')
-process.on('SIGTERM', () => { stopHeartbeat(); process.exit(0) })
-process.on('SIGINT', () => { stopHeartbeat(); process.exit(0) })
+export { renderWorker }
 
 // Silence unused import
 void logRLHFSelection

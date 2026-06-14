@@ -42,8 +42,8 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel — form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background">
-        <div className="w-full max-w-sm">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-black">
+        <div className="w-full max-w-md">
           <LoginForm />
         </div>
       </div>

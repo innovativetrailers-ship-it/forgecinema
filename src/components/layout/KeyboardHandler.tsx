@@ -10,6 +10,7 @@ async function saveProject() {
   try {
     await fetch(`/api/projects/${recipe.projectId}/save`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ recipe }),
     })

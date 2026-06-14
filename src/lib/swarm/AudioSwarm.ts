@@ -1,5 +1,6 @@
 import { redis } from '../redis'
 import { uploadToR2 } from '../storage/r2'
+import { generateVoiceBuffer } from '@/lib/elevenlabs/client'
 import { runFal } from '../fal/client'
 import { runModel1 } from '../brain/model1'
 import { writeFile as fsWriteFile } from 'fs/promises'
@@ -8,11 +9,9 @@ import { join } from 'path'
 import type { Shot } from './types'
 
 type AudioTaskType =
-  | 'native'          // model already generated audio (Seedance, Veo 3.1, Kling 3.0)
   | 'elevenlabs_tts'  // character dialogue via ElevenLabs vault voice
   | 'suno_music'      // background score via Suno
   | 'audiocraft_foley'// ambient + SFX via AudioCraft
-  | 'whisper_extract' // extract and clean audio from generated video
   | 'silence'         // intentionally silent (cut to music only)
 
 interface AudioTask {
@@ -42,28 +41,22 @@ export class AudioSwarm {
     const tasks: AudioTask[] = []
 
     for (const shot of shots) {
-      if (['seedance_2_0', 'veo_3_1', 'kling_3_0'].includes(shot.assigned_model ?? '')) {
-        // Use whisper_extract for dialogue shots from native-audio models to clean and verify speech
-        const audioType: AudioTaskType = shot.has_dialogue ? 'whisper_extract' : 'native'
-        tasks.push({
-          shot_id: shot.shot_id,
-          type: audioType,
-          duration_seconds: shot.duration_seconds,
-          source_video_url: shot.generated_url,
-        })
-        continue
-      }
-
-      if (shot.has_dialogue && shot.requires_post_lipsync && shot.character_ids.length) {
+      // VLMs output silent video — dialogue always via ElevenLabs, never extracted from model output.
+      if (shot.has_dialogue) {
         const dialogueText = await this.extractDialogueFromDescription(shot.description)
-        tasks.push({
-          shot_id: shot.shot_id,
-          type: 'elevenlabs_tts',
-          duration_seconds: shot.duration_seconds,
-          dialogue_text: dialogueText,
-          voice_id: await this.getVaultVoiceId(shot.character_ids[0]),
-        })
-        continue
+        const voiceId = shot.character_ids.length
+          ? await this.getVaultVoiceId(shot.character_ids[0])
+          : process.env.ELEVENLABS_DEFAULT_VOICE_ID
+        if (voiceId && dialogueText) {
+          tasks.push({
+            shot_id: shot.shot_id,
+            type: 'elevenlabs_tts',
+            duration_seconds: shot.duration_seconds,
+            dialogue_text: dialogueText,
+            voice_id: voiceId,
+          })
+          continue
+        }
       }
 
       if (shot.scene_category === 'audio_music_video') {
@@ -106,44 +99,18 @@ export class AudioSwarm {
     let hasSpeech = false
 
     switch (task.type) {
-      case 'native':
-      case 'whisper_extract': {
-        // Extract audio from the model-generated video using Whisper
-        // For models with native audio (Seedance 2.0, Veo 3.1, Kling 3.0) this cleans and isolates the track
-        if (task.source_video_url) {
-          try {
-            const cleaned = await runFal('fal-ai/whisper', {
-                audio_url: task.source_video_url,
-                task: 'transcribe',
-              }) as { audio_url?: string; text?: string }
-            audioUrl = cleaned.audio_url ?? task.source_video_url
-            hasSpeech = (cleaned.text?.length ?? 0) > 0
-          } catch {
-            audioUrl = task.source_video_url
-          }
-        }
-        break
-      }
-
       case 'elevenlabs_tts': {
-        const response = await fetch(
-          `https://api.elevenlabs.io/v1/text-to-speech/${task.voice_id}`,
-          {
-            method: 'POST',
-            headers: {
-              'xi-api-key': process.env.ELEVENLABS_API_KEY!,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              text: task.dialogue_text,
-              model_id: 'eleven_turbo_v2_5',
-              voice_settings: { stability: 0.5, similarity_boost: 0.85, style: 0.3 },
-            }),
-          }
-        )
-        const audioBuffer = await response.arrayBuffer()
+        if (!task.voice_id || !task.dialogue_text) {
+          throw new Error('elevenlabs_tts task missing voice_id or dialogue_text')
+        }
+        const audioBuffer = await generateVoiceBuffer(task.dialogue_text, task.voice_id, {
+          modelId: 'eleven_turbo_v2_5',
+          stability: 0.5,
+          similarityBoost: 0.85,
+          style: 0.3,
+        })
         audioUrl = await uploadToR2(
-          Buffer.from(audioBuffer),
+          audioBuffer,
           `audio/${task.shot_id}_voice.mp3`,
           'audio/mpeg'
         )

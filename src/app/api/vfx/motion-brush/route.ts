@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth }                       from '@/lib/auth'
 import { checkAndDeductCredits,
          refundCredits }              from '@/lib/credits'
-import { fal }                        from '@fal-ai/client'
+import { fal }                        from '@/lib/fal/client'
 
 interface StrokeRegion {
   x:          number   // normalised 0-1

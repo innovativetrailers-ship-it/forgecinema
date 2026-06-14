@@ -4,6 +4,7 @@ import { runFal } from '@/lib/fal/client'
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
 export type LLMModel =
+  | 'claude-opus'
   | 'claude-sonnet'
   | 'claude-haiku'
   | 'groq-llama'
@@ -33,10 +34,15 @@ export async function callLLM(params: {
   maxTokens?: number
 }): Promise<{ content: string; model: string }> {
 
-  if (params.model === 'claude-sonnet' || params.model === 'claude-haiku') {
-    const modelId = params.model === 'claude-sonnet'
-      ? 'claude-sonnet-4-20250514'
-      : 'claude-haiku-4-20250514'
+  if (
+    params.model === 'claude-opus' ||
+    params.model === 'claude-sonnet' ||
+    params.model === 'claude-haiku'
+  ) {
+    const modelId =
+      params.model === 'claude-opus'   ? 'claude-opus-4-8' :
+      params.model === 'claude-sonnet' ? 'claude-sonnet-4-5' :
+      'claude-haiku-4-5'
 
     const response = await anthropic.messages.create({
       model:      modelId,

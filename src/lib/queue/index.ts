@@ -1,5 +1,10 @@
 import { Queue, QueueEvents, type QueueOptions } from 'bullmq'
 import type { Redis } from 'ioredis'
+import {
+  EXPORT_QUEUE_NAME,
+  RENDER_QUEUE_NAME,
+  TRAINING_QUEUE_NAME,
+} from './names'
 
 // ─── Build-time guard ───────────────────────────────────────────────────────
 const isBuildTime =
@@ -88,12 +93,18 @@ function lazyEvents(name: string): QueueEvents {
 // ─── Queue exports ────────────────────────────────────────────────────────────
 // Using ES getters so callers write `renderQueue.add(...)` unchanged —
 // no `.current` suffix required anywhere.
-export const renderQueue       = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue('render',   { defaultJobOptions: PAID_JOB_OPTIONS }), p) })
-export const trainingQueue     = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue('training', { defaultJobOptions: PAID_JOB_OPTIONS }), p) })
-export const exportQueue       = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue('export'),       p) })
+export const renderQueue       = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue(RENDER_QUEUE_NAME,   { defaultJobOptions: PAID_JOB_OPTIONS }), p) })
+export const trainingQueue     = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue(TRAINING_QUEUE_NAME, { defaultJobOptions: PAID_JOB_OPTIONS }), p) })
+export const exportQueue       = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue(EXPORT_QUEUE_NAME),       p) })
 export const upscaleQueue      = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue('upscale'),      p) })
 export const cameraQueue       = new Proxy({} as Queue,       { get: (_, p) => Reflect.get(lazyQueue('camera'),       p) })
-export const renderQueueEvents = new Proxy({} as QueueEvents, { get: (_, p) => Reflect.get(lazyEvents('render'),      p) })
+export const renderQueueEvents = new Proxy({} as QueueEvents, { get: (_, p) => Reflect.get(lazyEvents(RENDER_QUEUE_NAME),      p) })
+
+if (!isBuildTime) {
+  lazyEvents(RENDER_QUEUE_NAME).on('error', (e: Error) => {
+    console.error('[queue_events_error]', String(e))
+  })
+}
 
 // ─── Graceful shutdown ────────────────────────────────────────────────────────
 if (!isBuildTime) {

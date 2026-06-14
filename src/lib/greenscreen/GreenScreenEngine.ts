@@ -1,4 +1,6 @@
 import { runFal } from '../fal/client'
+import { extractVideoFrame } from '../fal/frameExtract'
+import { relightImage } from '../fal/lighting'
 import { runModel1 } from '../brain/model1'
 import ffmpeg from 'fluent-ffmpeg'
 import { uploadToR2 } from '../storage/r2'
@@ -131,13 +133,13 @@ export class GreenScreenEngine {
           refine_foreground: true,
         }) as unknown as { image: { url: string } }
 
-      const depth = await runFal('fal-ai/depth-anything-v2', { image_url: job.sourceVideoUrl }) as unknown as { image_url: string }
+      const depth = await runFal('fal-ai/imageutils/depth', { image_url: job.sourceVideoUrl }) as unknown as { image_url: string }
 
       const lighting = await this.extractLightingInfo(job.sourceVideoUrl)
       return { alphaVideoUrl: result.image.url, depthMapUrl: depth.image_url, lightingInfo: lighting }
 
     } else {
-      const depth = await runFal('fal-ai/depth-anything-v2', { image_url: job.sourceVideoUrl }) as unknown as { image_url: string }
+      const depth = await runFal('fal-ai/imageutils/depth', { image_url: job.sourceVideoUrl }) as unknown as { image_url: string }
 
       const rembgResult = await runFal('fal-ai/imageutils/rembg', { image_url: job.sourceVideoUrl }) as unknown as { image: { url: string } }
 
@@ -153,8 +155,12 @@ export class GreenScreenEngine {
     switch (config.source) {
       case 'ai_generated': {
         const bgPrompt = `${config.prompt}. ${config.timeOfDay ?? 'natural daylight'}, ${config.weather ?? 'clear weather'}. No people in frame. Photorealistic environment, wide shot, background plate for compositing.`
-        const result = await runFal('fal-ai/wan-t2v-14b', { prompt: bgPrompt, num_frames: 81 }) as unknown as { video: { url: string } }
-        return result.video.url
+        const { WAN_T2V } = await import('@/lib/fal/wanEndpoints')
+        const result = await runFal(WAN_T2V, {
+          prompt: bgPrompt,
+          duration: 5,
+        }) as unknown as { video?: { url: string }; video_url?: string }
+        return result.video?.url ?? result.video_url ?? ''
       }
 
       case 'user_uploaded':
@@ -167,11 +173,11 @@ export class GreenScreenEngine {
       }
 
       case 'hdri_environment': {
-        const result = await runFal('fal-ai/ic-light', {
-            image_url: config.hdriUrl!,
-            prompt: `Panoramic environment background, ${config.timeOfDay ?? 'natural light'}`,
-          }) as unknown as { image_url: string }
-        return result.image_url
+        const result = await relightImage({
+          imageUrl: config.hdriUrl!,
+          prompt: `Panoramic environment background, ${config.timeOfDay ?? 'natural light'}`,
+        })
+        return result.imageUrl
       }
 
       case 'solid_colour':
@@ -195,12 +201,12 @@ export class GreenScreenEngine {
     })
     const bdLighting = JSON.parse(backdropLighting.content)
 
-    const relitResult = await runFal('fal-ai/ic-light', {
-        image_url: foregroundUrl,
-        prompt: `Relight to match: ${bdLighting.direction} ${bdLighting.temperature} lighting, ${bdLighting.intensity} quality, ${bdLighting.ambient}`,
-      }) as unknown as { image_url: string }
+    const relitResult = await relightImage({
+      imageUrl: foregroundUrl,
+      prompt: `Relight to match: ${bdLighting.direction} ${bdLighting.temperature} lighting, ${bdLighting.intensity} quality, ${bdLighting.ambient}`,
+    })
 
-    return relitResult.image_url
+    return relitResult.imageUrl
   }
 
   private async composite(
@@ -256,11 +262,11 @@ export class GreenScreenEngine {
   }
 
   private async extractLightingInfo(videoUrl: string): Promise<LightingInfo> {
-    const frame = await runFal('fal-ai/video-frame-extractor', { video_url: videoUrl, timestamp: 0.5 }) as unknown as { image_url: string }
+    const frameUrl = await extractVideoFrame(videoUrl, { timestamp: 0.5 })
     const analysis = await runModel1({
       systemPrompt: 'Analyse lighting. Return JSON: {"direction": "string", "temperature_kelvin": number, "intensity": "soft|medium|hard", "shadows": "direction"}',
       userMessage: 'Analyse the lighting in this frame.',
-      images: [frame.image_url],
+      images: [frameUrl],
       requireJSON: true,
     })
     return JSON.parse(analysis.content)

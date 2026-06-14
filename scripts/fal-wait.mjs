@@ -4,7 +4,7 @@ for (const line of readFileSync('.env.local', 'utf8').split('\n')) {
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '')
 }
 const { fal } = await import('@fal-ai/client')
-fal.config({ credentials: process.env.FAL_API_KEY || process.env.FAL_KEY })
+fal.config({ credentials: process.env.FAL_KEY || process.env.FAL_API_KEY })
 const ep = 'fal-ai/wan/v2.2-5b/text-to-video'
 const id = '019e838d-6b4f-7671-9d92-c70cb3858f67'
 const t0 = Date.now()

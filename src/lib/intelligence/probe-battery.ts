@@ -1,6 +1,6 @@
 import type { ProbeSet } from './report-schema'
 
-// 120 standardised test prompts across 12 capability categories.
+// 118 standardised test prompts across 12 capability categories.
 // Each probe isolates ONE specific capability.
 // Run against every model on the same day, same resolution, same seed where possible.
 export const PROBE_BATTERY: ProbeSet[] = [

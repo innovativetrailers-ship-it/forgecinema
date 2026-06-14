@@ -1,3 +1,5 @@
+import { FAL_KEY_ENV, hasFalKey } from '@/lib/config/keys'
+
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return
 
@@ -5,7 +7,6 @@ export async function register() {
     'AUTH_SECRET',
     'DATABASE_URL',
     'REDIS_URL',
-    'FAL_API_KEY',        // single key covers all 20+ video/image models
     'ANTHROPIC_API_KEY',  // orchestration stays direct
     'R2_ACCOUNT_ID',
     'R2_ACCESS_KEY_ID',
@@ -25,6 +26,7 @@ export async function register() {
   }
 
   const missing = CRITICAL.filter(k => !process.env[k])
+  if (!hasFalKey()) missing.push(FAL_KEY_ENV)
   if (missing.length > 0) {
     throw new Error(
       `[CINEMA] Missing critical env vars:\n${missing.map(k => `  • ${k}`).join('\n')}`

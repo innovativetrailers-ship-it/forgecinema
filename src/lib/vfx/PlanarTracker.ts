@@ -3,7 +3,7 @@
  * Returns corner-pin keyframe data for warping replacement textures.
  */
 
-import { fal } from '@fal-ai/client'
+import { fal } from '@/lib/fal/client'
 
 export interface Quad {
   topLeft:     [number, number]

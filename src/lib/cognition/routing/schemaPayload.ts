@@ -2,6 +2,8 @@
 // that expects `aspect_ratio` vs `ratio` vs `resolution` never silently fails when
 // FAL changes a param name.
 
+import { getFalKey } from '@/lib/config/keys'
+
 interface ModelSchema {
   input?: { properties?: Record<string, unknown> }
 }
@@ -20,7 +22,7 @@ async function getModelSchema(falModelId: string): Promise<ModelSchema | null> {
 
   try {
     const res = await fetch(`https://fal.run/${falModelId}/schema`, {
-      headers: { Authorization: `Key ${process.env.FAL_API_KEY}` },
+      headers: { Authorization: `Key ${getFalKey()}` },
       signal:  AbortSignal.timeout(4_000), // never let a schema lookup stall a render
     })
     const schema = res.ok ? ((await res.json()) as ModelSchema) : null
@@ -42,10 +44,14 @@ export async function buildPayload(
   falModelId: string,
   intent: PayloadIntent,
 ): Promise<Record<string, unknown>> {
+  if (!intent?.prompt?.trim()) {
+    throw new Error('Prompt is required for video generation')
+  }
+
   const schema = await getModelSchema(falModelId)
 
   const base: Record<string, unknown> = {
-    prompt: intent.prompt,
+    prompt: intent.prompt.trim(),
     duration: intent.duration,
     aspect_ratio: '16:9',
     resolution: '1080p',

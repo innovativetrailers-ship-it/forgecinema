@@ -1,21 +1,24 @@
-import { runFal, extractVideoUrl, fal } from '@/lib/fal/client'
+import { runFal, extractVideoUrl } from '@/lib/fal/client'
+import { buildFalVideoInput } from '@/lib/fal/videoPayloads'
+import { resolveModel } from '@/lib/models/resolve'
 import type { GenerateVideoInput, GenerateVideoOutput } from './types'
 
-const FAL_MODEL = 'fal-ai/veo3'
-
 export async function generateVideo(
-  input: GenerateVideoInput
+  input: GenerateVideoInput & { quality?: string }
 ): Promise<GenerateVideoOutput> {
-  const falInput: Record<string, unknown> = {
-    prompt:       input.prompt,
-    duration:     input.duration,
-    aspect_ratio: input.aspectRatio ?? '16:9',
-  }
-  if (input.negativePrompt) falInput.negative_prompt = input.negativePrompt
-  if (input.startFrameUrl)  falInput.image_url        = input.startFrameUrl
-  if (input.seed !== undefined) falInput.seed          = input.seed
+  const def = resolveModel('veo-3.1')
+  const falModel = def.falEndpoint!
+  const falInput = await buildFalVideoInput(falModel, 'veo-3.1', {
+    prompt: input.prompt,
+    duration: input.duration,
+    aspectRatio: input.aspectRatio ?? '16:9',
+    imageUrl: input.startFrameUrl,
+    negativePrompt: input.negativePrompt,
+    quality: input.quality,
+  })
+  if (input.seed !== undefined) falInput.seed = input.seed
 
-  const data = await runFal(FAL_MODEL, falInput)
+  const data = await runFal(falModel, falInput)
   const videoUrl = extractVideoUrl(data)
   const jobId    = `veo3_${Date.now()}`
 
@@ -27,19 +30,10 @@ export async function generateVideo(
   }
 }
 
-export async function pollStatus(requestId: string): Promise<GenerateVideoOutput> {
-  try {
-    const status = await fal.queue.status(FAL_MODEL, { requestId, logs: false }) as { status: string }
-    if (status.status !== 'COMPLETED') {
-      if (status.status === 'FAILED') {
-        return { jobId: requestId, status: 'failed', error: 'Generation failed' }
-      }
-      return { jobId: requestId, status: 'processing' }
-    }
-    const result = await fal.queue.result(FAL_MODEL, { requestId }) as { data: unknown }
-    const videoUrl = extractVideoUrl(result.data)
-    return { jobId: requestId, status: 'complete', videoUrl }
-  } catch {
-    return { jobId: requestId, status: 'processing' }
+export async function pollStatus(requestId: string, pollUrl?: string): Promise<GenerateVideoOutput> {
+  if (pollUrl) {
+    const { falPollJob } = await import('@/lib/fal/modelQueue')
+    return falPollJob(pollUrl)
   }
+  return { jobId: requestId, status: 'processing' }
 }

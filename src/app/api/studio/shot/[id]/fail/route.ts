@@ -1,0 +1,38 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+
+export async function POST(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const userId = _req.headers.get('x-user-id')
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id } = await params
+
+  const existing = await db.studioClip.findFirst({
+    where: { id, scene: { project: { userId } } },
+    select: { status: true },
+  })
+  if (!existing) {
+    return NextResponse.json({ error: 'Shot not found' }, { status: 404 })
+  }
+
+  const claimed = await db.studioClip.updateMany({
+    where: {
+      id,
+      status: 'GENERATING',
+      scene: { project: { userId } },
+    },
+    data: { status: 'FAILED', generatingAt: null },
+  })
+
+  if (claimed.count !== 1) {
+    return NextResponse.json(
+      { error: 'Shot is not generating', currentStatus: existing.status },
+      { status: 409 },
+    )
+  }
+
+  return NextResponse.json({ ok: true })
+}

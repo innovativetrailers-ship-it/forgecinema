@@ -34,6 +34,25 @@ export function calculateOrchestrationCost(
 }
 
 export const OPERATION_COSTS: Record<string, number> = {
+  // Video generation (per unit — jobs/create + worker billing)
+  generate_veo3:            35,
+  generate_kling_pro:       25,
+  generate_sora:            30,
+  generate_grok_video:      20,
+  generate_runway:          20,
+  generate_happyhorse:      15,
+  generate_luma:            15,
+  generate_seedance:        12,
+  generate_hailuo:          10,
+  generate_minimax:         10,
+  generate_kling_standard:   8,
+  generate_pika:             8,
+  generate_skyreels:         8,
+  generate_hunyuan:          7,
+  generate_pixverse:         5,
+  generate_wan:              2,
+  generate_ltx:              1,
+  generate_animatediff:      1,
   'grok-imagine-video':            20,  // $0.05/s xAI API → 20cr/5s
   'nano-banana-2':                  2,
   'nano-banana-pro':                5,
@@ -76,6 +95,12 @@ export const OPERATION_COSTS: Record<string, number> = {
   'mogrt_apply_template':           2,
   'mogrt_ai_generate':             15,
   'storyboard_per_scene':           3,
+  'storyboard':                     15,
+  'storyboard_gen':                 20,
+  'ai_director':                    25,
+  'lora_training':                  50,
+  'export_1080p':                   10,
+  'proxy_draft':                     0,
   'slides_to_video_per_slide':      2,
   'brand_kit_apply':                0,
   'character_wardrobe':            12,

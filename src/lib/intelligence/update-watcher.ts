@@ -24,7 +24,6 @@ const MODEL_VERSIONS: Record<string, string> = {
   pika_2_5:        '2.5.0',
   luma_ray3:       '3.0.0',
   skyreels_v1:     '1.0.0',
-  cogvideox_5b:    '5.0.0',
   mochi_1:         '1.0.0',
 }
 
@@ -38,7 +37,6 @@ const CATEGORY_MAP: Record<string, string[]> = {
   ltx_2_3:        ['text_accuracy', 'efficiency', 'consistency'],
   luma_ray3:      ['architecture', 'atmosphere', 'wildlife'],
   skyreels_v1:    ['human_motion', 'consistency', 'efficiency'],
-  cogvideox_5b:   ['text_accuracy', 'consistency', 'prompt_fidelity'],
   mochi_1:        ['efficiency', 'consistency', 'material_physics'],
   pika_2_5:       ['human_motion', 'prompt_fidelity', 'efficiency'],
   minimax_hailuo: ['human_motion', 'wildlife', 'native_audio'],
@@ -266,6 +264,10 @@ export class ModelUpdateWatcher {
 
 // Weekly full probe battery across all models
 export async function runWeeklyProbeBattery(): Promise<void> {
+  if (process.env.DISABLE_INTELLIGENCE_PROBES === 'true') {
+    console.log('[Intelligence] Weekly probe battery skipped (DISABLE_INTELLIGENCE_PROBES)')
+    return
+  }
   const analyser = new ModelIntelligenceAnalyser()
   const models = Object.keys(MODEL_VERSIONS)
 

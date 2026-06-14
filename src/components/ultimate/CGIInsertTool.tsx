@@ -45,7 +45,11 @@ export function CGIInsertTool({ sourceVideoUrl, videoDuration, onInsertComplete 
       const res = await fetch('/api/cgi/insert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoUrl: sourceVideoUrl, prompt, insertAt, duration }),
+        body: JSON.stringify({
+          videoUrl: sourceVideoUrl,
+          prompt,
+          insertionTimestamps: [insertAt, insertAt + duration],
+        }),
       })
 
       if (!res.ok) throw new Error('CGI API failed')

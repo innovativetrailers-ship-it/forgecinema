@@ -13,7 +13,10 @@ function extractImageUrl(data: unknown): string | null {
 }
 
 function buildWardrobePrompt(wardrobe: FCCCharacter['wardrobe']): string {
-  return wardrobe.map((w) => `${w.region}: ${w.prompt}`).join(', ')
+  return wardrobe
+    .filter((w) => Boolean(w) && typeof w.prompt === 'string')
+    .map((w) => `${w.region}: ${w.prompt}`)
+    .join(', ')
 }
 
 export function buildAppearanceBakePrompt(char: FCCCharacter): string {

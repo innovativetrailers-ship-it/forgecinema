@@ -35,15 +35,9 @@ export async function checkNSFW(
     return checkImage(mediaUrl)
   }
 
-  // For video: extract frames every 2 seconds via fal.ai
-  interface FrameResult {
-    frames?: Array<{ url: string }>
-  }
-
   try {
-    const frames = await runFal('fal-ai/video-frame-extractor', { video_url: mediaUrl, fps: 0.5 }) as FrameResult
-
-    const frameUrls = frames.frames?.map((f) => f.url) ?? [mediaUrl]
+    const { extractVideoFrameSamples } = await import('@/lib/fal/frameExtract')
+    const frameUrls = await extractVideoFrameSamples(mediaUrl, 5)
 
     const results = await Promise.all(frameUrls.slice(0, 10).map(checkImage))
 

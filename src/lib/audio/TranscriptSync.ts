@@ -3,7 +3,7 @@
  * Powers A09: transcript-based editing where deleting text removes the matching audio/video.
  */
 
-import { fal } from '@fal-ai/client'
+import { fal } from '@/lib/fal/client'
 
 export interface TranscriptWord {
   word:       string

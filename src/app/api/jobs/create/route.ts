@@ -1,10 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
+
+export const maxDuration = 300
 import { z } from 'zod'
+import { auth } from '@/lib/auth'
 import { nanoid } from 'nanoid'
 import { db } from '@/lib/db'
 import { renderQueue, getPriorityForRole } from '@/lib/queue'
 import { checkAndDeductCredits, refundCredits, OPERATION_COSTS } from '@/lib/credits'
-import { routeToModel, getOperationCostKey } from '@/lib/models/router'
+import { routeToModel, getOperationCostKey, normalizeWorkerModelId, normaliseModelId } from '@/lib/models/router'
 import { decomposeClip } from '@/lib/routing/SceneDecomposer'
 import { dispatchClip } from '@/lib/routing/MediaDispatcher'
 import { blendMultiEngineClip } from '@/lib/routing/SeamlessBlender'
@@ -36,8 +39,9 @@ const createJobSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  const userId = request.headers.get('x-user-id')
-  const userRole = request.headers.get('x-user-role') ?? 'FREE'
+  const session = await auth()
+  const userId = request.headers.get('x-user-id') ?? session?.user?.id
+  const userRole = request.headers.get('x-user-role') ?? (session?.user as { role?: string } | undefined)?.role ?? 'FREE'
 
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -53,7 +57,15 @@ export async function POST(request: NextRequest) {
   let { projectId, type, quality, sceneType, payload } = parsed.data
 
   if (type === 'GENERATE') {
+    const rawPrompt = typeof payload.prompt === 'string' ? payload.prompt.trim() : ''
+    if (!rawPrompt) {
+      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 })
+    }
+    payload = { ...payload, prompt: rawPrompt }
     payload = await enrichGeneratePayload(userId, projectId, payload)
+    if (typeof payload.prompt !== 'string' || !payload.prompt.trim()) {
+      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 })
+    }
   }
 
   // ── Multi-engine omnichannel path for GENERATE jobs ──────────────────────
@@ -115,15 +127,16 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Fire-and-forget: dispatch + blend then update job
-      void (async () => {
+      const runMultiEngine = async () => {
         try {
           const results = await dispatchClip({ segments })
-          const { blendedUrl } = await blendMultiEngineClip({ segments: results.map((r) => ({
-            segmentId: r.segmentId,
-            videoUrl: r.videoUrl,
-            engineId: segments!.find((s) => s.segmentId === r.segmentId)?.engineId ?? 'wan',
-          })) })
+          const { blendedUrl } = await blendMultiEngineClip({
+            segments: results.map((r) => ({
+              segmentId: r.segmentId,
+              videoUrl: r.videoUrl,
+              engineId: segments!.find((s) => s.segmentId === r.segmentId)?.engineId ?? 'wan',
+            })),
+          })
 
           await db.renderJob.update({
             where: { id: jobId },
@@ -135,7 +148,13 @@ export async function POST(request: NextRequest) {
             data: { status: 'FAILED', errorMessage: (err as Error).message },
           })
         }
-      })()
+      }
+
+      if (process.env.VERCEL) {
+        after(runMultiEngine)
+      } else {
+        void runMultiEngine()
+      }
 
       return NextResponse.json({ jobId: renderJob.id, status: 'PROCESSING', multiEngine: true, segmentCount: segments.length })
     }
@@ -143,22 +162,50 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Standard single-engine path ──────────────────────────────────────────
-  const model =
-    type === 'GENERATE'
-      ? routeToModel({
-          quality: quality as QualityTier,
-          sceneType: sceneType as SceneType | undefined,
-          hasCharacterRef: Boolean(
+  let model: string | null = null
+
+  if (type === 'GENERATE') {
+    const p = payload as {
+      prompt?: string
+      model?: string
+      duration?: number
+      aspectRatio?: string
+      quality?: string
+      sceneType?: SceneType
+      hasCharacterRef?: boolean
+      hasLoRA?: boolean
+      imageUrl?: string
+      startFrameUrl?: string
+    }
+
+    if (p.imageUrl && !p.startFrameUrl) {
+      p.startFrameUrl = p.imageUrl
+      payload = { ...payload, startFrameUrl: p.imageUrl }
+    }
+
+    const resolvedQuality = ((): QualityTier => {
+      const q = p.quality ?? quality
+      if (!q) return 'standard'
+      if (q === 'film_grade') return 'film'
+      return q as QualityTier
+    })()
+
+    model = p.model
+      ? normaliseModelId(p.model)
+      : routeToModel({
+          quality: resolvedQuality,
+          sceneType: (p.sceneType ?? sceneType) as SceneType | undefined,
+          hasCharacterRef: p.hasCharacterRef ?? Boolean(
             (payload as { characterRefs?: string[] }).characterRefs?.length
           ),
-          hasLoRA: Boolean((payload as { loraId?: string }).loraId),
-          duration: Number((payload as { duration?: number }).duration ?? 5),
+          hasLoRA: p.hasLoRA ?? Boolean((payload as { loraId?: string }).loraId),
+          duration: Number(p.duration ?? 5),
           userRole,
         })
-      : null
+  }
 
   const operationKey = model
-    ? getOperationCostKey(model)
+    ? getOperationCostKey(normalizeWorkerModelId(model))
     : type.toLowerCase()
 
   const cost = OPERATION_COSTS[operationKey] ?? 0
@@ -188,17 +235,32 @@ export async function POST(request: NextRequest) {
     },
   })
 
+  const jobData = {
+    jobId: renderJob.id,
+    userId,
+    projectId,
+    type,
+    modelId: model ?? undefined,
+    payload,
+  }
+
+  // On Vercel, run GENERATE inline (no separate worker process). Local/dev uses BullMQ.
+  if (process.env.VERCEL && type === 'GENERATE') {
+    after(async () => {
+      const { processGenerateJobWithRefund } = await import('@/lib/jobs/processGenerateJob')
+      try {
+        await processGenerateJobWithRefund(jobData)
+      } catch (err) {
+        console.error('[jobs/create] inline generate failed:', err instanceof Error ? err.message : err)
+      }
+    })
+    return NextResponse.json({ jobId: renderJob.id, status: 'PROCESSING' })
+  }
+
   try {
     await renderQueue.add(
       'render',
-      {
-        jobId: renderJob.id,
-        userId,
-        projectId,
-        type,
-        modelId: model,
-        payload,
-      },
+      jobData,
       // attempts:1 — never auto-retry a paid fal.ai generation (each retry is
       // a fresh charge). Failures surface to the user to retry deliberately.
       { priority: getPriorityForRole(userRole), attempts: 1 }

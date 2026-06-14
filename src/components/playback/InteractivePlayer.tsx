@@ -39,6 +39,7 @@ interface Props {
   onSeek: (t: number) => void
   onSkipToStart: () => void
   onSkipToEnd: () => void
+  onPlaybackEnded?: () => void
   /** Persist an AI-edited frame URL onto the active clip. */
   onClipEdited?: (clipId: string, url: string) => void
 }

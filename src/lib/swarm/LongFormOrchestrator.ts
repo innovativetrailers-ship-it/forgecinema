@@ -143,7 +143,10 @@ export class LongFormOrchestrator {
     if (lastResult) {
       newContext.lastShotDescription = lastShot.description
       try {
-        const frameResult = await runFal('fal-ai/video-frame-extractor', { video_url: lastResult.output_url, timestamp: 999 }) as unknown as { image_url?: string }
+        const { extractVideoFrame } = await import('@/lib/fal/frameExtract')
+        const lastFrame = await extractVideoFrame(lastResult.output_url, { frameType: 'last' }).catch(
+          () => lastResult.output_url,
+        )
 
         lastShot.character_ids.forEach(charId => {
           const existing = newContext.establishedCharacters.findIndex(c => c.characterId === charId)
@@ -151,7 +154,7 @@ export class LongFormOrchestrator {
             characterId: charId,
             lastSeenModelUsed: lastResult.model_used,
             lastSeenUrl: lastResult.output_url,
-            lastSeenFrame: frameResult.image_url ?? lastResult.output_url,
+            lastSeenFrame: lastFrame,
             appearance: lastShot.description,
           }
           if (existing >= 0) newContext.establishedCharacters[existing] = record

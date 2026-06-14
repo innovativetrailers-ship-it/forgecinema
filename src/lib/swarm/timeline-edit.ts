@@ -171,8 +171,12 @@ async function stitchSegment(
 }
 
 async function extractFrame(videoUrl: string, timestamp: number): Promise<string> {
-  const r = await runFal('fal-ai/video-frame-extractor', { video_url: videoUrl, timestamp }) as unknown as { image_url?: string }
-  return r.image_url ?? videoUrl
+  const { extractVideoFrame } = await import('@/lib/fal/frameExtract')
+  try {
+    return await extractVideoFrame(videoUrl, { timestamp })
+  } catch {
+    return videoUrl
+  }
 }
 
 async function downloadFile(url: string, dest: string): Promise<void> {

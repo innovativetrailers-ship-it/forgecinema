@@ -12,7 +12,7 @@ export interface QualityPill {
 }
 
 export const QUALITY_PILLS: QualityPill[] = [
-  { id: 'draft', label: 'Quick Draft', credits: 2, model: 'animatediff', description: '~8s • Budget' },
+  { id: 'draft', label: 'Quick Draft', credits: 2, model: 'ltx-2.3-fast', description: '~8s • Budget' },
   { id: 'standard', label: 'Standard', credits: 8, model: 'kling_standard', description: '~15s • Quality' },
   { id: 'cinematic', label: 'Cinematic', credits: 25, model: 'kling_pro', description: '~30s • Pro' },
   { id: 'film_grade', label: 'Film Grade', credits: 40, model: 'veo3', description: '~60s • Cinema' },
@@ -35,7 +35,7 @@ export const ASPECT_RATIOS: Array<{ value: AspectRatio; label: string; icon: str
 ]
 
 export const ALL_MODELS = [
-  { group: 'Budget', models: ['animatediff', 'wan'] },
+  { group: 'Budget', models: ['ltx-2.3-fast', 'wan'] },
   { group: 'Standard', models: ['luma', 'pika', 'minimax'] },
   { group: 'Professional', models: ['kling_standard', 'kling_pro', 'seedance'] },
   { group: 'Cinema', models: ['runway', 'veo3'] },
@@ -71,5 +71,7 @@ export const MODEL_FAMILY_COLOURS: Record<string, string> = {
   pika: '#00b8a0',
   minimax: '#059669',
   animatediff: '#6b7280',
+  'ltx-2.3-fast': '#6b7280',
+  'ltx-2.3': '#6b7280',
   wan: '#78716c',
 }

@@ -52,8 +52,14 @@ Return updated ContinuityState JSON:
 
 // Inject continuity into a shot prompt so the model keeps state consistent.
 export function applyContinuity(prompt: string, state: ContinuityState): string {
-  const wardrobe = Object.entries(state.characters)
-    .map(([name, c]) => `${name} wearing ${c.wardrobe.join(', ')}${c.state ? `, ${c.state}` : ''}`)
+  const wardrobe = Object.entries(state.characters ?? {})
+    .map(([name, c]) => {
+      const items = Array.isArray(c?.wardrobe) ? c.wardrobe.filter(Boolean) : []
+      const worn = items.length ? ` wearing ${items.join(', ')}` : ''
+      const st = c?.state ? `, ${c.state}` : ''
+      return `${name}${worn}${st}`
+    })
+    .filter(Boolean)
     .join('; ')
   const env = `${state.environment.timeOfDay} ${state.environment.weather} ${state.environment.lighting}`.trim()
   return `${prompt}${wardrobe ? ` [Continuity: ${wardrobe}]` : ''}${env ? ` [Setting: ${env}]` : ''}`

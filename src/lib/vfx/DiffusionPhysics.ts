@@ -51,7 +51,7 @@ export async function applyDiffusionPhysics(params: PhysicsParams): Promise<Phys
 
   let falResult: unknown
   try {
-    falResult = await fal.subscribe('fal-ai/video-to-video', {
+    falResult = await fal.subscribe('fal-ai/wan/v2.2/a14b/video-to-video', {
       input: {
         video_url: videoUrl,
         prompt: physicsPrompt,

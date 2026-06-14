@@ -1,4 +1,5 @@
 import { runFal } from '../fal/client'
+import { extractVideoFrame } from '../fal/frameExtract'
 import { runModel1 } from '../brain/model1'
 import type { CastMember } from './types'
 
@@ -28,15 +29,15 @@ export class Recaster {
     const bestReference = replacementCharacter.faceReferenceUrls[0]
     if (!bestReference) throw new Error('Replacement character has no face references')
 
-    const frame = await runFal('fal-ai/video-frame-extractor', { video_url: sourceVideoUrl, timestamp: 0.5 }) as unknown as { image_url: string }
+    const frameUrl = await extractVideoFrame(sourceVideoUrl, { timestamp: 0.5 })
 
     const faceSwapped = await runFal('fal-ai/face-swap-v2', {
-        source_image_url: frame.image_url,
+        source_image_url: frameUrl,
         reference_image_url: bestReference,
         strength: intensity,
       }).catch(async () => {
       return runFal('fal-ai/flux-general/image-to-image', {
-          image_url: frame.image_url,
+          image_url: frameUrl,
           prompt: `Replace the face in this image with: ${replacementCharacter.baseAppearance.promptDescription}. Keep all other aspects of the image identical including body, clothes, and background.`,
           strength: intensity * 0.4,
         })
@@ -77,10 +78,10 @@ export class Recaster {
   private async swapSilhouette(params: RecastParams): Promise<string> {
     const { sourceVideoUrl, replacementCharacter } = params
 
-    const frame = await runFal('fal-ai/video-frame-extractor', { video_url: sourceVideoUrl, timestamp: 0.5 }) as unknown as { image_url: string }
+    const frameUrl = await extractVideoFrame(sourceVideoUrl, { timestamp: 0.5 })
 
     const restyle = await runFal('fal-ai/flux-general/image-to-image', {
-        image_url: frame.image_url,
+        image_url: frameUrl,
         prompt: replacementCharacter.baseAppearance.promptDescription,
         strength: 0.55,
       }) as unknown as { images: Array<{ url: string }> }

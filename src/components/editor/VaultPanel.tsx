@@ -39,20 +39,24 @@ export function VaultPanel({ projectId, characters, onCharacterAdded }: Props) {
     addCharacter({
       name: data.name,
       role: 'supporting',
-      description: '',
+      description: data.description,
       faceReferenceUrls: data.referenceImages.map((f) => URL.createObjectURL(f)),
       modelFamily: data.modelFamily === 'any' ? 'auto' : data.modelFamily as never,
       triggerWord: data.triggerWord,
       loraJobId: data.loraJobId,
       makeupState: { type: 'clean', effects: [] },
     })
-    const fd = new FormData()
-    fd.append('name', data.name)
-    fd.append('projectId', projectId)
-    fd.append('triggerWord', data.triggerWord)
-    fd.append('modelFamily', data.modelFamily)
-    data.referenceImages.forEach((f) => fd.append('images', f))
-    await fetch('/api/vault/character/create', { method: 'POST', body: fd }).catch(() => null)
+    if (!data.characterId) {
+      const fd = new FormData()
+      fd.append('name', data.name)
+      if (data.description?.trim()) fd.append('description', data.description.trim())
+      fd.append('projectId', projectId)
+      fd.append('triggerWord', data.triggerWord)
+      fd.append('modelFamily', data.modelFamily)
+      fd.append('trainLora', data.trainLora ? 'true' : 'false')
+      data.referenceImages.forEach((f) => fd.append('images', f))
+      await fetch('/api/vault/character/create', { method: 'POST', body: fd, credentials: 'include' }).catch(() => null)
+    }
     toast.success(`${data.name} added to vault`)
     onCharacterAdded()
   }

@@ -1,10 +1,9 @@
 // src/workers/index.ts
 // BullMQ Worker — handles both orchestrate (Director mode) and render-simple jobs
 
-import { Worker }                from 'bullmq'
-import { orchestrateGeneration } from '@/lib/orchestration'
-import { callEngine }            from '@/lib/routing/MediaRouter'
-import { db }                    from '@/lib/db'
+import { Worker }     from 'bullmq'
+import { callEngine } from '@/lib/routing/MediaRouter'
+import { db }         from '@/lib/db'
 
 const redisUrl   = new URL(process.env.REDIS_URL!)
 const connection = {
@@ -18,84 +17,49 @@ const connection = {
 const orchestrationWorker = new Worker('render', async (job) => {
   if (job.name !== 'orchestrate') return
 
-  const { jobId, userId, prompt, duration, selectedModels, creditCost } = job.data as {
-    jobId: string; userId: string; prompt: string
-    duration: number; selectedModels: string[]; creditCost?: number
-  }
-
-  const jobStartTime = Date.now()
-
-  await db.renderJob.update({
-    where: { id: jobId },
-    data:  { status: 'PROCESSING', progressPct: 2, phase: 'patient_zero', statusMessage: 'Starting…' },
-  })
-
-  try {
-    const result = await orchestrateGeneration({
-      prompt,
-      totalDuration:  duration,
-      selectedModels,
-      userId,
-      onProgress: async (phase, detail, pct) => {
-        const elapsedSec = (Date.now() - jobStartTime) / 1000
-        const etaSeconds = pct > 5
-          ? Math.max(0, Math.round((elapsedSec / pct) * (100 - pct)))
-          : null
-
-        await db.renderJob.update({
-          where: { id: jobId },
-          data: {
-            progressPct:   pct,
-            phase,
-            statusMessage: detail,
-            ...(etaSeconds !== null ? { etaSeconds } : {}),
-          },
-        }).catch(() => {})  // never let a progress write crash the job
-      },
-    })
-
-    // Cost reconciliation — refund difference between estimate and actual
-    const estimatedCredits = creditCost ?? result.totalCredits
-    const refund           = estimatedCredits - result.totalCredits
-    if (refund > 0) {
-      const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } })
-      if (user?.role !== 'ADMIN') {
-        await db.user.update({
-          where: { id: userId },
-          data:  { creditBalance: { increment: refund } },
-        })
-        await db.creditTransaction.create({
-          data: { userId, amount: refund, description: 'Orchestration cost reconciliation refund', balanceAfter: 0 },
-        })
-      }
+  const { jobId, userId, duration, selectedModels, creditCost, useCognition, generationMode, source, projectId } =
+    job.data as {
+      jobId: string; userId: string; prompt?: string; script?: string
+      duration: number; selectedModels?: string[]; creditCost?: number; useCognition?: boolean
+      generationMode?: 'draft' | 'production'; source?: string; projectId?: string
     }
 
-    await db.renderJob.update({
+  const { resolveOrchestrationScript } = await import('@/lib/jobs/resolveOrchestrationScript')
+  const prompt = await resolveOrchestrationScript(jobId, job.data as { prompt?: string; script?: string })
+  console.log('[orchestrate] Received job payload:', {
+    prompt: prompt.slice(0, 100),
+    jobId,
+    source: source ?? 'unknown',
+  })
+
+  let councilModels = selectedModels ?? []
+  if (!councilModels.length) {
+    const row = await db.renderJob.findUnique({
       where: { id: jobId },
-      data: {
-        status:        'COMPLETE',
-        progressPct:   100,
-        phase:         'complete',
-        etaSeconds:    0,
-        statusMessage: 'Complete',
-        outputUrl:     result.finalVideoUrl,
-        completedAt:   new Date(),
-        metadata: {
-          segments:       result.segments,
-          modelBreakdown: result.modelBreakdown,
-          qualityScores:  result.qualityScores,
-          patientZero:    result.patientZero,
-          actualCredits:  result.totalCredits,
-        },
-      },
+      select: { metadata: true },
+    })
+    const meta = row?.metadata as { selectedModels?: string[] } | null
+    councilModels = meta?.selectedModels ?? []
+  }
+
+  const { processOrchestrateJobWithRefund } = await import('@/lib/jobs/processOrchestrateJob')
+  try {
+    await processOrchestrateJobWithRefund({
+      jobId,
+      userId,
+      prompt,
+      duration,
+      selectedModels: councilModels,
+      creditCost,
+      useCognition: useCognition ?? true,
+      projectId,
+      generationMode: generationMode ?? 'draft',
+      source,
+      heartbeat: async () => { await job.updateProgress(job.progress ?? 0) },
     })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[orchestration] job failed:', msg)
-    await db.renderJob.update({
-      where: { id: jobId },
-      data:  { status: 'FAILED', errorMessage: msg, statusMessage: 'Generation failed' },
-    })
   }
 }, {
   connection,

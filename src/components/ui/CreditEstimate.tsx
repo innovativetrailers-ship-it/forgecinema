@@ -13,7 +13,6 @@ const MODEL_COLOURS: Record<string, string> = {
   'luma-ray3':            '#44aaff',
   'hunyuan-video-1.5':    '#44ffcc',
   'minimax-2.3':          '#44ff88',
-  'cogvideox':            '#88ff44',
   'wan-2.2':              '#ccff44',
   'ltx-2.3':              '#ffff44',
   'ltx-2.3-fast':         '#888844',

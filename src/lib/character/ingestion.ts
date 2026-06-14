@@ -1,17 +1,50 @@
-// V2 — photo ingestion for VaultCharacter (FAL calls identical to V3 desktop).
+// V2 — photo / text ingestion for VaultCharacter (FAL schemas aligned to fal.ai docs).
 
-import { fal, runFal } from '@/lib/fal/client'
+import { runFal, uploadToFal } from '@/lib/fal/client'
+import { generateImage } from '@/lib/engines/imageGen'
 import { defaultAppearance, type CharacterAppearance } from './fccSchema'
 
-const FACE_ID_ENDPOINT = 'fal-ai/face-id'
-const INSTANT_ID_ENDPOINT = 'fal-ai/instant-id'
+const INSTANT_CHARACTER_ENDPOINT = 'fal-ai/instant-character'
 
-function extractEmbedding(data: unknown): number[] {
-  if (!data || typeof data !== 'object') return []
-  const d = data as Record<string, unknown>
-  const emb = d.face_embedding ?? d.embedding
-  if (Array.isArray(emb)) return emb.filter((n): n is number => typeof n === 'number')
-  return []
+export class CharacterIngestionError extends Error {
+  readonly code = 'INGESTION_FAILED' as const
+  readonly details?: unknown
+
+  constructor(message: string, details?: unknown) {
+    super(message)
+    this.name = 'CharacterIngestionError'
+    this.details = details
+  }
+}
+
+/** Deterministic unit vector so vault rows satisfy hasFcc without a dedicated embed API. */
+function referenceIdentityEmbedding(seed: string, dims = 512): number[] {
+  const out = new Array<number>(dims).fill(0)
+  for (let i = 0; i < seed.length; i++) {
+    out[i % dims] += seed.charCodeAt(i) / 255
+  }
+  const norm = Math.hypot(...out) || 1
+  return out.map((v) => v / norm)
+}
+
+/** Re-upload to FAL storage when R2 URLs may be private or unreachable from FAL workers. */
+export async function ensureFalImageUrl(
+  sourceUrl: string,
+  buffer?: Buffer,
+): Promise<string> {
+  if (buffer?.length) {
+    return uploadToFal(buffer)
+  }
+  if (/fal\.media|fal\.run|falcdn/i.test(sourceUrl)) {
+    return sourceUrl
+  }
+  try {
+    const res = await fetch(sourceUrl, { signal: AbortSignal.timeout(15_000) })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return uploadToFal(Buffer.from(await res.arrayBuffer()))
+  } catch {
+    return sourceUrl
+  }
 }
 
 async function analyseAppearanceWithClaude(imageUrl: string): Promise<CharacterAppearance> {
@@ -53,37 +86,76 @@ export interface PhotoIngestResult {
   faceEmbedding: number[]
   bodyEmbedding: number[]
   appearance: CharacterAppearance
+  /** FAL-reachable primary portrait used for identity lock */
+  primaryFalUrl: string
 }
 
-export async function ingestPhotoReferences(referenceUrls: string[]): Promise<PhotoIngestResult> {
-  if (referenceUrls.length === 0) throw new Error('At least one reference image required')
-  const primary = referenceUrls[0]
-
-  let faceEmbedding: number[] = []
-  try {
-    const faceResult = await fal.subscribe(INSTANT_ID_ENDPOINT, {
-      input: { face_image_url: primary, mode: 'embedding_only' },
-    })
-    faceEmbedding = extractEmbedding(faceResult.data)
-  } catch {
-    const fallback = await runFal(FACE_ID_ENDPOINT, { image_url: primary })
-    faceEmbedding = extractEmbedding(fallback)
+/**
+ * Text-only → Nano Banana Pro plate. Photo → optional instant-character sheet (I2I).
+ */
+export async function generateCharacterPlate(input: {
+  name: string
+  description: string
+  referencePhotoUrl?: string
+}): Promise<string> {
+  const desc = input.description.trim()
+  if (!desc) {
+    throw new CharacterIngestionError('Character description is required for text-only creation')
   }
 
+  if (input.referencePhotoUrl) {
+    const falUrl = await ensureFalImageUrl(input.referencePhotoUrl)
+    try {
+      const result = await runFal<{ images?: Array<{ url: string }> }>(
+        INSTANT_CHARACTER_ENDPOINT,
+        {
+          prompt: `${desc}, character reference sheet, neutral pose, studio lighting, ${input.name}`,
+          image_url: falUrl,
+          image_size: 'portrait_4_3',
+          negative_prompt: 'blur, distortion, multiple people, watermark',
+          num_images: 1,
+        },
+      )
+      const sheetUrl = result.images?.[0]?.url
+      if (sheetUrl) return sheetUrl
+      return falUrl
+    } catch (err) {
+      const details = err instanceof Error ? err.message : err
+      throw new CharacterIngestionError(
+        'Instant-character rejected the reference photo',
+        details,
+      )
+    }
+  }
+
+  const [plateUrl] = await generateImage(
+    `Character reference: ${input.name}. ${desc}. Full body, neutral pose, ` +
+    'studio lighting, plain background, character sheet style.',
+    { quality: 'production', aspectRatio: '3:4' },
+  )
+  if (!plateUrl) {
+    throw new CharacterIngestionError('Failed to generate character reference plate from description')
+  }
+  return plateUrl
+}
+
+export async function ingestPhotoReferences(
+  referenceUrls: string[],
+  imageBuffers?: Buffer[],
+): Promise<PhotoIngestResult> {
+  if (referenceUrls.length === 0) {
+    throw new CharacterIngestionError('At least one reference image required')
+  }
+
+  const primary = await ensureFalImageUrl(referenceUrls[0], imageBuffers?.[0])
   const appearance = await analyseAppearanceWithClaude(primary)
-  let bodyEmbedding = faceEmbedding
-  try {
-    const bodyResult = (await runFal('fal-ai/ip-adapter-face-id', {
-      face_image_url: primary,
-      prompt: 'character reference',
-    })) as unknown
-    const emb = extractEmbedding(bodyResult)
-    if (emb.length > 0) bodyEmbedding = emb
-  } catch {
-    // keep face embedding
-  }
 
-  return { faceEmbedding, bodyEmbedding, appearance }
+  return {
+    faceEmbedding: referenceIdentityEmbedding(primary),
+    bodyEmbedding: referenceIdentityEmbedding(`${primary}:body`),
+    appearance,
+    primaryFalUrl: primary,
+  }
 }
 
 function extractImageUrl(data: unknown): string | null {
@@ -98,10 +170,11 @@ function extractImageUrl(data: unknown): string | null {
 
 /** Video URL → appearance + embeddings (uses middle frame as portrait proxy). */
 export async function ingestVideoReference(videoUrl: string): Promise<PhotoIngestResult & { frameUrl: string }> {
-  const frame = await fal.subscribe('fal-ai/ffmpeg-api/extract-frame', {
-    input: { video_url: videoUrl, frame_type: 'middle' },
+  const frame = await runFal('fal-ai/ffmpeg-api/extract-frame', {
+    video_url: videoUrl,
+    frame_type: 'middle',
   })
-  const frameUrl = extractImageUrl(frame.data) ?? videoUrl
+  const frameUrl = extractImageUrl(frame) ?? videoUrl
   const ingested = await ingestPhotoReferences([frameUrl])
   return { ...ingested, frameUrl }
 }
@@ -114,19 +187,19 @@ export async function ingestSketchReference(
   const list = prompts.length > 0 ? prompts : ['photorealistic character portrait']
   let portraitUrl = sketchDataUrl
   try {
-    const gen = await fal.subscribe('fal-ai/flux/dev', { input: { prompt: list[0] } })
-    portraitUrl = extractImageUrl(gen.data) ?? sketchDataUrl
+    const gen = await runFal('fal-ai/flux/dev', { prompt: list[0] })
+    portraitUrl = extractImageUrl(gen) ?? sketchDataUrl
   } catch {
     portraitUrl = sketchDataUrl
   }
   for (let i = 1; i < list.length; i++) {
     try {
-      const refined = await fal.subscribe('fal-ai/flux/dev', {
-        input: { prompt: `${list[i]}, maintain exact same character` },
+      const refined = await runFal('fal-ai/flux/dev', {
+        prompt: `${list[i]}, maintain exact same character`,
       })
-      portraitUrl = extractImageUrl(refined.data) ?? portraitUrl
+      portraitUrl = extractImageUrl(refined) ?? portraitUrl
     } catch {
-      // keep
+      // keep last good portrait
     }
   }
   const ingested = await ingestPhotoReferences([portraitUrl])

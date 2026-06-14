@@ -6,6 +6,8 @@ import { callCouncil } from '../brain/council'
 import { redis, channelKey } from '../redis'
 import { db } from '../db'
 import { runFal } from '../fal/client'
+import { extractVideoFrame } from '../fal/frameExtract'
+import { relightImage } from '../fal/lighting'
 import * as models from '../models'
 import { captureFlywheelSignal } from '../telemetry/flywheel'
 
@@ -30,8 +32,8 @@ function createLimiter(concurrency: number) {
 // ── Tier permissions ─────────────────────────────────────────
 const TIER_MODELS: Record<OutcomeTier, Set<ModelId>> = {
   Draft:       new Set(['ltx_2_3', 'wan_2_2', 'pika_2_2', 'mochi_1', 'pixverse']),
-  Studio:      new Set(['wan_2_2', 'hunyuan_1_5', 'cogvideox', 'kling_3_0', 'seedance_2_0', 'skyreels_v1', 'minimax_hailuo', 'pika_2_2', 'mochi_1', 'pixverse']),
-  Blockbuster: new Set(['seedance_2_0', 'veo_3_1', 'kling_3_0', 'runway_gen4_5', 'skyreels_v1', 'hunyuan_1_5', 'wan_2_2', 'cogvideox', 'ltx_2_3', 'pika_2_2', 'minimax_hailuo', 'mochi_1', 'pixverse']),
+  Studio:      new Set(['wan_2_2', 'hunyuan_1_5', 'pixverse', 'kling_3_0', 'seedance_2_0', 'skyreels_v1', 'minimax_hailuo', 'pika_2_2', 'mochi_1', 'pixverse']),
+  Blockbuster: new Set(['seedance_2_0', 'veo_3_1', 'kling_3_0', 'runway_gen4_5', 'skyreels_v1', 'hunyuan_1_5', 'wan_2_2', 'pixverse', 'ltx_2_3', 'pika_2_2', 'minimax_hailuo', 'mochi_1', 'pixverse']),
 }
 
 // ── Canonical routing table ──────────────────────────────────
@@ -59,7 +61,7 @@ const SCENE_TO_MODEL: Partial<Record<SceneCategory, ModelId>> = {
   environment_arid_desert:       'wan_2_2',
   environment_golden_hour:       'veo_3_1',
   urban_dense_cyberpunk:         'hunyuan_1_5',
-  urban_architectural_detail:    'cogvideox',
+  urban_architectural_detail:    'pixverse',
   urban_building_hero:           'veo_3_1',
   urban_crowd:                   'hunyuan_1_5',
   urban_night_neon:              'hunyuan_1_5',
@@ -78,10 +80,10 @@ const SCENE_TO_MODEL: Partial<Record<SceneCategory, ModelId>> = {
   vehicle_crash_impact:          'veo_3_1',
   vehicle_spacecraft:            'hunyuan_1_5',
   vehicle_macro_detail:          'veo_3_1',
-  text_in_frame:                 'cogvideox',
-  text_neon_sign:                'cogvideox',
-  text_digital_display:          'cogvideox',
-  text_document:                 'cogvideox',
+  text_in_frame:                 'pixverse',
+  text_neon_sign:                'pixverse',
+  text_digital_display:          'pixverse',
+  text_document:                 'pixverse',
   vfx_stylized:                  'seedance_2_0',
   vfx_practical_explosion:       'veo_3_1',
   vfx_particles:                 'veo_3_1',
@@ -110,7 +112,7 @@ const STUDIO_DOWNGRADE: Partial<Record<ModelId, ModelId>> = {
 
 // ── Credits per 5 seconds ────────────────────────────────────
 const CREDITS: Record<ModelId, number> = {
-  ltx_2_3: 1, wan_2_2: 2, mochi_1: 2, cogvideox: 3, pixverse: 4,
+  ltx_2_3: 1, wan_2_2: 2, mochi_1: 2, pixverse: 4,
   hunyuan_1_5: 4, pika_2_2: 5, minimax_hailuo: 5,
   skyreels_v1: 7, seedance_2_0: 7, kling_3_0: 9,
   runway_gen4_5: 9, veo_3_1: 18,
@@ -176,7 +178,7 @@ export class SwarmRouter extends EventEmitter {
   routeShot(shot: Shot, tier: OutcomeTier): ModelId {
     const permitted = TIER_MODELS[tier]
 
-    if (shot.has_text_in_frame) return permitted.has('cogvideox') ? 'cogvideox' : 'wan_2_2'
+    if (shot.has_text_in_frame) return permitted.has('pixverse') ? 'pixverse' : 'wan_2_2'
     if (shot.duration_seconds > 30 || shot.is_long_form) return permitted.has('minimax_hailuo') ? 'minimax_hailuo' : 'wan_2_2'
     if (shot.has_fluid_physics && shot.is_hero_shot) return permitted.has('veo_3_1') ? 'veo_3_1' : 'wan_2_2'
 
@@ -187,7 +189,7 @@ export class SwarmRouter extends EventEmitter {
     const downgraded = STUDIO_DOWNGRADE[primary]
     if (downgraded && permitted.has(downgraded)) return downgraded
 
-    const ladder: ModelId[] = ['seedance_2_0', 'kling_3_0', 'skyreels_v1', 'hunyuan_1_5', 'wan_2_2', 'cogvideox', 'ltx_2_3', 'mochi_1']
+    const ladder: ModelId[] = ['seedance_2_0', 'kling_3_0', 'skyreels_v1', 'hunyuan_1_5', 'wan_2_2', 'pixverse', 'ltx_2_3', 'mochi_1']
     return ladder.find(m => permitted.has(m)) ?? 'wan_2_2'
   }
 
@@ -283,8 +285,8 @@ export class SwarmRouter extends EventEmitter {
       url = res.image?.url ?? url
     }
     if (shot.requires_relight) {
-      const res = await runFal('fal-ai/ic-light', { image_url: url, prompt: `match ${shot.mood} mood` }) as { image?: { url: string } }
-      url = res.image?.url ?? url
+      const res = await relightImage({ imageUrl: url, prompt: `match ${shot.mood} mood` })
+      url = res.imageUrl
     }
 
     const proxy = await this.makeProxy(url)
@@ -331,7 +333,6 @@ export class SwarmRouter extends EventEmitter {
       case 'skyreels_v1':    return models.generateSkyReelsSwarm(base)
       case 'hunyuan_1_5':    return models.generateHunyuan(base)
       case 'wan_2_2':        return models.generateWan22(base)
-      case 'cogvideox':      return models.generateCogVideoXSwarm(base)
       case 'ltx_2_3':        return models.generateLTXSwarm(base)
       case 'pika_2_2':       return models.generatePika(base)
       case 'minimax_hailuo': return models.generateMinimax(base)
@@ -343,8 +344,7 @@ export class SwarmRouter extends EventEmitter {
 
   private async makeProxy(url: string): Promise<string> {
     try {
-      const r = await runFal('fal-ai/video-frame-extractor', { video_url: url, timestamp: 0.5 }) as unknown as { image_url?: string }
-      return r.image_url ?? url
+      return await extractVideoFrame(url, { timestamp: 0.5 })
     } catch {
       return url
     }
@@ -387,7 +387,7 @@ export class SwarmRouter extends EventEmitter {
         if (stitch.colour_normalise) {
           const res = results.find(res => res.shot_id === shots[i].shot_id)
           if (res) {
-            await runFal('fal-ai/ic-light', { image_url: res.output_url, prompt: stitch.ic_light_instruction }).catch(() => { /* non-fatal */ })
+            await relightImage({ imageUrl: res.output_url, prompt: stitch.ic_light_instruction }).catch(() => { /* non-fatal */ })
           }
         }
       } catch { /* non-fatal — keep default stitch config */ }

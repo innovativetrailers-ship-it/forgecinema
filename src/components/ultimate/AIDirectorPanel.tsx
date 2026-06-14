@@ -2,9 +2,14 @@
 
 import { useState } from 'react'
 import { Sparkles, Brain, Zap, ChevronDown, Loader2, Film, Users, MapPin, Music } from 'lucide-react'
+import { nanoid } from 'nanoid'
 import type { TimelineRecipe } from '@/lib/timeline/schema'
 import { useUserTier } from '@/hooks/useUserTier'
 import { MODEL_COUNCIL_DISPLAY } from '@/lib/routing/engineRegistry'
+import { subscribeJobStream } from '@/lib/jobs/subscribeJobStream'
+import { ShotPlanPanel } from '@/components/ultimate/ShotPlanPanel'
+import { jobPlaybackPath } from '@/lib/media/jobPlayback'
+import { useScriptStore } from '@/store/scriptStore'
 
 interface Character { id: string; name: string; loraStatus: string }
 interface Location { id: string; name: string }
@@ -20,13 +25,23 @@ const DIRECTOR_PRESETS = [
 
 interface Props {
   script: string
+  projectId: string
   characters: Character[]
   locations: Location[]
   onRecipeGenerated: (recipe: TimelineRecipe) => void
+  onShotCompleted: (
+    shotId: string,
+    videoUrl: string,
+    duration: number,
+    extras?: { posterUrl?: string; jobId?: string },
+  ) => void
+  onShotReset?: (shotIds: string[]) => void
   creditBalance: number
 }
 
-export function AIDirectorPanel({ script, characters, locations, onRecipeGenerated, creditBalance }: Props) {
+export function AIDirectorPanel({
+  script, projectId, characters, locations, onRecipeGenerated, onShotCompleted, onShotReset, creditBalance,
+}: Props) {
   const [selectedModels, setSelectedModels] = useState<string[]>(['veo-3.1', 'kling-3.0', 'seedance-2.0'])
   const [stylePreset, setStylePreset] = useState('cinematic_drama')
   const [customInstructions, setCustomInstructions] = useState('')
@@ -37,6 +52,7 @@ export function AIDirectorPanel({ script, characters, locations, onRecipeGenerat
   const [isDirecting, setIsDirecting] = useState(false)
   const [progressSteps, setProgressSteps] = useState<string[]>([])
   const [showCouncil, setShowCouncil] = useState(true)
+  const [generationMode] = useState<'draft' | 'production'>('draft')
 
   const { isAdmin, perms } = useUserTier()
   const maxModels = isAdmin ? 999 : perms.maxDirectorModels
@@ -63,7 +79,8 @@ export function AIDirectorPanel({ script, characters, locations, onRecipeGenerat
   const estimatedCredits = selectedModels.length * 40 + Math.ceil(targetDuration / 5) * 15
 
   const handleDirector = async () => {
-    if (isDirecting || !script.trim()) return
+    const liveScript = useScriptStore.getState().scriptContent.trim()
+    if (isDirecting || !liveScript) return
     setIsDirecting(true)
     setProgressSteps([])
 
@@ -71,37 +88,83 @@ export function AIDirectorPanel({ script, characters, locations, onRecipeGenerat
 
     try {
       addStep('Analysing script structure…')
-      await new Promise((r) => setTimeout(r, 500))
-      addStep('Selecting model council…')
+      console.log('[Director] Script being sent (first 200 chars):', liveScript.slice(0, 200))
+      const prompt = customInstructions.trim()
+        ? `${liveScript}\n\nDirectorial notes (${stylePreset}): ${customInstructions}`
+        : liveScript
 
-      const res = await fetch('/api/studio/director', {
+      addStep('Queuing 6-phase orchestration…')
+
+      console.log('[Director] Sending selectedModels:', selectedModels)
+
+      const res = await fetch('/api/generate', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          script,
-          stylePreset,
-          customInstructions,
-          modelCouncil: selectedModels,
+          mode:           'director',
+          source:         'director',
+          generationMode: 'draft',
+          prompt,
+          selectedModels: selectedModels,
+          duration:       targetDuration,
+          projectId,
           aspectRatio,
-          targetDuration,
-          characters: useCharacters ? characters.map((c) => c.id) : [],
-          locations: useLocations ? locations.map((l) => l.id) : [],
         }),
       })
 
-      if (!res.ok) throw new Error('Director API failed')
-      const data = await res.json() as { recipe: TimelineRecipe; message?: string }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(err.error ?? 'Director request failed')
+      }
 
-      addStep('Building timeline recipe…')
-      await new Promise((r) => setTimeout(r, 300))
-      addStep('Queuing generation jobs…')
-      await new Promise((r) => setTimeout(r, 300))
-      addStep('Done ✓')
+      const { jobId } = await res.json() as { jobId: string }
+      addStep('Rendering film — watch progress below…')
 
-      onRecipeGenerated(data.recipe)
+      subscribeJobStream(jobId, {
+        onProgress: (data) => {
+          if (data.message) addStep(data.message)
+        },
+          onComplete: (outputUrl) => {
+            addStep('Done ✓')
+            const trackId = 't-v1'
+            const playPath = jobPlaybackPath(jobId) ?? outputUrl
+            const recipe: TimelineRecipe = {
+              id: nanoid(),
+              projectId,
+              fps: 24,
+              resolution: { width: 1920, height: 1080 },
+              durationSeconds: targetDuration,
+              colorSpace: 'rec709',
+              tracks: [{
+                id: trackId,
+                type: 'video',
+                label: 'VIDEO 1',
+                muted: false,
+                locked: false,
+                solo: false,
+                clips: [{
+                  id: nanoid(),
+                  trackId,
+                  startTime: 0,
+                  endTime: targetDuration,
+                  sourceUrl: playPath,
+                  prompt: liveScript.slice(0, 500),
+                  metadata: { jobId, outputUrl },
+                }],
+              }],
+            }
+            onRecipeGenerated(recipe)
+            setIsDirecting(false)
+          },
+        onFailed: (error) => {
+          addStep(`Error: ${error}`)
+          setIsDirecting(false)
+        },
+        onClose: () => setIsDirecting(false),
+      })
     } catch (err) {
       addStep(`Error: ${(err as Error).message}`)
-    } finally {
       setIsDirecting(false)
     }
   }
@@ -298,6 +361,16 @@ export function AIDirectorPanel({ script, characters, locations, onRecipeGenerat
             Need {estimatedCredits - creditBalance} more credits
           </p>
         )}
+
+        <ShotPlanPanel
+          projectId={projectId}
+          script={script}
+          selectedModels={selectedModels}
+          mode={generationMode}
+          targetDuration={targetDuration}
+          onShotCompleted={onShotCompleted}
+          onShotReset={onShotReset}
+        />
       </div>
     </div>
   )

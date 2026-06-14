@@ -8,11 +8,18 @@ import {
 } from 'lucide-react'
 import { useUserTier } from '@/hooks/useUserTier'
 import { UpgradeModal } from '@/components/ui/UpgradeModal'
-import {
-  FALLBACK_DOWNLOAD_URLS,
-  fetchLatestDesktopDownloads,
-  type DesktopDownloadUrls,
-} from '@/lib/desktop/releases'
+import { BrandLogo } from '@/components/brand/BrandLogo'
+import { TopBar } from '@/components/layout/TopBar'
+interface ReleaseApiResponse {
+  version: string | null
+  available: boolean
+  message?: string
+  downloads: {
+    mac_arm: string
+    mac_intel: string
+    windows: string
+  }
+}
 
 const BLOG_FEATURES = [
   {
@@ -82,26 +89,29 @@ function detectPlatform(): 'mac' | 'windows' | 'unknown' {
 export default function DownloadPage() {
   const { canDownload } = useUserTier()
   const [platform, setPlatform] = useState<'mac' | 'windows' | 'unknown'>('unknown')
-  const [downloads, setDownloads] = useState<DesktopDownloadUrls>(FALLBACK_DOWNLOAD_URLS)
+  const [releaseInfo, setReleaseInfo] = useState<ReleaseApiResponse | null>(null)
 
   useEffect(() => { setPlatform(detectPlatform()) }, [])
 
   useEffect(() => {
     let cancelled = false
-    void fetchLatestDesktopDownloads().then((urls) => {
-      if (!cancelled) setDownloads(urls)
-    })
+    void fetch('/api/desktop/releases', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: ReleaseApiResponse | null) => {
+        if (!cancelled && data) setReleaseInfo(data)
+      })
     return () => { cancelled = true }
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#070d1a] text-white">
+    <div className="min-h-screen bg-[#070d1a] text-white flex flex-col">
+      <TopBar />
+      <div className="flex-1 overflow-y-auto">
       <div className="border-b border-white/8">
         <div className="max-w-4xl mx-auto px-6 py-16 text-center">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Monitor className="w-10 h-10 text-[#00e5c8]" />
-            <h1 className="text-4xl font-bold">Forge Extreme</h1>
-          </div>
+          <BrandLogo size={96} showWordmark={false} className="justify-center mb-4" />
+          <h1 className="text-4xl font-bold mb-1">Cinematic Forge</h1>
+          <p className="text-sm uppercase tracking-[0.2em] text-[#00e5c8]/80 mb-3">Forge Extreme Desktop</p>
           <p className="text-xl text-gray-400 mb-2">The Professional Desktop Studio</p>
           <p className="text-sm text-gray-500 max-w-2xl mx-auto mb-8">
             Replace Premiere Pro, DaVinci Resolve, After Effects, Logic Pro, ShotGrid, and Frame.io
@@ -109,35 +119,47 @@ export default function DownloadPage() {
           </p>
 
           {canDownload ? (
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              {(platform === 'mac' || platform === 'unknown') && (
-                <>
+            releaseInfo && !releaseInfo.available ? (
+              <div className="max-w-lg mx-auto rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-100/90">
+                <p className="font-semibold text-amber-200 mb-1">Installers not published yet</p>
+                <p className="text-amber-100/70 leading-relaxed">
+                  {releaseInfo.message ?? 'Desktop builds are being prepared. Check back soon or contact support.'}
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                {(platform === 'mac' || platform === 'unknown') && releaseInfo && (
+                  <>
+                    <a
+                      href={releaseInfo.downloads.mac_arm}
+                      className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#00e5c8] text-black font-bold hover:bg-[#00f0d5] transition"
+                    >
+                      <Apple className="w-5 h-5" />
+                      Download for Mac — Apple Silicon
+                    </a>
+                    <a
+                      href={releaseInfo.downloads.mac_intel}
+                      className="flex items-center gap-2 px-6 py-3 rounded-xl border border-white/20 hover:bg-white/5 transition"
+                    >
+                      <Apple className="w-5 h-5" />
+                      Mac — Intel
+                    </a>
+                  </>
+                )}
+                {(platform === 'windows' || platform === 'unknown') && releaseInfo && (
                   <a
-                    href={downloads.mac_arm}
-                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#00e5c8] text-black font-bold hover:bg-[#00f0d5] transition"
-                  >
-                    <Apple className="w-5 h-5" />
-                    Download for Mac — Apple Silicon
-                  </a>
-                  <a
-                    href={downloads.mac_intel}
+                    href={releaseInfo.downloads.windows}
                     className="flex items-center gap-2 px-6 py-3 rounded-xl border border-white/20 hover:bg-white/5 transition"
                   >
-                    <Apple className="w-5 h-5" />
-                    Mac — Intel
+                    <Monitor className="w-5 h-5" />
+                    Download for Windows
                   </a>
-                </>
-              )}
-              {(platform === 'windows' || platform === 'unknown') && (
-                <a
-                  href={downloads.windows}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl border border-white/20 hover:bg-white/5 transition"
-                >
-                  <Monitor className="w-5 h-5" />
-                  Download for Windows
-                </a>
-              )}
-            </div>
+                )}
+                {!releaseInfo && (
+                  <p className="text-sm text-gray-500">Checking release availability…</p>
+                )}
+              </div>
+            )
           ) : (
             <div className="flex flex-col items-center gap-4">
               <div className="flex items-center gap-2 text-gray-500">
@@ -153,9 +175,9 @@ export default function DownloadPage() {
             </div>
           )}
 
-          {canDownload && downloads.version && (
+          {canDownload && releaseInfo?.available && releaseInfo.version && (
             <p className="text-[11px] text-gray-600 mt-4">
-              Version {downloads.version} · macOS 13+ · Windows 10/11 x64
+              Version {releaseInfo.version} · macOS 13+ · Windows 10/11 x64
             </p>
           )}
         </div>
@@ -240,6 +262,7 @@ export default function DownloadPage() {
       )}
 
       <UpgradeModal />
+      </div>
     </div>
   )
 }

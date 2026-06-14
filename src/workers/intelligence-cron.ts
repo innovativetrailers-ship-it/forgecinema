@@ -17,8 +17,13 @@ import { getIntelligenceQueueLength } from '../lib/firewall/domain-guard'
 
 console.log('[Intelligence Cron] Starting — PID', process.pid)
 
+if (process.env.DISABLE_INTELLIGENCE_PROBES === 'true') {
+  console.warn('[Intelligence Cron] DISABLE_INTELLIGENCE_PROBES=true — probe schedules will not run')
+}
+
 // Every 6 hours: check for model updates and handle them
 cron.schedule('0 */6 * * *', async () => {
+  if (process.env.DISABLE_INTELLIGENCE_PROBES === 'true') return
   console.log('[Intelligence Cron] Running update detection...')
   try {
     const watcher = new ModelUpdateWatcher()
@@ -35,6 +40,7 @@ cron.schedule('0 */6 * * *', async () => {
 
 // Weekly Monday 02:00 UTC: run full probe battery on all models
 cron.schedule('0 2 * * 1', async () => {
+  if (process.env.DISABLE_INTELLIGENCE_PROBES === 'true') return
   console.log('[Intelligence Cron] Starting weekly probe battery...')
   try {
     await runWeeklyProbeBattery()

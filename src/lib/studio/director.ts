@@ -1,19 +1,28 @@
 import { nanoid } from 'nanoid'
 import type { TimelineRecipe, Track, Clip } from '../timeline/schema'
 import { getOpenRouterClient } from '../brain/openai-client'
+import { getOperationCostKey, normalizeWorkerModelId, normaliseModelId } from '../models/router'
+import { OPERATION_COSTS } from '../credits'
 
-const DIRECTOR_SYSTEM_PROMPT = `You are the AI Director of CINÉMA — the world's most advanced AI film production platform.
+const DIRECTOR_SYSTEM_PROMPT = `You are the AI Director for Cinematic Forge. You assign shots to video generation models.
 
-Given a creative brief, available characters, and a target duration, you produce a complete film plan as a structured JSON timeline.
-
-You know exactly what each AI model excels at:
-- wan/animatediff: budget, fast, environment and abstract shots
-- luma: smooth camera motion, aerial and landscape shots
-- seedance: character consistency, dialogue scenes
-- kling_standard: action, motion-heavy scenes  
-- kling_pro: premium character shots with high consistency
-- runway: multi-shot continuity, professional quality
-- veo3: photorealistic scenes, physics-aware shots, top quality
+AVAILABLE MODELS (use exactly as written in modelUsed fields):
+- wan-2.6        cost: 2   best for: standard scenes, dialogue, establishing shots
+- ltx-2.3        cost: 6   best for: rapid drafts, simple motion
+- ltx-2.3-fast   cost: 2   best for: storyboard previews only
+- seedance-2.0   cost: 20  best for: narrative arcs, story-driven scenes
+- pixverse-c1    cost: 28  best for: text overlays, stylised scenes
+- skyreels-v3    cost: 18  best for: emotional performances, close-ups
+- minimax-2.3    cost: 10  best for: crowd scenes, wide shots
+- luma-ray3      cost: 8   best for: cinematic lighting, atmosphere
+- hunyuan-video-1.5 cost: 12 best for: crowd dynamics, large-scale scenes
+- pika-2.5       cost: 8   best for: short punchy clips, motion graphics
+- happyhorse-1.0 cost: 22  best for: dialogue close-ups, character acting
+- kling-3.0      cost: 25  best for: complex motion, action sequences
+- runway-gen4    cost: 22  best for: image-to-video, scene transitions
+- veo-3.1        cost: 35  best for: photorealism, fluid physics, hero shots
+- grok-imagine-video cost: 20 best for: creative/stylised content
+- sora-2         cost: 35  best for: long coherent sequences
 
 Your timeline plan must:
 1. Follow proper film grammar (establish scene → develop → climax → resolution)
@@ -22,7 +31,8 @@ Your timeline plan must:
 4. Ensure character continuity when the same character appears across shots
 5. Specify precise prompts for each clip
 
-Return ONLY valid JSON matching the TimelineRecipe schema.`
+Return ONLY valid JSON matching the TimelineRecipe schema.
+modelUsed fields must be exact kebab-case IDs from the list above.`
 
 type DirectorCharacter = {
   id: string
@@ -51,7 +61,7 @@ export async function runAIDirector(params: {
   const { brief, availableCharacters, availableLocations, targetDuration, style, projectId } = params
 
   const response = await getOpenRouterClient().chat.completions.create({
-    model: 'anthropic/claude-3.5-sonnet',
+    model: 'anthropic/claude-sonnet-4-5',
     max_tokens: 8000,
     messages: [
       { role: 'system', content: DIRECTOR_SYSTEM_PROMPT },
@@ -114,6 +124,7 @@ export async function queueDirectorGenerations(
 ): Promise<TimelineRecipe> {
   const { db } = await import('../db')
   const { renderQueue, getPriorityForRole } = await import('../queue')
+  const { checkAndDeductCredits } = await import('../credits')
 
   const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } })
   const priority = getPriorityForRole(user?.role ?? 'FREE')
@@ -126,9 +137,17 @@ export async function queueDirectorGenerations(
         track.clips.map(async (clip) => {
           if (clip.sourceUrl || !clip.prompt) return clip
 
-          const modelId = clip.modelUsed ?? 'wan_2_2'
+          const modelId = normaliseModelId(clip.modelUsed)
+          const costKey = getOperationCostKey(normalizeWorkerModelId(modelId))
+          const cost = OPERATION_COSTS[costKey] ?? 2
           const jobId = nanoid()
           const duration = Math.max(1, clip.endTime - clip.startTime)
+
+          try {
+            await checkAndDeductCredits(userId, costKey)
+          } catch {
+            return clip
+          }
 
           await db.renderJob.create({
             data: {
@@ -145,20 +164,26 @@ export async function queueDirectorGenerations(
                 locationId: clip.locationId,
                 clipId: clip.id,
               } as never,
-              creditsCharged: 0,
+              creditsCharged: cost,
             },
           })
 
           await renderQueue.add(
-            'generate',
+            'render',
             {
               jobId,
               userId,
               projectId: recipe.projectId,
-              prompt: clip.prompt,
-              duration,
+              type: 'GENERATE',
               modelId,
-              clipId: clip.id,
+              payload: {
+                prompt: clip.prompt,
+                duration,
+                aspectRatio: '16:9',
+                characterId: clip.characterId,
+                locationId: clip.locationId,
+                clipId: clip.id,
+              },
             },
             { priority },
           )

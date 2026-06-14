@@ -65,7 +65,7 @@ export async function retimeClip(params: RetimeParams): Promise<RetimeResult> {
   // Slow-motion path: fal.ai frame interpolation
   try {
     const multiplier = Math.round(1 / speedFactor)
-    const result: unknown = await fal.subscribe('fal-ai/film-interpolation', {
+    const result: unknown = await fal.subscribe('fal-ai/film/interpolation', {
       input: { video_url: clipUrl, multiplier, output_fps: outputFramerate },
       pollInterval: 2000,
     })

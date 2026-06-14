@@ -4,6 +4,7 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 import { Volume2, VolumeX, Lock, Unlock, Eye } from 'lucide-react'
 import { TRACK_LABEL_WIDTH, RULER_HEIGHT, TRACK_HEIGHT, MODEL_CLIP_COLOURS, TRACK_COLOURS } from './constants'
 import type { TimelineRecipe, Track, Clip } from '@/lib/timeline/schema'
+import { clipPosterUrl, computeTimelineDuration, isVideoMediaUrl } from '@/lib/timeline/playback'
 
 interface ActiveJob { jobId: string; clipId: string; progress?: number }
 
@@ -64,7 +65,7 @@ export function Timeline({
   const [hoveredClipId, setHoveredClipId] = useState<string | null>(null)
 
   const tracks = recipe?.tracks ?? []
-  const totalDuration = recipe?.durationSeconds ?? 60
+  const totalDuration = computeTimelineDuration(tracks, recipe?.durationSeconds ?? 60)
 
   // Ruler tick marks
   const tickInterval = zoomLevel >= 100 ? 1 : zoomLevel >= 40 ? 5 : 10
@@ -307,18 +308,31 @@ function TrackRow({
               />
 
               {/* Content */}
-              <div className="flex-1 px-2 min-w-0">
+              <div className="flex-1 px-2 min-w-0 relative h-full">
                 {isGenerating ? (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 h-full">
                     <div className="w-2 h-2 rounded-full bg-[#00f0d5] animate-pulse" />
                     <span className="text-[9px] text-white/80 truncate">
                       ⟳ {activeJob?.progress != null ? `${activeJob.progress}%` : 'Generating…'}
                     </span>
                   </div>
+                ) : !clip.sourceUrl || !isVideoMediaUrl(clip.sourceUrl) ? (
+                  <div className="flex items-center h-full text-[9px] text-red-300/90 truncate">
+                    ⚠ no media — re-render
+                  </div>
                 ) : (
-                  <span className="text-[9px] text-white/70 truncate block leading-none">
-                    {clip.prompt ? clip.prompt.slice(0, 30) : clip.modelUsed ?? 'Clip'}
-                  </span>
+                  <>
+                    {clipPosterUrl(clip) && w > 40 && (
+                      <img
+                        src={clipPosterUrl(clip)}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover opacity-40 pointer-events-none rounded-sm"
+                      />
+                    )}
+                    <span className="relative z-[1] text-[9px] text-white/90 truncate block leading-none drop-shadow">
+                      {clip.prompt ? clip.prompt.slice(0, 30) : clip.modelUsed ?? 'Clip'}
+                    </span>
+                  </>
                 )}
                 {isAudio && (
                   <div className="flex gap-0.5 mt-1 h-2 items-end">

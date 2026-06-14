@@ -47,6 +47,13 @@ import { DEFAULT_ZOOM } from '@/components/editor/constants'
 import type { TimelineRecipe, Clip, Track } from '@/lib/timeline/schema'
 import { fetchJsonSafe } from '@/lib/safeFetch'
 import { fireRewardSignal } from '@/lib/feedback/signal'
+import { useScriptStore } from '@/store/scriptStore'
+import { usePlaybackStore } from '@/store/playbackStore'
+import { importLegacyPendingClips } from '@/lib/timeline/importLegacyPending'
+import { useJobStore } from '@/store/jobStore'
+import { subscribeJobStream } from '@/lib/jobs/subscribeJobStream'
+import { computeTimelineDuration, isVideoMediaUrl, sanitizeClipDuration } from '@/lib/timeline/playback'
+import { jobPlaybackPath } from '@/lib/media/jobPlayback'
 
 type UltimateTab = 'script' | 'storyboard' | 'director' | 'cgi' | 'continuity' | 'audio' | 'locations'
 
@@ -103,15 +110,33 @@ interface ActiveJob { jobId: string; clipId: string; trackId: string; progress: 
 export default function UltimatePage() {
   const { data: session } = useSession()
   const { balance: creditBalance } = useCredits()
-  const projectId = useRef(nanoid())
+  const storedProjectId = usePlaybackStore((s) => s.projectId)
+  const projectId = useRef(storedProjectId ?? nanoid())
 
   // UIStore — icon rail / film toolbar panel selection
   const { activePanel } = useUIStore()
 
-  // Film state
-  const [script, setScript] = useState('')
-  const [scenes, setScenes] = useState<ScriptScene[]>([])
-  const [shots, setShots] = useState<StoryboardShot[]>([])
+  const script = useScriptStore((s) => s.scriptContent)
+  const scenes = useScriptStore((s) => s.parsedScenes)
+  const shots = useScriptStore((s) => s.parsedShots)
+  const setParsed = useScriptStore((s) => s.setParsed)
+  const setShots = useScriptStore((s) => s.setShots)
+
+  useEffect(() => {
+    usePlaybackStore.getState().setProjectId(projectId.current)
+    const { scriptProjectId, setScriptProjectId, clearScript } = useScriptStore.getState()
+    if (scriptProjectId && scriptProjectId !== projectId.current) {
+      clearScript()
+    }
+    setScriptProjectId(projectId.current)
+    void importLegacyPendingClips().then((count) => {
+      if (count > 0) {
+        const fresh = usePlaybackStore.getState().recipe
+        if (fresh) setRecipe(fresh)
+      }
+    })
+  }, [])
+
   const [activeTab, setActiveTab] = useState<UltimateTab>('script')
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightCollapsed, setRightCollapsed] = useState(false)
@@ -149,8 +174,24 @@ export default function UltimatePage() {
   }, [])
 
   // Timeline state
-  const [recipe, setRecipe] = useState<TimelineRecipe>(() => buildRecipe(projectId.current))
-  const [playheadTime, setPlayheadTime] = useState(0)
+  const storedRecipe = usePlaybackStore((s) => s.recipe)
+  const storedPlayhead = usePlaybackStore((s) => s.playheadTime)
+  const persistRecipe = usePlaybackStore((s) => s.setRecipe)
+  const persistPlayhead = usePlaybackStore((s) => s.setPlayhead)
+
+  const [recipe, setRecipe] = useState<TimelineRecipe>(() => storedRecipe ?? buildRecipe(projectId.current))
+  useProjectAutosave(recipe)
+
+  useEffect(() => {
+    void fetch(`/api/projects/${projectId.current}/save`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipe: storedRecipe ?? buildRecipe(projectId.current) }),
+    }).catch(() => {})
+  }, [])
+
+  const [playheadTime, setPlayheadTime] = useState(storedPlayhead)
   const [isPlaying, setIsPlaying] = useState(false)
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null)
   const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM)
@@ -171,7 +212,12 @@ export default function UltimatePage() {
     historyRef.current = stack.slice(-50)
     historyIndexRef.current = historyRef.current.length - 1
     setRecipe(r)
-  }, [])
+    persistRecipe(r)
+  }, [persistRecipe])
+
+  useEffect(() => {
+    persistPlayhead(playheadTime)
+  }, [playheadTime, persistPlayhead])
 
   const undo = useCallback(() => {
     if (historyIndexRef.current <= 0) return
@@ -197,20 +243,10 @@ export default function UltimatePage() {
     }).catch(console.error)
   }, [session])
 
-  // Playback ticker
-  useEffect(() => {
-    if (!isPlaying) return
-    const interval = setInterval(() => {
-      setPlayheadTime((t) => {
-        const next = t + 1 / recipe.fps
-        if (next >= recipe.durationSeconds) { setIsPlaying(false); return 0 }
-        return next
-      })
-    }, 1000 / recipe.fps)
-    return () => clearInterval(interval)
-  }, [isPlaying, recipe.fps, recipe.durationSeconds])
+  const allClips = recipe.tracks.flatMap((t) => t.clips)
+  const timelineDuration = computeTimelineDuration(recipe.tracks, recipe.durationSeconds)
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts — playback clock driven by video onTimeUpdate (VideoPreview)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return
@@ -218,11 +254,11 @@ export default function UltimatePage() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
       if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo() }
       if (e.key === 'Home') setPlayheadTime(0)
-      if (e.key === 'End') setPlayheadTime(recipe.durationSeconds)
+      if (e.key === 'End') setPlayheadTime(timelineDuration)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [undo, redo, recipe.durationSeconds])
+  }, [undo, redo, timelineDuration])
 
   // Sync icon rail / film toolbar → local activeTab
   useEffect(() => {
@@ -237,12 +273,31 @@ export default function UltimatePage() {
     }
   }, [activePanel])
 
-  const allClips = recipe.tracks.flatMap((t) => t.clips)
   const selectedClip = selectedClipId ? allClips.find((c) => c.id === selectedClipId) ?? null : null
+
+  const handlePlaybackEnded = useCallback(() => {
+    const videoClips = allClips
+      .filter((c) => c.sourceUrl && isVideoMediaUrl(c.sourceUrl))
+      .sort((a, b) => a.startTime - b.startTime)
+    const current = videoClips.find(
+      (c) => c.startTime <= playheadTime && c.endTime > playheadTime,
+    )
+    if (!current) {
+      setIsPlaying(false)
+      return
+    }
+    const idx = videoClips.indexOf(current)
+    const next = videoClips[idx + 1]
+    if (next) {
+      setPlayheadTime(next.startTime)
+    } else {
+      setIsPlaying(false)
+      setPlayheadTime(timelineDuration)
+    }
+  }, [allClips, playheadTime, timelineDuration])
 
   // Storyboard handlers
   const handleScenesExtracted = useCallback((extracted: ScriptScene[]) => {
-    setScenes(extracted)
     // Build storyboard shots from scenes
     const newShots: StoryboardShot[] = extracted.flatMap((scene, si) =>
       Array.from({ length: Math.max(1, Math.ceil(scene.estimatedDuration / 8)) }, (_, i) => ({
@@ -258,44 +313,36 @@ export default function UltimatePage() {
         status: 'pending',
       }))
     )
-    setShots(newShots)
+    setParsed(extracted, newShots)
     setActiveTab('storyboard')
-  }, [])
-
-  const handleGenerateStoryboard = useCallback((scriptText: string) => {
-    setScript(scriptText)
-  }, [])
+  }, [setParsed])
 
   const handleShotUpdate = useCallback((shotId: string, updates: Partial<StoryboardShot>) => {
-    setShots((prev) => prev.map((s) => s.id === shotId ? { ...s, ...updates } : s))
-  }, [])
+    const next = useScriptStore.getState().parsedShots.map((s) =>
+      s.id === shotId ? { ...s, ...updates } : s
+    )
+    setShots(next)
+  }, [setShots])
 
   const handleRegenerateFrame = useCallback(async (shotId: string) => {
     const shot = shots.find((s) => s.id === shotId)
     if (!shot) return
     handleShotUpdate(shotId, { status: 'generating_frame' })
     try {
-      const res = await fetch('/api/jobs/create', {
+      const screenplay = `INT. SCENE - DAY\n${shot.shotType} ${shot.cameraAngle}. ${shot.action}`
+      const res = await fetch('/api/storyboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'GENERATE',
-          payload: { prompt: `${shot.shotType} shot, ${shot.cameraAngle}, ${shot.action}`, model: 'flux_dev', duration: 1 },
-        }),
+        body: JSON.stringify({ screenplay, style: 'cinematic' }),
       })
-      const { jobId } = await res.json() as { jobId: string }
-      const sse = new EventSource(`/api/jobs/${jobId}/stream`)
-      sse.onmessage = (e) => {
-        const data = JSON.parse(e.data) as { status: string; outputUrl?: string }
-        if (data.status === 'complete' && data.outputUrl) {
-          handleShotUpdate(shotId, { frameImageUrl: data.outputUrl, status: 'frame_ready' })
-          sse.close()
-        } else if (data.status === 'failed') {
-          handleShotUpdate(shotId, { status: 'failed' })
-          sse.close()
-        }
+      if (!res.ok) throw new Error('Storyboard frame failed')
+      const data = await res.json() as { scenes?: Array<{ imageUrl?: string }> }
+      const imageUrl = data.scenes?.[0]?.imageUrl
+      if (imageUrl) {
+        handleShotUpdate(shotId, { frameImageUrl: imageUrl, status: 'frame_ready' })
+      } else {
+        handleShotUpdate(shotId, { status: 'failed' })
       }
-      sse.onerror = () => { handleShotUpdate(shotId, { status: 'failed' }); sse.close() }
     } catch { handleShotUpdate(shotId, { status: 'failed' }) }
   }, [shots, handleShotUpdate])
 
@@ -309,11 +356,13 @@ export default function UltimatePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'GENERATE',
+          projectId: projectId.current,
           payload: {
             prompt: `${shot.shotType} ${shot.cameraAngle} ${shot.action}`,
-            imageUrl: shot.frameImageUrl,
+            startFrameUrl: shot.frameImageUrl,
             duration: shot.estimatedDuration,
             model: 'kling_standard',
+            quality: 'premium',
           },
         }),
       })
@@ -358,6 +407,53 @@ export default function UltimatePage() {
     commitHistory(newRecipe)
     setActiveTab('storyboard')
   }, [commitHistory])
+
+  const handleShotPlanReset = useCallback((shotIds: string[]) => {
+    const remove = new Set(shotIds)
+    commitHistory({
+      ...recipe,
+      tracks: recipe.tracks.map((t) => ({
+        ...t,
+        clips: t.clips.filter((c) => {
+          const meta = c.metadata as { shotPlanId?: string } | undefined
+          return !meta?.shotPlanId || !remove.has(meta.shotPlanId)
+        }),
+      })),
+    })
+  }, [recipe, commitHistory])
+
+  const handleShotPlanCompleted = useCallback((
+    shotId: string,
+    videoUrl: string,
+    duration: number,
+    extras?: { posterUrl?: string; jobId?: string },
+  ) => {
+    const trackId = 't-v1'
+    const mainTrack = recipe.tracks.find((t) => t.id === trackId)
+    const lastEnd = mainTrack?.clips.reduce((max, c) => Math.max(max, c.endTime), 0) ?? 0
+    const dur = sanitizeClipDuration(duration, 5)
+    const sourceUrl = extras?.jobId ? (jobPlaybackPath(extras.jobId) ?? videoUrl) : videoUrl
+    const clipId = nanoid()
+    const newClip: Clip = {
+      id: clipId,
+      trackId,
+      startTime: lastEnd,
+      endTime: lastEnd + dur,
+      sourceUrl,
+      posterUrl: extras?.posterUrl,
+      prompt: `Shot ${shotId.slice(0, 8)}`,
+      metadata: { shotPlanId: shotId, jobId: extras?.jobId },
+    }
+    const nextTracks = recipe.tracks.map((t) =>
+      t.id === trackId ? { ...t, clips: [...t.clips, newClip] } : t,
+    )
+    commitHistory({
+      ...recipe,
+      durationSeconds: computeTimelineDuration(nextTracks, recipe.durationSeconds),
+      tracks: nextTracks,
+    })
+    setActiveTab('storyboard')
+  }, [recipe, commitHistory])
 
   // Timeline mutations
   const handleClipMove = useCallback((clipId: string, newStart: number, targetTrackId: string) => {
@@ -429,7 +525,7 @@ export default function UltimatePage() {
       const res = await fetch('/api/timeline/render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipe }),
+        body: JSON.stringify({ projectId: projectId.current, recipe }),
       })
       const { jobId } = await res.json() as { jobId: string }
       // Exporting the film is the strongest positive signal in the RLAIF loop.
@@ -508,12 +604,9 @@ export default function UltimatePage() {
           {!leftCollapsed && (
             <div className="flex-1 overflow-hidden">
               <Suspense fallback={<div className="flex items-center justify-center h-full text-zinc-500 text-sm">Loading…</div>}>
-              {activeTab === 'script' && (
-                <ScriptEditor
-                  onScenesExtracted={handleScenesExtracted}
-                  onGenerateStoryboard={handleGenerateStoryboard}
-                />
-              )}
+              <div className={activeTab === 'script' ? 'h-full' : 'hidden'}>
+                <ScriptEditor onScenesExtracted={handleScenesExtracted} />
+              </div>
               {activeTab === 'storyboard' && (
                 <StoryboardViewer
                   scenes={scenes}
@@ -527,9 +620,12 @@ export default function UltimatePage() {
               {activeTab === 'director' && (
                 <AIDirectorPanel
                   script={script}
+                  projectId={projectId.current}
                   characters={characters}
                   locations={locations}
                   onRecipeGenerated={handleRecipeGenerated}
+                  onShotCompleted={handleShotPlanCompleted}
+                  onShotReset={handleShotPlanReset}
                   creditBalance={creditBalance}
                 />
               )}
@@ -553,6 +649,7 @@ export default function UltimatePage() {
               )}
               {activeTab === 'continuity' && (
                 <ContinuityChecker
+                  recipe={recipe}
                   clips={allClips}
                   onRepaintSuggested={(clipId) => {
                     const clip = allClips.find((c) => c.id === clipId)
@@ -562,6 +659,7 @@ export default function UltimatePage() {
               )}
               {activeTab === 'audio' && (
                 <AudioMixingBoard
+                  projectId={projectId.current}
                   projectDuration={recipe.durationSeconds}
                   onTracksApplied={handleAudioTracksApplied}
                 />
@@ -590,12 +688,13 @@ export default function UltimatePage() {
             tracks={recipe.tracks}
             playheadTime={playheadTime}
             isPlaying={isPlaying}
-            duration={recipe.durationSeconds}
+            duration={timelineDuration}
             activeJobs={activeJobs}
             onPlayPause={() => setIsPlaying((p) => !p)}
             onSeek={setPlayheadTime}
             onSkipToStart={() => setPlayheadTime(0)}
-            onSkipToEnd={() => setPlayheadTime(recipe.durationSeconds)}
+            onSkipToEnd={() => setPlayheadTime(timelineDuration)}
+            onPlaybackEnded={handlePlaybackEnded}
             onClipEdited={(clipId, url) => handleClipUpdate(clipId, { sourceUrl: url })}
           />
 

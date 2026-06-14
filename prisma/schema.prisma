@@ -34,6 +34,36 @@ enum JobStatus {
   COMPLETE
   FAILED
   CANCELLED
+  NEEDS_ATTENTION
+}
+
+enum HoldStatus {
+  ACTIVE
+  SETTLED
+  REFUNDED
+}
+
+enum StudioSceneStatus {
+  PENDING
+  GENERATING
+  GENERATED
+  FAILED
+}
+
+enum StudioClipStatus {
+  PENDING
+  AWAITING_DIRECTION
+  GENERATING
+  COMPLETED
+  FAILED
+  MANUAL
+}
+
+enum AnchorSource {
+  AUTO
+  MANUAL
+  KEYFRAME
+  NONE
 }
 
 enum LocationSource {
@@ -60,6 +90,7 @@ model User {
   passwordHash       String?
   role               UserRole  @default(FREE)
   creditBalance      Int       @default(50)
+  heldCredits        Int       @default(0)
   totalGenerated     Int       @default(0)
   subscriptionTier     String    @default("free")
   subscriptionStatus String    @default("trial")
@@ -68,6 +99,7 @@ model User {
 
   projects        Project[]
   creditTxns      CreditTransaction[]
+  creditHolds     CreditHold[]
   renderJobs      RenderJob[]
   trainingData    TrainingData[]
   rlhfLogs        RLHFLog[]
@@ -127,6 +159,8 @@ model Project {
   resolution      String    @default("1920x1080")
   status          String    @default("draft")
   isPublic        Boolean   @default(false)
+  musicUrl        String?
+  ambienceUrl     String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -135,8 +169,112 @@ model Project {
   vaultChars      VaultCharacter[]
   vaultLocations  VaultLocation[]
   mediaBins       MediaBin[]
+  studioScenes    StudioScene[]
+  audioTracks     AudioTrack[]
 
   @@index([userId])
+}
+
+enum AudioType {
+  DIALOGUE
+  MUSIC
+  AMBIENCE
+  SFX
+  CUSTOM
+}
+
+enum AudioProvider {
+  ELEVENLABS
+  SUNO
+  UPLOAD
+}
+
+enum AudioStatus {
+  PENDING
+  GENERATING
+  READY
+  FAILED
+}
+
+model AudioTrack {
+  id                  String        @id @default(cuid())
+  projectId           String
+  type                AudioType
+  provider            AudioProvider @default(ELEVENLABS)
+  status              AudioStatus   @default(PENDING)
+  prompt              String?       @db.Text
+  voiceId             String?
+  sunoStyle           String?
+  sunoLyrics          String?       @db.Text
+  instrumental        Boolean       @default(true)
+  shotPlanId          String?
+  sceneNumber         Int?
+  startSec            Float?
+  volumeDb            Float         @default(0)
+  muted               Boolean       @default(false)
+  locked              Boolean       @default(false)
+  fadeInMs            Int           @default(0)
+  fadeOutMs           Int           @default(0)
+  duckUnderDialogue   Boolean       @default(false)
+  durationWarning     Boolean       @default(false)
+  url                 String?
+  durationMs          Int?
+  version             Int           @default(1)
+  prevUrl             String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  project             Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, type])
+  @@index([shotPlanId])
+}
+
+model StudioScene {
+  id              String            @id @default(cuid())
+  projectId       String
+  sceneNumber     Int
+  title           String?
+  transitionFrame String?
+  status          StudioSceneStatus @default(PENDING)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  project         Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clips           StudioClip[]
+
+  @@unique([projectId, sceneNumber])
+  @@index([projectId])
+}
+
+model StudioClip {
+  id              String           @id @default(cuid())
+  sceneId         String
+  clipNumber      Int
+  prompt          String           @db.Text
+  originalPrompt  String?          @db.Text
+  duration        Int
+  aspectRatio     String           @default("16:9")
+  assignedModel   String?
+  status          StudioClipStatus @default(PENDING)
+  videoUrl        String?
+  lastFrame       String?
+  keyframeUrl     String?
+  scriptBeatId    String?
+  anchorPolicy    String           @default("none")
+  anchorFrameUrl  String?
+  anchorSource    AnchorSource     @default(NONE)
+  directionNotes  String?          @db.Text
+  modelOverride   String?
+  generatingAt    DateTime?
+  lipSyncEnabled  Boolean          @default(true)
+  lipSyncModel    String?
+  rawVideoUrl     String?
+  manualVideo     Boolean          @default(false)
+  estimatedCost   Int              @default(0)
+  scene           StudioScene      @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  @@unique([sceneId, clipNumber])
+  @@index([sceneId])
 }
 
 model VaultCharacter {
@@ -226,11 +364,61 @@ model RenderJob {
   etaSeconds      Int?        // estimated seconds remaining (updated live by worker)
   metadata        Json?
 
-  user            User        @relation(fields: [userId], references: [id])
-  project         Project?    @relation(fields: [projectId], references: [id])
+  user                User                @relation(fields: [userId], references: [id])
+  project             Project?            @relation(fields: [projectId], references: [id])
+  creditHold          CreditHold?
+  segmentCheckpoints  SegmentCheckpoint[]
+  segmentLedgers      SegmentLedger[]
 
   @@index([userId, status])
   @@index([projectId])
+}
+
+model CreditHold {
+  id          String     @id @default(cuid())
+  userId      String
+  jobId       String     @unique
+  amountHeld  Int
+  amountUsed  Int        @default(0)
+  status      HoldStatus @default(ACTIVE)
+  budgetCap   Int?
+  createdAt   DateTime   @default(now())
+  settledAt   DateTime?
+
+  user        User       @relation(fields: [userId], references: [id])
+  job         RenderJob  @relation(fields: [jobId], references: [id])
+
+  @@index([userId])
+}
+
+model SegmentCheckpoint {
+  id          String   @id @default(cuid())
+  jobId       String
+  segmentId   String
+  shotId      Int
+  videoUrl    String
+  modelUsed   String
+  cost        Int
+  qaPassed    Boolean  @default(true)
+  anchorFrame String?
+  createdAt   DateTime @default(now())
+
+  job         RenderJob @relation(fields: [jobId], references: [id])
+
+  @@unique([jobId, segmentId])
+  @@index([jobId])
+}
+
+model SegmentLedger {
+  id        String   @id @default(cuid())
+  jobId     String
+  segmentId String
+  cost      Int
+  createdAt DateTime @default(now())
+
+  job       RenderJob @relation(fields: [jobId], references: [id])
+
+  @@index([jobId])
 }
 
 model CreditTransaction {
@@ -702,6 +890,14 @@ model ModelUpdate {
   routingUpdated           Boolean  @default(false)
 
   @@index([engineId])
+}
+
+/// FAL OpenAPI input constraints — cached per endpoint (schema-sync engine).
+model ModelConstraint {
+  endpoint   String   @id
+  json       Json
+  schemaHash String
+  fetchedAt  DateTime
 }
 
 model TrainingSignal {

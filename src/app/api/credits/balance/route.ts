@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { auth } from '@/lib/auth'
 import { getEffectiveTier, resolveSubscriptionTier } from '@/lib/access/tiers'
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const userId = req.headers.get('x-user-id')
+  const session = await auth()
+  const userId = req.headers.get('x-user-id') ?? session?.user?.id
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const user = await db.user.findUnique({

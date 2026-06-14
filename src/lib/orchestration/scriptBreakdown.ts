@@ -78,8 +78,10 @@ For each shot return:
   "mood": "tension|joy|sorrow|wonder|fear|calm|action",
   "bridgeRequired": boolean (true for all shots after the first),
   "suggestedModel": "which model from the available pool best suits this shot",
-  "continuityGroup": number (shots in the same unbroken action share this),
-  "isChainStart": boolean (true if this is the first shot of its continuityGroup)
+  "sceneNumber": number (narrative scene — new location/time = new sceneNumber),
+  "scriptBeatId": string (optional id linking to a script dialogue beat),
+  "continuityGroup": number (same as sceneNumber when possible),
+  "isChainStart": boolean (true ONLY for shotIndex 0 — first clip of the entire film)
 }`,
       }],
     }),
@@ -93,11 +95,19 @@ For each shot return:
     // Normalise continuity fields — Claude may omit them; fall back to each shot
     // being its own chain so downstream scheduling is always well-defined.
     const seenGroups = new Set<number>()
-    const shots: StructuredShot[] = parsed.map(shot => {
-      const continuityGroup = shot.continuityGroup ?? shot.shotIndex
-      const isChainStart     = shot.isChainStart ?? !seenGroups.has(continuityGroup)
+    const basePrompt = typeof prompt === 'string' ? prompt.trim() : ''
+    const shots: StructuredShot[] = parsed
+      .filter((shot): shot is StructuredShot => shot != null && typeof shot === 'object')
+      .map((shot, index) => {
+      const sceneNumber = shot.sceneNumber ?? shot.continuityGroup ?? shot.shotIndex ?? index
+      const continuityGroup = shot.continuityGroup ?? sceneNumber
+      const isChainStart = shot.isChainStart ?? index === 0
       seenGroups.add(continuityGroup)
-      return { ...shot, continuityGroup, isChainStart }
+      const raw = shot as StructuredShot & { prompt?: string }
+      const visualPrompt =
+        (shot.visualPrompt ?? raw.prompt ?? basePrompt).trim() || basePrompt || 'Cinematic shot'
+      const startsAtHardCut = shot.startsAtHardCut ?? isChainStart
+      return { ...shot, visualPrompt, sceneNumber, continuityGroup, isChainStart, startsAtHardCut }
     })
 
     const total = shots.reduce((s, shot) => s + shot.duration, 0)

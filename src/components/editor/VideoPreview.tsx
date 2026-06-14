@@ -4,6 +4,7 @@ import { useRef, useEffect, useState, useCallback } from 'react'
 import { Play, Pause, SkipBack, SkipForward, Maximize2, Loader2 } from 'lucide-react'
 import { PREVIEW_HEIGHT } from './constants'
 import type { Clip, Track } from '@/lib/timeline/schema'
+import { isVideoMediaUrl } from '@/lib/timeline/playback'
 
 interface ActiveJob {
   jobId: string
@@ -14,7 +15,6 @@ interface ActiveJob {
 
 interface Props {
   clips: Clip[]
-  /** Full track list — enables multi-track audio mixing (music/voice/sfx). Optional: omit for video-only preview. */
   tracks?: Track[]
   playheadTime: number
   isPlaying: boolean
@@ -24,6 +24,8 @@ interface Props {
   onSeek: (t: number) => void
   onSkipToStart: () => void
   onSkipToEnd: () => void
+  /** Advance to next clip when the active video ends. */
+  onPlaybackEnded?: () => void
 }
 
 function formatTimecode(seconds: number): string {
@@ -33,6 +35,13 @@ function formatTimecode(seconds: number): string {
   const f = Math.floor((seconds % 1) * 24)
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(f).padStart(2, '0')}`
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(f).padStart(2, '0')}`
+}
+
+function pickClipAtPlayhead(clips: Clip[], playheadTime: number): Clip | undefined {
+  return clips
+    .filter((c) => c.sourceUrl && isVideoMediaUrl(c.sourceUrl)
+      && c.startTime <= playheadTime && c.endTime > playheadTime)
+    .sort((a, b) => b.startTime - a.startTime)[0]
 }
 
 export function VideoPreview({
@@ -46,38 +55,50 @@ export function VideoPreview({
   onSeek,
   onSkipToStart,
   onSkipToEnd,
+  onPlaybackEnded,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
+  const isPlayingRef = useRef(isPlaying)
 
-  // Find current clip at playhead (video clips only, identified by having a sourceUrl that looks like video)
-  const currentClip = clips
-    .filter((c) => c.sourceUrl && c.startTime <= playheadTime && c.endTime >= playheadTime)
-    .sort((a, b) => b.startTime - a.startTime)[0]
+  useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
 
+  const currentClip = pickClipAtPlayhead(clips, playheadTime)
   const hasGenerating = activeJobs.length > 0
 
+  // Load src when active clip changes; seek when paused.
   useEffect(() => {
     const video = videoRef.current
     if (!video || !currentClip?.sourceUrl) return
 
-    if (video.src !== currentClip.sourceUrl) {
-      video.src = currentClip.sourceUrl
-      video.currentTime = playheadTime - currentClip.startTime
+    const localTime = Math.max(0, playheadTime - currentClip.startTime)
+    const src = currentClip.sourceUrl
+
+    if (!video.src.includes(src.split('?')[0] ?? src)) {
+      video.src = src
+      video.load()
     }
+
+    if (!isPlaying && Math.abs(video.currentTime - localTime) > 0.05) {
+      video.currentTime = localTime
+    }
+  }, [currentClip?.id, currentClip?.sourceUrl, currentClip?.startTime, playheadTime, isPlaying])
+
+  // Play / pause the media element (not just React state).
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !currentClip?.sourceUrl) return
 
     if (isPlaying) {
-      video.play().catch(() => {})
+      video.play().catch((e) => console.error('video.play rejected', e))
     } else {
       video.pause()
-      video.currentTime = playheadTime - currentClip.startTime
     }
-  }, [currentClip, isPlaying, playheadTime])
+  }, [isPlaying, currentClip?.id, currentClip?.sourceUrl])
 
-  // Multi-track audio mixer: play + sync every active audio-track clip alongside
-  // the video, using one <audio> element per clip. No-op unless `tracks` is passed.
+  // Multi-track audio mixer
   useEffect(() => {
     const audioTracks = (tracks ?? []).filter((t) => t.type === 'audio' && !t.muted)
     const active = audioTracks.flatMap((t) =>
@@ -87,7 +108,6 @@ export function VideoPreview({
     )
     const activeIds = new Set(active.map((a) => a.clip.id))
 
-    // Stop audio that is no longer under the playhead
     audioRefs.current.forEach((el, id) => {
       if (!activeIds.has(id)) { el.pause(); audioRefs.current.delete(id) }
     })
@@ -107,53 +127,78 @@ export function VideoPreview({
     }
   }, [tracks, playheadTime, isPlaying])
 
-  // Pause + release all audio elements on unmount
   useEffect(() => {
     const refs = audioRefs.current
     return () => { refs.forEach((el) => el.pause()); refs.clear() }
   }, [])
 
   const handleTimeUpdate = useCallback(() => {
-    if (!videoRef.current || !currentClip) return
-    onSeek(currentClip.startTime + videoRef.current.currentTime)
+    if (!isPlayingRef.current) return
+    const video = videoRef.current
+    if (!video || !currentClip) return
+    onSeek(currentClip.startTime + video.currentTime)
   }, [currentClip, onSeek])
 
+  const handleEnded = useCallback(() => {
+    onPlaybackEnded?.()
+  }, [onPlaybackEnded])
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
+
   const toggleFullscreen = async () => {
-    if (!containerRef.current) return
-    if (!document.fullscreenElement) {
-      await containerRef.current.requestFullscreen()
-      setIsFullscreen(true)
-    } else {
-      await document.exitFullscreen()
-      setIsFullscreen(false)
+    const el = containerRef.current
+    if (!el) return
+    try {
+      if (!document.fullscreenElement) {
+        await el.requestFullscreen()
+      } else {
+        await document.exitFullscreen()
+      }
+    } catch (e) {
+      console.error('fullscreen failed', e)
+      const v = videoRef.current as HTMLVideoElement & { webkitEnterFullscreen?: () => void }
+      v?.webkitEnterFullscreen?.()
     }
   }
 
   return (
     <div
       ref={containerRef}
-      className="relative flex flex-col bg-black border-b border-white/8"
+      className="preview-container relative flex flex-col bg-black border-b border-white/8"
       style={{ height: PREVIEW_HEIGHT }}
     >
-      {/* Video frame */}
       <div className="flex-1 relative flex items-center justify-center bg-[#050508]">
-        {currentClip?.sourceUrl ? (
+        {currentClip?.sourceUrl && isVideoMediaUrl(currentClip.sourceUrl) ? (
           <video
             ref={videoRef}
-            className="max-w-full max-h-full object-contain"
+            className="preview-video max-w-full max-h-full object-contain"
+            crossOrigin="anonymous"
+            playsInline
             onTimeUpdate={handleTimeUpdate}
-            muted={false}
+            onEnded={handleEnded}
+            onLoadedMetadata={(e) => {
+              const v = e.currentTarget
+              if (!isPlayingRef.current && currentClip) {
+                v.currentTime = Math.max(0, playheadTime - currentClip.startTime)
+              }
+            }}
           />
         ) : (
-          <div className="text-white/15 text-sm">No content at playhead</div>
+          <div className="text-white/15 text-sm text-center px-4">
+            {clips.some((c) => c.sourceUrl && !isVideoMediaUrl(c.sourceUrl))
+              ? 'Clip has a still image, not video — re-render or fix sourceUrl'
+              : 'No video at playhead — add or generate a clip'}
+          </div>
         )}
 
-        {/* Timecode overlay */}
         <div className="absolute top-2 left-3 font-mono text-xs text-white/70 bg-black/60 px-2 py-0.5 rounded">
           {formatTimecode(playheadTime)}
         </div>
 
-        {/* Generating badge */}
         {hasGenerating && (
           <div className="absolute top-2 right-3 flex items-center gap-1.5 bg-[#00e5c8]/20 border border-[#00e5c8]/30
             text-[#00e5c8] text-[10px] px-2.5 py-1 rounded-full font-medium">
@@ -163,9 +208,10 @@ export function VideoPreview({
           </div>
         )}
 
-        {/* Fullscreen button */}
         <button
+          type="button"
           onClick={toggleFullscreen}
+          title="Fullscreen (F)"
           className="absolute bottom-2 right-3 p-1.5 rounded-lg bg-black/60 text-white/50
             hover:text-white hover:bg-black/80 transition-colors"
         >
@@ -173,10 +219,9 @@ export function VideoPreview({
         </button>
       </div>
 
-      {/* Transport controls */}
-      <div className="flex items-center justify-center gap-1 py-2 bg-[#0a0a12] border-t border-white/5">
-        {/* Skip to start */}
+      <div className="flex items-center justify-center gap-1 py-2 bg-[#0a0a12] border-t border-white/5 relative">
         <button
+          type="button"
           onClick={onSkipToStart}
           className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/8 transition-colors"
           title="Skip to start (Home)"
@@ -184,8 +229,8 @@ export function VideoPreview({
           <SkipBack className="w-3.5 h-3.5" />
         </button>
 
-        {/* Play/pause */}
         <button
+          type="button"
           onClick={onPlayPause}
           className="w-8 h-8 rounded-full bg-white/10 hover:bg-[#00e5c8]/20 text-white/80 hover:text-[#00e5c8]
             flex items-center justify-center transition-all"
@@ -196,8 +241,8 @@ export function VideoPreview({
             : <Play className="w-3.5 h-3.5 ml-0.5" fill="currentColor" />}
         </button>
 
-        {/* Skip to end */}
         <button
+          type="button"
           onClick={onSkipToEnd}
           className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/8 transition-colors"
           title="Skip to end (End)"
@@ -205,7 +250,6 @@ export function VideoPreview({
           <SkipForward className="w-3.5 h-3.5" />
         </button>
 
-        {/* Duration */}
         <span className="absolute right-4 font-mono text-[10px] text-white/30">
           {formatTimecode(duration)}
         </span>

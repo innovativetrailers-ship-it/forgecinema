@@ -3,7 +3,7 @@ import { auth }                       from '@/lib/auth'
 import { checkAndDeductCredits,
          refundCredits }              from '@/lib/credits'
 import Anthropic                      from '@anthropic-ai/sdk'
-import { fal }                        from '@fal-ai/client'
+import { fal }                        from '@/lib/fal/client'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 

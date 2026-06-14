@@ -13,6 +13,8 @@ export interface RelightOutput {
   normalMapUrl?: string
 }
 
+export const ICLIGHT_ENDPOINT = 'fal-ai/iclight-v2' as const
+
 const PRESET_PROMPTS: Record<string, string> = {
   studio: 'studio lighting, soft boxes, professional photography',
   outdoor_day: 'bright outdoor daylight, sun overhead, natural shadows',
@@ -26,7 +28,7 @@ export async function relightImage(input: RelightInput): Promise<RelightOutput> 
     images?: Array<{ url: string }>
   }
 
-  const result = await runFal<ICLightResult>('fal-ai/iclight-v2', {
+  const result = await runFal<ICLightResult>(ICLIGHT_ENDPOINT, {
     image_url: input.imageUrl,
     prompt:
       input.prompt ??
@@ -44,7 +46,7 @@ export async function generateDepthMap(imageUrl: string): Promise<string> {
     image?: { url: string }
   }
 
-  const result = await runFal<DepthResult>('fal-ai/depth-anything-v2', {
+  const result = await runFal<DepthResult>('fal-ai/imageutils/depth', {
     image_url: imageUrl,
   })
 

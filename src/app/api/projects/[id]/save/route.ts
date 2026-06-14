@@ -12,17 +12,44 @@ export async function POST(
   const body = await request.json().catch(() => ({}))
   const { recipe } = body
 
-  const project = await db.project.findUnique({ where: { id } })
-  if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  if (project.userId !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  try {
+    const existing = await db.project.findUnique({ where: { id }, select: { userId: true } })
+    if (existing && existing.userId !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
-  const updated = await db.project.update({
-    where: { id },
-    data: {
-      timelineJson: recipe ?? undefined,
-      updatedAt: new Date(),
-    },
-  })
+    const durationSeconds =
+      recipe && typeof recipe.durationSeconds === 'number' ? recipe.durationSeconds : undefined
+    const fps = recipe && typeof recipe.fps === 'number' ? recipe.fps : undefined
+    const resolution =
+      recipe?.resolution && typeof recipe.resolution.width === 'number'
+        ? `${recipe.resolution.width}x${recipe.resolution.height}`
+        : undefined
 
-  return NextResponse.json({ project: updated })
+    const updated = await db.project.upsert({
+      where: { id },
+      create: {
+        id,
+        userId,
+        title: 'Untitled Project',
+        timelineJson: recipe ?? undefined,
+        ...(durationSeconds !== undefined ? { durationSeconds } : {}),
+        ...(fps !== undefined ? { fps } : {}),
+        ...(resolution ? { resolution } : {}),
+      },
+      update: {
+        timelineJson: recipe ?? undefined,
+        updatedAt: new Date(),
+        ...(durationSeconds !== undefined ? { durationSeconds } : {}),
+        ...(fps !== undefined ? { fps } : {}),
+        ...(resolution ? { resolution } : {}),
+      },
+    })
+
+    return NextResponse.json({ project: updated })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to save project'
+    console.error('[projects/save]', message)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }

@@ -32,7 +32,7 @@ export async function generateStoryboard(params: {
 
   // Step 1: Parse script into shots with Claude
   const parseResponse = await getOpenRouterClient().chat.completions.create({
-    model: 'anthropic/claude-3.5-sonnet',
+    model: 'anthropic/claude-sonnet-4-5',
     max_tokens: 4000,
     messages: [
       {

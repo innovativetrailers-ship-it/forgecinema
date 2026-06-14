@@ -1,4 +1,5 @@
 import { runFal } from '../fal/client'
+import { extractVideoFrame } from '../fal/frameExtract'
 import { runModel1 } from '../brain/model1'
 import type { MakeupState, MakeupEffect, MakeupCategory } from '../casting/types'
 import { CastManager } from '../casting/CastManager'
@@ -28,10 +29,10 @@ export class SFXMakeupEngine {
     }
     makeupState.promptInjection = this.castManager.compileMakeupPrompt(makeupState)
 
-    const frameResult = await runFal('fal-ai/video-frame-extractor', { video_url: params.videoUrl, timestamp: 0.5 }) as unknown as { image_url: string }
+    const frameUrl = await extractVideoFrame(params.videoUrl, { timestamp: 0.5 })
 
     const makeupResult = await runFal('fal-ai/flux-general/image-to-image', {
-        image_url: frameResult.image_url,
+        image_url: frameUrl,
         prompt: `Apply realistic SFX makeup to this face/body: ${makeupState.promptInjection}. Keep everything else identical, only modify the appearance as described. Ultra-realistic, film-quality.`,
         strength: Math.min(0.35 + params.intensity * 0.3, 0.65),
         num_inference_steps: 40,
@@ -53,7 +54,7 @@ export class SFXMakeupEngine {
     characterFaceUrl?: string
     intensity: number
   }): Promise<string> {
-    const frame = await runFal('fal-ai/video-frame-extractor', { video_url: params.sourceVideoUrl, timestamp: 0.5 }) as unknown as { image_url: string }
+    const frameUrl = await extractVideoFrame(params.sourceVideoUrl, { timestamp: 0.5 })
 
     const makeupDescription = await runModel1({
       systemPrompt: 'You are an expert SFX makeup artist and visual analyst. Describe the makeup or special effects visible on the face/body in this reference image in precise technical terms for a generation model. Be specific about colours, textures, locations, and intensity. Return only the description.',
@@ -63,7 +64,7 @@ export class SFXMakeupEngine {
     })
 
     const transferred = await runFal('fal-ai/flux-general/image-to-image', {
-        image_url: frame.image_url,
+        image_url: frameUrl,
         prompt: `Apply this exact makeup/SFX to this person's face: ${makeupDescription.content}. Reference image style. Film-quality, photorealistic. Keep all other features identical.`,
         strength: 0.35 + params.intensity * 0.25,
       }) as unknown as { images: Array<{ url: string }> }

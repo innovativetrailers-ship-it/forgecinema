@@ -4,7 +4,7 @@
 import { MODEL_COSTS } from '@/lib/routing/engineRegistry'
 import { getHealthyModels, scoreModelsLive } from '@/lib/cognition/routing/performance'
 import { getLearnedBestModel } from '@/lib/cognition/memory/procedural'
-import type { StructuredShot, DAGNode } from './types'
+import type { ContentType, StructuredShot, DAGNode } from './types'
 
 const CONTENT_ROUTING: Record<string, string[]> = {
   aerial_establishing:  ['luma-ray3',         'veo-3.1',            'wan-2.2'],
@@ -16,30 +16,37 @@ const CONTENT_ROUTING: Record<string, string[]> = {
   physics_simulation:   ['sora-2',             'veo-3.1',            'pixverse-c1',        'minimax-2.3'],
   character_emotion:    ['kling-o3',           'seedance-2.0',       'minimax-2.3',        'kling-3.0'],
   cgi_character:        ['hunyuan-hy-motion',  'hailuo-2.3',         'kling-3.0',          'veo-3.1'],
-  long_sequence:        ['skyreels-v3',        'minimax-2.3',        'wan-2.2'],
+  long_sequence:        ['hailuo-2.3',         'minimax-2.3',        'wan-2.2'],
   fast_draft:           ['ltx-2.3-fast',       'ltx-2.3',            'wan-2.2'],   // LTX fast preferred; Wan demoted (slow on FAL)
   environment_travel:   ['luma-ray3',          'ltx-2.3',            'wan-2.2'],   // Wan demoted to last-resort fallback
   product_commercial:   ['pika-2.5',           'runway-gen4',        'kling-3.0'],
-  audio_native:         ['veo-3.1',            'grok-imagine-video', 'seedance-2.0'],
+}
+
+/** Visual-only routing — audio/dialogue is handled by ElevenLabs after generation. */
+function effectiveContentType(shot: StructuredShot): ContentType {
+  if (shot.contentType === 'audio_native') {
+    return shot.hasDialogue ? 'dialogue_closeup' : 'physical_action'
+  }
+  return shot.contentType
 }
 
 // Deterministic baseline assignment — no DB, always works. Used directly when
 // cognitive routing is unavailable, and as the final fallback within it.
 function selectModelStatic(
   shot: StructuredShot & { suggestedModel?: string },
-  availablePool: string[]
+  availablePool: string[],
 ): string {
   if (shot.suggestedModel && availablePool.includes(shot.suggestedModel)) {
     return shot.suggestedModel
   }
-  const preferences = CONTENT_ROUTING[shot.contentType] ?? ['ltx-2.3-fast']
-  for (const model of preferences) {
-    if (availablePool.includes(model)) return model
-  }
+  const preferences = CONTENT_ROUTING[effectiveContentType(shot)] ?? []
+  const inCouncil = preferences.filter((m) => availablePool.includes(m))
+  if (inCouncil.length > 0) return inCouncil[0]
+
   const byPrice = [...availablePool].sort(
     (a, b) => (MODEL_COSTS[a] ?? 99) - (MODEL_COSTS[b] ?? 99)
   )
-  return byPrice[0] ?? 'ltx-2.3-fast'
+  return byPrice[0] ?? availablePool[0]
 }
 
 // Cognition-aware selection: circuit breaker → learned policy → live performance,
@@ -47,8 +54,9 @@ function selectModelStatic(
 // degrades to deterministic routing rather than failing the render.
 async function selectModel(
   shot: StructuredShot & { suggestedModel?: string },
-  availablePool: string[]
+  availablePool: string[],
 ): Promise<string> {
+  const contentType = effectiveContentType(shot)
   try {
     const healthy = await getHealthyModels(availablePool)
     const pool = healthy.length ? healthy : availablePool
@@ -58,11 +66,11 @@ async function selectModel(
 
     // Priority 0.5 / 0.7: learned historical policy blended with live performance
     const [learned, liveScores] = await Promise.all([
-      getLearnedBestModel(shot.contentType, pool),
+      getLearnedBestModel(contentType, pool),
       scoreModelsLive(pool),
     ])
 
-    const candidates = (CONTENT_ROUTING[shot.contentType] ?? []).filter(m => pool.includes(m))
+    const candidates = (CONTENT_ROUTING[contentType] ?? []).filter(m => pool.includes(m))
     if (candidates.length) {
       const best = candidates.sort((a, b) => (liveScores[b] ?? 0.5) - (liveScores[a] ?? 0.5))[0]
       // Prefer the learned best if it is healthy and within 10% of the live leader
@@ -84,8 +92,13 @@ function estimateShotCost(model: string, duration: number): number {
 
 export async function buildDAG(
   shots:         StructuredShot[],
-  availablePool: string[]
+  availablePool: string[],
 ): Promise<DAGNode[]> {
+  if (!availablePool?.length) {
+    throw new Error('[dagRouter] availablePool is empty — refusing silent tier-default fallback')
+  }
+  console.log('[dagRouter] Council model pool:', availablePool.join(', '))
+
   const nodes: DAGNode[] = []
   for (let i = 0; i < shots.length; i++) {
     const shot = shots[i]

@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
 import { Hexagon, LogOut, Settings, CreditCard, Loader2 } from 'lucide-react'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 import { cn } from '@/lib/utils'
 import { JobProgressBadge } from './JobProgressBadge'
 import { useStudioStore, type AppMode, type OutcomeTier } from '@/store/editor'
@@ -59,12 +60,7 @@ export function TopNav() {
     <>
       <header className="h-11 shrink-0 border-b border-border/30 bg-[#0c0c10]/95 backdrop-blur-sm flex items-center px-4 gap-4 z-50">
         {/* Logo */}
-        <Link
-          href="/simple"
-          className="text-sm font-bold tracking-[0.15em] text-foreground hover:text-[#00e5c8] transition-colors shrink-0"
-        >
-          CINÉMA
-        </Link>
+        <BrandLogo href="/simple" size={28} wordmark="CINÉMA" className="shrink-0" />
 
         {/* Mode switcher */}
         <nav className="flex items-center gap-0.5 flex-1 justify-center">

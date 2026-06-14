@@ -1,6 +1,7 @@
 // Phase 6: concatenate segments into the final film + RIFE boundary interpolation
 
 import { runFal, extractVideoUrl } from '@/lib/fal/client'
+import { stripGeneratedClipAudio } from '@/lib/fal/stripVideoAudio'
 import { uploadToR2 }        from '@/lib/storage/r2'
 import type { GeneratedSegment } from './types'
 
@@ -34,12 +35,18 @@ export async function stitchSegments(
     if (transitions[i]) concatList.push(transitions[i])
   }
 
+  const silentClips: string[] = []
+  for (const url of concatList) {
+    silentClips.push(await stripGeneratedClipAudio(url))
+  }
+
   const result = await runFal<{ video?: { url: string }; output_url?: string }>('fal-ai/ffmpeg', {
     command:       'concat',
-    video_urls:    concatList,
+    video_urls:    silentClips,
     output_format: 'mp4',
     resolution:    '1080p',
     fps:           24,
+    include_audio: false,
   })
 
   const stitchedUrl = extractVideoUrl(result) ?? result.output_url

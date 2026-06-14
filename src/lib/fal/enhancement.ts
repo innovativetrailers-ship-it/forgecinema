@@ -85,7 +85,7 @@ export async function extractDepthMap(imageUrl: string): Promise<{ depthUrl: str
     image?: { url: string }
   }
 
-  const result = await runFal<DepthResult>('fal-ai/depth-anything-v2', {
+  const result = await runFal<DepthResult>('fal-ai/imageutils/depth', {
     image_url: imageUrl,
   })
 

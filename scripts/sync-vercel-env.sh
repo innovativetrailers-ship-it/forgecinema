@@ -19,14 +19,18 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-if ! command -v vercel &>/dev/null; then
+if command -v vercel &>/dev/null; then
+  VERCEL=(vercel)
+elif command -v npx &>/dev/null; then
+  VERCEL=(npx vercel)
+else
   echo "Install Vercel CLI: npm i -g vercel"
   exit 1
 fi
 
 if [[ ! -f .vercel/project.json ]]; then
   echo "→ Linking project…"
-  vercel link --yes
+  "${VERCEL[@]}" link --yes
 fi
 
 PRODUCTION_ONLY=(NEXTAUTH_URL AUTH_URL NEXT_PUBLIC_APP_URL)
@@ -50,7 +54,7 @@ is_production_only() {
 
 add_env() {
   local key="$1" value="$2" target="$3"
-  printf '%s' "$value" | vercel env add "$key" "$target" --force >/dev/null 2>&1 \
+  printf '%s' "$value" | "${VERCEL[@]}" env add "$key" "$target" --force >/dev/null 2>&1 \
     && echo "  ✓ $key → $target" \
     || echo "  · $key → $target (skipped or unchanged)"
 }
@@ -71,6 +75,15 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   value="${value%\'}"; value="${value#\'}"
 
   [[ -z "$key" || -z "$value" ]] && continue
+  # Never push a mistaken S3 endpoint as the R2 secret.
+  if [[ "$key" == "R2_SECRET_ACCESS_KEY" && "$value" == *"://"* ]]; then
+    echo "  ✗ $key skipped — value looks like a URL, not an API token secret"
+    continue
+  fi
+  # Canonical name on Vercel is FAL_KEY (legacy FAL_API_KEY is remapped)
+  if [[ "$key" == "FAL_API_KEY" ]]; then
+    key="FAL_KEY"
+  fi
   should_skip_key "$key" && continue
 
   if is_production_only "$key"; then

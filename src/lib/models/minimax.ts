@@ -1,18 +1,25 @@
 import { runFal, extractVideoUrl, fal } from '@/lib/fal/client'
+import { buildFalVideoInput } from '@/lib/fal/videoPayloads'
+import { resolveHailuoEndpoint } from '@/lib/fal/hailuoEndpoints'
 import type { GenerateVideoInput, GenerateVideoOutput } from './types'
 
-const FAL_MODEL = 'fal-ai/minimax-video'
+const REGISTRY_KEY = 'minimax-2.3'
 
 export async function generateVideo(
   input: GenerateVideoInput
 ): Promise<GenerateVideoOutput> {
-  const falInput: Record<string, unknown> = {
-    prompt: input.prompt,
-  }
-  if (input.negativePrompt) falInput.negative_prompt = input.negativePrompt
-  if (input.startFrameUrl)  falInput.first_frame_image = input.startFrameUrl
+  const isI2V = Boolean(input.startFrameUrl)
+  const model = resolveHailuoEndpoint(REGISTRY_KEY, isI2V)
 
-  const data = await runFal(FAL_MODEL, falInput)
+  const falInput = await buildFalVideoInput(model, REGISTRY_KEY, {
+    prompt: input.prompt,
+    duration: input.duration ?? 6,
+    aspectRatio: input.aspectRatio ?? '16:9',
+    imageUrl: input.startFrameUrl,
+    negativePrompt: input.negativePrompt,
+  })
+
+  const data = await runFal(model, falInput)
   const videoUrl = extractVideoUrl(data)
   const jobId    = `minimax_${Date.now()}`
 
@@ -25,15 +32,16 @@ export async function generateVideo(
 }
 
 export async function pollStatus(requestId: string): Promise<GenerateVideoOutput> {
+  const model = resolveHailuoEndpoint(REGISTRY_KEY, false)
   try {
-    const status = await fal.queue.status(FAL_MODEL, { requestId, logs: false }) as { status: string }
+    const status = await fal.queue.status(model, { requestId, logs: false }) as { status: string }
     if (status.status !== 'COMPLETED') {
       if (status.status === 'FAILED') {
         return { jobId: requestId, status: 'failed', error: 'Minimax generation failed' }
       }
       return { jobId: requestId, status: 'processing' }
     }
-    const result = await fal.queue.result(FAL_MODEL, { requestId }) as { data: unknown }
+    const result = await fal.queue.result(model, { requestId }) as { data: unknown }
     const videoUrl = extractVideoUrl(result.data)
     return { jobId: requestId, status: 'complete', videoUrl }
   } catch {

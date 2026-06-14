@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { runFal, extractVideoUrl, extractImageUrl } from '@/lib/fal/client'
+import { resolveVideoEndpoint } from '@/lib/orchestration/falEndpoints'
 import { MODEL_COSTS, MODEL_SPECIALTIES, FAL_MODEL_IDS, TIER_ENGINE_MAP } from './engineRegistry'
 import { calculateGenerationCost, calculateOrchestrationCost } from '../credits'
 
@@ -173,10 +174,12 @@ async function pollXAIVideo(requestId: string, maxAttempts = 60): Promise<string
 }
 
 export async function callEngine(params: {
-  model:     string
-  prompt:    string
-  duration:  number
-  imageUrl?: string
+  model:        string
+  prompt:       string
+  duration:     number
+  imageUrl?:    string
+  aspectRatio?: string
+  quality?:     string
 }): Promise<{ videoUrl?: string; imageUrl?: string; jobId: string }> {
 
   if (params.model === 'grok-imagine-video') {
@@ -217,16 +220,18 @@ export async function callEngine(params: {
 
   // Everything else — FAL (covers all 20+ models via single key)
   const falModelId = FAL_MODEL_IDS[params.model]
+    ?? resolveVideoEndpoint(params.model, Boolean(params.imageUrl))
   if (!falModelId) throw new Error(`Unknown model: ${params.model}`)
 
-  const input: Record<string, unknown> = {
-    prompt:       params.prompt,
-    duration:     params.duration,
-    aspect_ratio: '16:9',
-    resolution:   '1080p',
-  }
-  if (params.imageUrl)                  input.image_url = params.imageUrl
-  if (params.model === 'ltx-2.3-fast') input.quality   = 'fast'
+  const { buildFalVideoInput } = await import('@/lib/fal/videoPayloads')
+  const input = await buildFalVideoInput(falModelId, params.model, {
+    prompt: params.prompt,
+    duration: params.duration,
+    aspectRatio: params.aspectRatio ?? '16:9',
+    imageUrl: params.imageUrl,
+    quality: params.quality,
+    audioPolicy: 'elevenlabs',
+  })
 
   const result = await runFal(falModelId, input)
 

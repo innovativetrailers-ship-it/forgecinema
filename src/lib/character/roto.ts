@@ -1,4 +1,5 @@
 import { fal } from '@/lib/fal/client'
+import { UTILITY_FAL_ENDPOINTS } from '@/lib/models/registry'
 import type { FCCCharacter } from './fccSchema'
 import { animatePortraitWithMotion } from './mocap'
 import type { FccRotoMode } from './characterMotion'
@@ -12,28 +13,41 @@ function extractVideoUrl(data: unknown): string | null {
   return null
 }
 
+function extractMaskVideoUrl(data: unknown): string | null {
+  if (!data || typeof data !== 'object') return null
+  const d = data as Record<string, unknown>
+  const maskVideo = d.mask_video as { url?: string } | undefined
+  if (maskVideo?.url) return maskVideo.url
+  if (typeof d.mask_url === 'string') return d.mask_url
+  return null
+}
+
 export async function rotoAndOverlay(
   liveVideoUrl: string,
   mode: FccRotoMode,
   character?: FCCCharacter,
 ): Promise<string> {
-  const rotoResult = await fal.subscribe('fal-ai/rembg-video', {
-    input: { video_url: liveVideoUrl, return_mask: true },
+  const rembgEndpoint = UTILITY_FAL_ENDPOINTS['rembg-video']
+  const inpaintEndpoint = UTILITY_FAL_ENDPOINTS['video-inpaint']
+
+  const rotoResult = await fal.subscribe(rembgEndpoint, {
+    input: { video_url: liveVideoUrl, output_mask: true },
   })
-  const rotoData = rotoResult.data as Record<string, unknown>
-  const maskUrl = typeof rotoData.mask_url === 'string' ? rotoData.mask_url : null
+  const maskUrl = extractMaskVideoUrl(rotoResult.data)
 
   if (mode === 'character' && character?.refFront) {
+    const prompt = character.behavioralPrompt || `${character.name} matching live action energy`
     const charUrl = await animatePortraitWithMotion(character.refFront, liveVideoUrl, {
-      prompt: character.behavioralPrompt || `${character.name} matching live action energy`,
+      prompt,
       portraitLabel: character.name,
     })
-    const composite = await fal.subscribe('fal-ai/video-inpaint', {
+    const composite = await fal.subscribe(inpaintEndpoint, {
       input: {
-        base_video_url: liveVideoUrl,
-        replacement_video_url: charUrl,
-        mask_video_url: maskUrl ?? liveVideoUrl,
-        blend_edges: true,
+        prompt,
+        video_url: liveVideoUrl,
+        mask_video_url: maskUrl ?? undefined,
+        ref_image_urls: [character.refFront],
+        first_frame_url: charUrl,
       },
     })
     const out = extractVideoUrl(composite.data)
@@ -49,12 +63,11 @@ export async function rotoAndOverlay(
     return out
   }
 
-  const vfx = await fal.subscribe('fal-ai/video-inpaint', {
+  const vfx = await fal.subscribe(inpaintEndpoint, {
     input: {
-      base_video_url: liveVideoUrl,
-      replacement_video_url: liveVideoUrl,
-      mask_video_url: maskUrl ?? liveVideoUrl,
-      blend_edges: true,
+      prompt: 'Cinematic visual effects enhancement in the masked region',
+      video_url: liveVideoUrl,
+      mask_video_url: maskUrl ?? undefined,
     },
   })
   const out = extractVideoUrl(vfx.data)

@@ -35,7 +35,10 @@ export function buildIdentityTokens(character: FCCLike): IdentityTokens {
     bodyReferenceUrl: character.ref3Quarter ?? character.refFront,
     loraWeightsUrl: character.loraWeightsRef,
     modificationPrompt: buildModificationPrompt(character.appearance),
-    wardrobePrompt: character.wardrobe.map((w) => `${w.region}: ${w.prompt}`).join(', '),
+    wardrobePrompt: character.wardrobe
+      .filter((w): w is WardrobeItem => Boolean(w) && typeof w.prompt === 'string')
+      .map((w) => `${w.region}: ${w.prompt}`)
+      .join(', '),
   }
 }
 
@@ -46,6 +49,7 @@ export function injectCharacterTokens(
   const input = { ...baseInput }
   if (tokens.faceReferenceUrl) {
     input.image_url = tokens.faceReferenceUrl
+    input.startFrameUrl = tokens.faceReferenceUrl
     input.face_image_url = tokens.faceReferenceUrl
     input.reference_image_url = tokens.bodyReferenceUrl
   }

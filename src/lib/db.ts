@@ -21,9 +21,9 @@ const isBuildTime =
   process.env.NEXT_PHASE === 'phase-export'
 
 function createPrismaClient(): PrismaClient {
-  const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL!,
-  })
+  const connectionString =
+    process.env.WORKER_DATABASE_URL?.trim() || process.env.DATABASE_URL!
+  const adapter = new PrismaPg({ connectionString })
   return new PrismaClient({ adapter, log: ['error'] })
 }
 

@@ -1,63 +1,64 @@
-// Single source for all FAL calls — always uses the queue endpoint via subscribe
+// Single source for all FAL calls — routes through falQueue (URL-based polling).
 
-import { fal } from '@fal-ai/client'
+import { fal as falSdk } from '@fal-ai/client'
+import { getFalKey } from '@/lib/config/keys'
+import {
+  parseFalSubmission,
+  pollFalStatusOnce,
+  runFalQueue,
+  serializeFalSubmission,
+  submitToFal,
+  type FalQueueStatus,
+  type FalSubmission,
+} from './falQueue'
+import { falWithTimeout, type FalProgressUpdate, type FalWithTimeoutOptions } from './withTimeout'
 
-fal.config({ credentials: process.env.FAL_API_KEY })
+export { FalValidationError } from './falErrors'
+export { FalTimeoutError, IMAGE_FAL_TIMEOUT_MS } from './withTimeout'
+export type { FalProgressUpdate } from './withTimeout'
+export type { FalSubmission, FalQueueStatus } from './falQueue'
+export {
+  submitToFal,
+  pollFalStatusOnce,
+  serializeFalSubmission,
+  parseFalSubmission,
+  runFalQueue,
+} from './falQueue'
 
-export { fal }
-
-export interface FalProgressUpdate {
-  status:   'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED'
-  position?: number
-  message?:  string
-}
-
-interface FalQueueLog {
-  message?: string
-}
-
-interface FalQueueUpdate {
-  status?:          string
-  queue_position?:  number
-  logs?:            FalQueueLog[]
-}
+falSdk.config({ credentials: getFalKey() })
 
 interface FalPayload {
   detail?: string
-  error?:  string
+  error?: string
 }
 
 /**
- * Run any FAL model through the QUEUE endpoint (no sync timeout).
- * Returns the data payload. Throws on FAL errors.
+ * Run any FAL model through the queue (status/response URLs from FAL).
  */
 export async function runFal<T = unknown>(
   modelId: string,
-  input:   Record<string, unknown>,
+  input: Record<string, unknown>,
   onProgress?: (update: FalProgressUpdate) => void,
   timeoutMs: number = 1_200_000,
+  onPoll?: () => void | Promise<void>,
+  checkpoint?: FalWithTimeoutOptions['checkpoint'],
 ): Promise<T> {
-  const result = await fal.subscribe(modelId, {
-    input,
-    logs:    true,
-    timeout: timeoutMs,
-    onQueueUpdate: (update: FalQueueUpdate) => {
-      if (update.status === 'IN_QUEUE') {
-        onProgress?.({ status: 'IN_QUEUE', position: update.queue_position })
-      } else if (update.status === 'IN_PROGRESS') {
-        const msg = update.logs?.slice(-1)[0]?.message ?? 'Processing...'
-        onProgress?.({ status: 'IN_PROGRESS', message: msg })
-      } else if (update.status === 'COMPLETED') {
-        onProgress?.({ status: 'COMPLETED' })
-      }
-    },
-  })
+  return falWithTimeout<T>(modelId, input, timeoutMs, { onProgress, onPoll, checkpoint })
+}
 
-  const data = result.data as FalPayload
-  if (data?.detail === 'Not Found' || data?.error) {
-    throw new Error(`FAL error for ${modelId}: ${data.error ?? data.detail}`)
-  }
-  return data as T
+/**
+ * SDK-compatible facade — subscribe delegates to runFal.
+ */
+export const fal = {
+  subscribe: async <T = unknown>(
+    modelId: string,
+    options: { input: Record<string, unknown> } & Record<string, unknown>,
+  ): Promise<{ data: T }> => {
+    const data = await runFal<T>(modelId, options.input)
+    return { data }
+  },
+  queue: falSdk.queue,
+  storage: falSdk.storage,
 }
 
 /** Upload an image/mask to FAL storage and get a URL. */
@@ -67,8 +68,8 @@ export async function uploadToFal(
   let file: Blob
   if (typeof data === 'string') {
     const base64 = data.includes(',') ? data.split(',')[1]! : data
-    const mime   = data.startsWith('data:') ? data.split(';')[0]!.split(':')[1]! : 'image/png'
-    const bytes  = Buffer.from(base64, 'base64')
+    const mime = data.startsWith('data:') ? data.split(';')[0]!.split(':')[1]! : 'image/png'
+    const bytes = Buffer.from(base64, 'base64')
     file = new Blob([bytes], { type: mime })
   } else if (Buffer.isBuffer(data)) {
     file = new Blob([new Uint8Array(data)])
@@ -88,6 +89,41 @@ export function extractVideoUrl(data: unknown): string | undefined {
   if (output?.video?.url) return output.video.url
   if (typeof d.url === 'string') return d.url
   return undefined
+}
+
+/** Submit to FAL queue — returns request id (legacy) + pollUrl with full submission. */
+export async function submitFalQueue(
+  modelId: string,
+  input: Record<string, unknown>,
+): Promise<string> {
+  const submission = await submitToFal(modelId, input)
+  return submission.requestId
+}
+
+/** Returns full submission for polling (preferred over submitFalQueue). */
+export async function submitFalQueueFull(
+  modelId: string,
+  input: Record<string, unknown>,
+): Promise<FalSubmission> {
+  return submitToFal(modelId, input)
+}
+
+/** Poll FAL queue using persisted submission (pollUrl JSON or FalSubmission). */
+export async function pollFalQueue(
+  submissionOrPollUrl: FalSubmission | string,
+): Promise<{ status: FalQueueStatus; data?: unknown; error?: string }> {
+  const submission = typeof submissionOrPollUrl === 'string'
+    ? parseFalSubmission(submissionOrPollUrl)
+    : submissionOrPollUrl
+
+  if (!submission) {
+    return {
+      status: 'FAILED',
+      error: 'Invalid or missing FAL submission — cannot poll without status_url from submit',
+    }
+  }
+
+  return pollFalStatusOnce(submission)
 }
 
 export function extractImageUrl(data: unknown): string | undefined {

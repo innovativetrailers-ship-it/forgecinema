@@ -1,7 +1,7 @@
 import { runFal, extractVideoUrl, fal } from '@/lib/fal/client'
 import type { GenerateVideoInput, GenerateVideoOutput } from './types'
 
-const FAL_MODEL = 'fal-ai/seedance-video-lite'
+const FAL_MODEL = 'bytedance/seedance-2.0/text-to-video'
 
 export interface SeedanceInput extends GenerateVideoInput {
   referenceImageUrls?: string[]

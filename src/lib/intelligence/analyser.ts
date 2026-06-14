@@ -17,7 +17,6 @@ import {
   generateRunway,
   generateSkyReels,
   generateLTXSwarm,
-  generateCogVideoXSwarm,
   generateWan22,
   generateMochi,
 } from '../models/index'
@@ -33,7 +32,6 @@ const MODEL_DISPATCH: Record<string, (p: ProbePayload) => Promise<string>> = {
   runway_gen4_5:  (p) => generateRunway(p),
   skyreels_v1:    (p) => generateSkyReels({ prompt: p.prompt, duration: p.duration, aspectRatio: p.aspectRatio }),
   ltx_2_3:        (p) => generateLTXSwarm(p),
-  cogvideox_5b:   (p) => generateCogVideoXSwarm(p),
   wan_2_6:        (p) => generateWan22(p),
   mochi_1:        (p) => generateMochi(p),
 }
@@ -147,11 +145,8 @@ Return structured JSON only.`,
 
   private async extractKeyFrames(videoUrl: string): Promise<string[]> {
     try {
-      const result = await fal.subscribe('fal-ai/video-frame-extractor', {
-        input: { video_url: videoUrl, num_frames: 3 },
-      }) as unknown as { frames?: Array<{ url: string }> }
-
-      return result.frames?.map(f => f.url).filter(Boolean) ?? [videoUrl]
+      const { extractVideoFrameSamples } = await import('@/lib/fal/frameExtract')
+      return await extractVideoFrameSamples(videoUrl, 3)
     } catch {
       return [videoUrl]
     }

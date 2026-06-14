@@ -1,7 +1,7 @@
 // Model 2 — Mochi-1 video generation model used for internal quality evaluation
 // and training signal generation. Not user-facing.
 
-import { fal } from '@fal-ai/client'
+import { fal } from '@/lib/fal/client'
 
 export interface Model2Input {
   prompt: string

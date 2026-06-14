@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { parseProgressEvents } from '@/lib/jobs/jobProgressEvents'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
-  const userId = request.headers.get('x-user-id')
+  const session = await auth()
+  const userId = request.headers.get('x-user-id') ?? session?.user?.id
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -29,6 +32,7 @@ export async function GET(
       modelUsed: true,
       createdAt: true,
       completedAt: true,
+      metadata: true,
     },
   })
 
@@ -36,5 +40,30 @@ export async function GET(
     return NextResponse.json({ error: 'Job not found' }, { status: 404 })
   }
 
-  return NextResponse.json(job)
+  if (job.status === 'COMPLETE' && job.outputUrl) {
+    const { resolveJobPlaybackUrl } = await import('@/lib/storage/persistMedia')
+    const resolved = await resolveJobPlaybackUrl(jobId, userId, job.outputUrl)
+    if (resolved && resolved !== job.outputUrl) {
+      job.outputUrl = resolved
+    }
+  }
+
+  const streamStatus =
+    job.status === 'COMPLETE' ? 'complete'
+    : job.status === 'FAILED' ? 'failed'
+    : job.status === 'QUEUED' ? 'queued'
+    : 'processing'
+
+  const progressEvents = parseProgressEvents(job.metadata)
+
+  return NextResponse.json({
+    ...job,
+    status: streamStatus,
+    progress: job.progressPct,
+    message: job.statusMessage,
+    error: job.errorMessage,
+    outputUrl: job.outputUrl,
+    result: job.status === 'COMPLETE' ? { outputUrl: job.outputUrl } : null,
+    lastEvent: progressEvents.at(-1) ?? null,
+  })
 }

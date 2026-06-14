@@ -13,8 +13,10 @@ export async function extractFaceEmbedding(imageUrl: string): Promise<FaceEmbedd
   }
 
   try {
-    const result = await runFal<FaceIdResult>('fal-ai/face-id', {
-      image_url: imageUrl,
+    const result = await runFal<FaceIdResult>('fal-ai/ip-adapter-face-id', {
+      prompt: 'portrait photograph, neutral expression, studio lighting',
+      face_image_url: imageUrl,
+      num_samples: 1,
     })
 
     return {

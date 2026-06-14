@@ -1,16 +1,20 @@
+/** Per-5s credit rates — silent generation (no model-native audio; ElevenLabs owns audio). */
+import { VIDEO_MODEL_REGISTRY } from '@/lib/models/registry'
+
+/** Per-5s credit rates — silent generation (no model-native audio; ElevenLabs owns audio). */
 export const MODEL_COSTS: Record<string, number> = {
-  'veo-3.1':              35,
-  'kling-3.0':            25,
+  'veo-3.1':              23,  // silent ~$0.112/s equiv vs ~33% premium with audio
+  'kling-3.0':            17,  // silent $0.112/s vs $0.168/s with audio
   'seedance-2.0':         20,
   'runway-gen4':          22,
   'hunyuan-video-1.5':    12,
   'luma-ray3':             8,
   'minimax-2.3':          10,
-  'cogvideox':             6,
   'wan-2.2':               2,
+  'wan-2.6':               2,
   'pika-2.5':              8,
   'skyreels-v3':          18,
-  'ltx-2.3':               6,
+  'ltx-2.3':               4,
   'ltx-2.3-fast':          2,
   'pixverse-c1':          28,
   'pixverse-v6':          14,
@@ -23,7 +27,7 @@ export const MODEL_COSTS: Record<string, number> = {
   // ── V3 model expansion (target = 21 video models) ──
   'sora-2':               35,  // replicate (openai/sora-2) — physics lead
   'happyhorse-1.0':       22,  // fal — dialogue/emotion performance lead
-  'kling-o3':             30,  // fal — premium character emotion
+  'kling-o3':             20,  // silent rate (same audio premium removed as kling-3.0)
   'hailuo-2.3':           12,  // fal — CGI character / product hybrid
 }
 
@@ -136,12 +140,6 @@ export const MODEL_SPECIALTIES: Record<string, {
     weaknesses: ['extreme_detail'],
     bestFor:    'Long sequences up to 6min, narrative consistency',
   },
-  'cogvideox': {
-    costTier:   'budget',
-    strengths:  ['text_rendering', 'prompt_adherence', 'static_scenes', 'precise'],
-    weaknesses: ['motion', 'realism'],
-    bestFor:    'Text overlays, exact prompt matching, static scenes',
-  },
   'wan-2.2': {
     costTier:   'budget',
     strengths:  ['wildlife', 'texture', 'nature', 'fur', 'organic'],
@@ -175,39 +173,9 @@ export const MODEL_SPECIALTIES: Record<string, {
 }
 
 export const FAL_MODEL_IDS: Record<string, string> = {
-  // Video generation
-  'veo-3.1':              'fal-ai/veo3',
-  'kling-3.0':            'fal-ai/kling-video/v1.6/pro/text-to-video',
-  'seedance-2.0':         'fal-ai/seedance-video-lite',
-  'skyreels-v3':          'fal-ai/skyreels-v2-t2v',
-  'luma-ray3':            'fal-ai/luma-dream-machine',
-  'minimax-2.3':          'fal-ai/minimax-video',
-  'cogvideox':            'fal-ai/cogvideox-5b',
-  'wan-2.2':              'fal-ai/wan/v2.2-a14b/text-to-video',  // fast a14b endpoint (was slow shared fal-ai/wan-t2v)
-  'ltx-2.3':              'fal-ai/ltx-video-v0-9-7',
-  'ltx-2.3-fast':         'fal-ai/ltx-video-v0-9-7',
-  'pika-2.5':             'fal-ai/pika-v2-turbo',
-  'pixverse-c1':          'fal-ai/pixverse/v4.5',
-  'pixverse-v6':          'fal-ai/pixverse/v4',
-  'hunyuan-video-1.5':    'fal-ai/hunyuan-video',
-  'hunyuan-hy-motion':    'fal-ai/hunyuan-video',
-  'hunyuan-world-mirror': 'fal-ai/hunyuan-video',
-  'hunyuan-r-dmesh':      'fal-ai/hunyuan-video',
-
-  // V3 model expansion (FAL-hosted). sora-2 intentionally excluded — it runs on
-  // Replicate (openai/sora-2) via REPLICATE_API_TOKEN, not FAL (like grok-imagine-video).
-  'happyhorse-1.0':       'fal-ai/happyhorse-v1',
-  'kling-o3':             'fal-ai/kling-video/v2/pro/text-to-video',
-  'hailuo-2.3':           'fal-ai/minimax-video',
-
-  // Image generation — all via FAL
-  'nano-banana-2':        'fal-ai/gemini-flash-image',
-  'nano-banana-pro':      'fal-ai/gemini-pro-image',
-  'flux-pro':             'fal-ai/flux-pro',
-  'flux-ultra':           'fal-ai/flux-pro/v1.1-ultra',
-
-  // grok-imagine-video intentionally excluded — uses XAI_API_KEY directly via api.x.ai
-  // All other models above use FAL_API_KEY
+  ...Object.fromEntries(
+    Object.entries(VIDEO_MODEL_REGISTRY).map(([k, e]) => [k, e.falEndpoint]),
+  ),
 
   // LLMs via OpenRouter on FAL
   'claude-sonnet':        'openrouter/anthropic/claude-sonnet-4-6',
@@ -245,8 +213,7 @@ export const MODEL_COUNCIL_DISPLAY: Array<{
   { id: 'skyreels-v3',        name: 'SkyReels V3',   role: 'Long-form Director', tagline: 'Infinite-length sequences',           dotColor: '#8b5cf6' },
   { id: 'ltx-2.3',            name: 'LTX 2.3',       role: 'Resolution Master',  tagline: '4K / 50fps high resolution',          dotColor: '#14b8a6' },
   { id: 'ltx-2.3-fast',       name: 'LTX Fast',      role: 'Draft Artist',       tagline: 'Instant pre-vis drafts',              dotColor: '#2dd4bf' },
-  { id: 'wan-2.2',            name: 'Wan 2.2',       role: 'Budget Workhorse',   tagline: 'Environments, nature, low cost',      dotColor: '#84cc16' },
-  { id: 'cogvideox',          name: 'CogVideoX',     role: 'Open Source',        tagline: 'General-purpose generation',          dotColor: '#a3e635' },
+  { id: 'wan-2.2',            name: 'Wan 2.6',       role: 'Budget Workhorse',   tagline: 'Environments, nature, low cost',      dotColor: '#84cc16' },
   { id: 'hunyuan-video-1.5',  name: 'HunyuanVideo',  role: 'Crowd Master',       tagline: 'Urban density, volumetric light',     dotColor: '#f472b6' },
   { id: 'hunyuan-hy-motion',  name: 'HY-Motion',     role: '3D Animator',        tagline: 'Character animation, walk cycles',    dotColor: '#fb7185' },
   { id: 'pika-2.5',           name: 'Pika 2.5',      role: 'Commercial Pro',     tagline: 'Product shots, clean style',          dotColor: '#fbbf24' },

@@ -40,7 +40,7 @@ export async function enhanceFacesInVideo(params: {
           const frameDataUrl = `data:image/png;base64,${execSync(`base64 "${framePath}"`).toString().trim()}`
 
           try {
-            const faceDetect = await fal.subscribe('fal-ai/face-id', {
+            const faceDetect = await fal.subscribe('fal-ai/ip-adapter-face-id', {
               input: { image_url: frameDataUrl },
             }) as unknown as { faces: Array<{ x: number; y: number; width: number; height: number; confidence: number }> }
 

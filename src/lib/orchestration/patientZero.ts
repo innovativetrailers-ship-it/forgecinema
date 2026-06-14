@@ -2,7 +2,7 @@
 // Pre-generate character and location reference images BEFORE any video.
 // These become the consistent visual anchor for all downstream generations.
 
-import { runFal, extractImageUrl } from '@/lib/fal/client'
+import { generateImage } from '@/lib/engines/imageGen'
 import { uploadToR2 } from '@/lib/storage/r2'
 import type { PatientZeroAssets } from './types'
 
@@ -16,15 +16,14 @@ export async function generatePatientZeroAssets(
 ): Promise<PatientZeroAssets> {
 
   const characters = await Promise.all(input.characters.map(async char => {
-    const res = await runFal('fal-ai/gemini-pro-image', {
-      prompt: `Ultra-detailed character reference sheet for film production.
+    const [rawUrl] = await generateImage(
+      `Ultra-detailed character reference sheet for film production.
 Character: ${char.name}. ${char.description}.
 Show: front view, 3/4 view, close-up face.
 Photorealistic, consistent lighting, white background.
 Film production reference quality. 8K resolution.`,
-    })
-
-    const rawUrl = extractImageUrl(res)
+      { quality: 'production', aspectRatio: '1:1' },
+    )
     if (!rawUrl) throw new Error(`Patient Zero character image failed for ${char.name}`)
     const buf    = await fetch(rawUrl).then(r => r.arrayBuffer())
     const r2Url  = await uploadToR2(
@@ -37,14 +36,13 @@ Film production reference quality. 8K resolution.`,
   }))
 
   const locations = await Promise.all(input.locations.map(async loc => {
-    const res = await runFal('fal-ai/gemini-pro-image', {
-      prompt: `Cinematic location plate for film production.
+    const [rawUrl] = await generateImage(
+      `Cinematic location plate for film production.
 Location: ${loc.name}. ${loc.description}.
 Wide establishing shot, photorealistic, dramatic lighting.
 Film production reference quality.`,
-    })
-
-    const rawUrl = extractImageUrl(res)
+      { quality: 'production', aspectRatio: '16:9' },
+    )
     if (!rawUrl) throw new Error(`Patient Zero location image failed for ${loc.name}`)
     const buf    = await fetch(rawUrl).then(r => r.arrayBuffer())
     const r2Url  = await uploadToR2(

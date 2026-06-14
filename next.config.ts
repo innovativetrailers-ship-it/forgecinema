@@ -1,6 +1,17 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return {
+      beforeFiles: [
+        { source: '/apple-icon.png', destination: '/apple-icon' },
+        { source: '/icon-16.png', destination: '/icon' },
+        { source: '/icon-32.png', destination: '/icon' },
+        { source: '/og-image.png', destination: '/opengraph-image' },
+      ],
+    }
+  },
+
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.r2.cloudflarestorage.com' },

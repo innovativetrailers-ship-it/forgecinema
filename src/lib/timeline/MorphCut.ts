@@ -1,10 +1,10 @@
 /**
  * Morph Cut — generative jump-cut concealer for dialogue takes.
- * Uses fal-ai/film-interpolation to generate a 15-frame crossfade
+ * Uses fal-ai/film/interpolation to generate a 15-frame crossfade
  * between two adjacent dialogue clips, hiding the edit.
  */
 
-import { fal }       from '@fal-ai/client'
+import { fal }       from '@/lib/fal/client'
 import { uploadToR2 } from '../storage/r2'
 import { randomUUID } from 'crypto'
 
@@ -24,8 +24,8 @@ export async function applyMorphCut(params: MorphCutParams): Promise<MorphCutRes
   const { clipAUrl, clipBUrl, frames = 15, blendMode = 'film' } = params
 
   if (blendMode === 'film') {
-    // fal-ai/film-interpolation: interpolates between two image frames
-    const result = await fal.subscribe('fal-ai/film-interpolation', {
+    // fal-ai/film/interpolation: interpolates between two image frames
+    const result = await fal.subscribe('fal-ai/film/interpolation', {
       input: {
         image1_url:    clipAUrl,
         image2_url:    clipBUrl,

@@ -4,7 +4,7 @@
  * Actual FFmpeg splicing is handled by the export/render pipeline.
  */
 
-import { fal }        from '@fal-ai/client'
+import { fal }        from '@/lib/fal/client'
 import { uploadToR2 } from '@/lib/storage/r2'
 import { randomUUID } from 'crypto'
 

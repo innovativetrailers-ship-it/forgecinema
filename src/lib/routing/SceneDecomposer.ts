@@ -1,4 +1,5 @@
 import { runModel1 } from '../brain/model1'
+import { enforceContinuityPolicy } from './continuityPolicy'
 import type { SceneSegment } from './types'
 
 const SCENE_DECOMPOSER_SYSTEM_PROMPT = `You are a scene decomposition specialist for a professional AI film production platform.
@@ -29,10 +30,10 @@ Rules:
 - Segment prompts must be self-contained and specific.`
 
 function selectOptimalEngine(requirements: string[], tier: string): string {
-  if (requirements.includes('text_rendering'))   return 'cogvideox'
+  if (requirements.includes('text_rendering'))   return 'pixverse'
   if (requirements.includes('fluid_dynamics'))   return 'veo3'
   if (requirements.includes('atmosphere'))       return 'veo3'
-  if (requirements.includes('emotional_acting')) return 'skyreels'
+  if (requirements.includes('emotional_acting')) return 'hailuo-2.3'
   if (requirements.includes('human_locomotion')) return 'kling_pro'
   if (requirements.includes('character_detail')) return 'seedance'
   if (requirements.includes('crowd_dynamics'))   return 'wan'
@@ -48,7 +49,7 @@ function selectOptimalEngine(requirements: string[], tier: string): string {
 function estimateSegmentCredits(seg: { startSeconds: number; endSeconds: number; engineId: string }): number {
   const durationUnits = Math.ceil((seg.endSeconds - seg.startSeconds) / 5)
   const perUnit: Record<string, number> = {
-    ltx: 1, wan: 2, luma: 8, cogvideox: 6, skyreels: 20,
+    ltx: 1, wan: 2, luma: 8, pixverse: 5, skyreels: 20,
     kling_pro: 25, seedance: 20, runway: 22, veo3: 35,
   }
   return durationUnits * (perUnit[seg.engineId] ?? 10)
@@ -88,37 +89,44 @@ export async function decomposeClip(params: {
     parsed = JSON.parse(result.content) as typeof parsed
   } catch {
     // Fallback: single segment covering full duration
-    return [{
+    const engineId = selectOptimalEngine([], params.tier)
+    return enforceContinuityPolicy([{
       segmentId: `${params.clipId}-0`,
       clipId: params.clipId,
+      shotId: params.clipId,
       startSeconds: 0,
       endSeconds: params.duration,
       prompt: params.masterPrompt,
-      engineId: selectOptimalEngine([], params.tier),
+      engineId,
       tier: params.tier,
       requirements: [],
       characterIds: params.characterIds,
+      isHardCut: true,
       estimatedCredits: estimateSegmentCredits({
         startSeconds: 0,
         endSeconds: params.duration,
-        engineId: selectOptimalEngine([], params.tier),
+        engineId,
       }),
-    }]
+    }])
   }
 
-  return parsed.segments.map((seg) => {
+  const withEngines = parsed.segments.map((seg, index) => {
     const engineId = selectOptimalEngine(seg.requirements, params.tier)
     return {
       segmentId: seg.segmentId,
       clipId: params.clipId,
+      shotId: params.clipId,
       startSeconds: seg.startSeconds,
       endSeconds: seg.endSeconds,
-      prompt: seg.prompt,
+      prompt: seg.prompt?.trim() ? seg.prompt : params.masterPrompt,
       engineId,
       tier: params.tier,
       requirements: seg.requirements,
       characterIds: seg.characterIds ?? params.characterIds,
+      isHardCut: index === 0,
       estimatedCredits: estimateSegmentCredits({ startSeconds: seg.startSeconds, endSeconds: seg.endSeconds, engineId }),
     }
   })
+
+  return enforceContinuityPolicy(withEngines)
 }

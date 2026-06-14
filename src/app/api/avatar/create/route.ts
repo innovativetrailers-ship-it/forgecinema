@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { checkAndDeductCredits } from '@/lib/credits'
-import { fal } from '@fal-ai/client'
+import { fal } from '@/lib/fal/client'
 import { db } from '@/lib/db'
 
 export async function POST(req: NextRequest) {
@@ -22,13 +22,13 @@ export async function POST(req: NextRequest) {
   await checkAndDeductCredits(userId, 'avatar_create')
 
   try {
-    const result = await fal.subscribe('fal-ai/instant-id', {
+    const result = await fal.subscribe('fal-ai/instant-character', {
       input: {
         image_url: imageUrl,
         prompt: `professional avatar portrait, ${style ?? 'realistic'} style, clean background`,
+        image_size: 'portrait_4_3',
         negative_prompt: 'blurry, deformed, ugly, watermark',
-        guidance_scale: 5,
-        num_inference_steps: 30,
+        num_images: 1,
       },
     })
 

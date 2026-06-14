@@ -14,6 +14,9 @@ const PUBLIC_PATHS = [
   '/review',
   '/site.webmanifest',
   '/manifest.json',
+  '/icon',
+  '/apple-icon',
+  '/opengraph-image',
 ]
 
 function isPublic(pathname: string): boolean {
@@ -46,6 +49,6 @@ export const proxy = auth((req) => {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon\\.ico|site\\.webmanifest|manifest\\.json|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|webmanifest|json|woff2?|ttf|eot)).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|site\\.webmanifest|manifest\\.json|icon$|apple-icon$|opengraph-image$|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|webmanifest|json|woff2?|ttf|eot)).*)',
   ],
 }

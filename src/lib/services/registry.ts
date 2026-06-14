@@ -9,16 +9,16 @@ export interface ServiceConfig {
 
 export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   // ── Video — all via FAL ───────────────────────────────────────
-  kling:      { name: 'Kling 3.0',     category: 'video', access: 'fal',    envVar: 'FAL_API_KEY' },
-  luma:       { name: 'Luma Ray3',     category: 'video', access: 'fal',    envVar: 'FAL_API_KEY' },
-  pika:       { name: 'Pika 2.5',      category: 'video', access: 'fal',    envVar: 'FAL_API_KEY' },
-  minimax:    { name: 'Minimax 2.3',   category: 'video', access: 'fal',    envVar: 'FAL_API_KEY' },
-  seedance:   { name: 'Seedance 2.0',  category: 'video', access: 'fal',    envVar: 'FAL_API_KEY' },
-  skyreels:   { name: 'SkyReels V3',   category: 'video', access: 'fal',    envVar: 'FAL_API_KEY' },
-  ltx:        { name: 'LTX 2.3',       category: 'video', access: 'fal',    envVar: 'FAL_API_KEY' },
-  pixverse:   { name: 'PixVerse C1',   category: 'video', access: 'fal',    envVar: 'FAL_API_KEY' },
-  hunyuan:    { name: 'HunyuanVideo',  category: 'video', access: 'fal',    envVar: 'FAL_API_KEY' },
-  veo3:       { name: 'Veo 3.1',       category: 'video', access: 'fal',    envVar: 'FAL_API_KEY' },
+  kling:      { name: 'Kling 3.0',     category: 'video', access: 'fal',    envVar: 'FAL_KEY' },
+  luma:       { name: 'Luma Ray3',     category: 'video', access: 'fal',    envVar: 'FAL_KEY' },
+  pika:       { name: 'Pika 2.5',      category: 'video', access: 'fal',    envVar: 'FAL_KEY' },
+  minimax:    { name: 'Minimax 2.3',   category: 'video', access: 'fal',    envVar: 'FAL_KEY' },
+  seedance:   { name: 'Seedance 2.0',  category: 'video', access: 'fal',    envVar: 'FAL_KEY' },
+  skyreels:   { name: 'SkyReels V3',   category: 'video', access: 'fal',    envVar: 'FAL_KEY' },
+  ltx:        { name: 'LTX 2.3',       category: 'video', access: 'fal',    envVar: 'FAL_KEY' },
+  pixverse:   { name: 'PixVerse C1',   category: 'video', access: 'fal',    envVar: 'FAL_KEY' },
+  hunyuan:    { name: 'HunyuanVideo',  category: 'video', access: 'fal',    envVar: 'FAL_KEY' },
+  veo3:       { name: 'Veo 3.1',       category: 'video', access: 'fal',    envVar: 'FAL_KEY' },
 
   // ── Video — direct ────────────────────────────────────────────
   runway:     { name: 'Runway Gen-4',  category: 'video', access: 'direct', envVar: 'RUNWAY_API_KEY',
@@ -27,7 +27,7 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
                 apiRoute: 'src/app/api/generate/route.ts' },
 
   // ── Image — via FAL ───────────────────────────────────────────
-  nanoBanana: { name: 'Nano Banana 2', category: 'image', access: 'fal',    envVar: 'FAL_API_KEY',
+  nanoBanana: { name: 'Nano Banana 2', category: 'image', access: 'fal',    envVar: 'FAL_KEY',
                 engineFile: 'src/lib/engines/nanoBanana.ts',   apiRoute: 'src/app/api/generate/image/route.ts' },
 
   // ── Audio — direct ────────────────────────────────────────────
@@ -39,9 +39,9 @@ export const SERVICE_REGISTRY: Record<string, ServiceConfig> = {
   // ── LLM — Claude direct, others via FAL OpenRouter ───────────
   claude:     { name: 'Claude',        category: 'llm', access: 'direct',         envVar: 'ANTHROPIC_API_KEY',
                 engineFile: 'src/lib/engines/llm.ts', apiRoute: 'src/app/api/llm/route.ts' },
-  groq:       { name: 'Groq',          category: 'llm', access: 'fal-openrouter', envVar: 'FAL_API_KEY' },
-  xai:        { name: 'xAI Grok',      category: 'llm', access: 'fal-openrouter', envVar: 'FAL_API_KEY' },
-  kimi:       { name: 'Kimi K2',       category: 'llm', access: 'fal-openrouter', envVar: 'FAL_API_KEY' },
+  groq:       { name: 'Groq',          category: 'llm', access: 'fal-openrouter', envVar: 'FAL_KEY' },
+  xai:        { name: 'xAI Grok',      category: 'llm', access: 'fal-openrouter', envVar: 'FAL_KEY' },
+  kimi:       { name: 'Kimi K2',       category: 'llm', access: 'fal-openrouter', envVar: 'FAL_KEY' },
 
   // ── Location — direct (free tier) ────────────────────────────
   mapillary:  { name: 'Mapillary',     category: 'location', access: 'direct', envVar: 'MAPILLARY_ACCESS_TOKEN',

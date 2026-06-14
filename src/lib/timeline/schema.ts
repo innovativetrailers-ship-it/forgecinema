@@ -30,6 +30,8 @@ export interface Clip {
   endTime: number
   sourceUrl: string
   proxyUrl?: string
+  /** Filmstrip / timeline thumbnail — still frame only, never the playback src. */
+  posterUrl?: string
   modelUsed?: string
   prompt?: string
   characterId?: string
