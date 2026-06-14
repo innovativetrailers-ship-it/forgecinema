@@ -33,55 +33,20 @@ async function pollRunwayJob(
   throw new Error('Runway timed out after 15 min')
 }
 
-function mapAspectRatio(aspectRatio?: string): '1280:720' | '720:1280' | '960:960' {
+type RunwayRatio = '1280:720' | '720:1280' | '960:960'
+
+function mapAspectRatio(aspectRatio?: string): RunwayRatio {
   if (aspectRatio === '9:16' || aspectRatio === '720:1280') return '720:1280'
   if (aspectRatio === '1:1' || aspectRatio === '960:960') return '960:960'
   return '1280:720'
 }
 
-type RunwayI2vModel = 'gen4_turbo' | 'gen4.5' | 'veo3' | 'veo3.1' | 'gen3a_turbo' | 'veo3.1_fast'
-type RunwayT2vModel = 'gen4.5' | 'veo3' | 'veo3.1' | 'veo3.1_fast'
-
-function resolveRunwayI2vModel(endpoint: string | undefined): RunwayI2vModel {
-  switch (endpoint) {
-    case 'gen4.5':
-    case 'runway-gen4.5':
-      return 'gen4.5'
-    case 'veo3':
-      return 'veo3'
-    case 'veo3.1':
-      return 'veo3.1'
-    case 'veo3.1_fast':
-      return 'veo3.1_fast'
-    case 'gen3a_turbo':
-      return 'gen3a_turbo'
-    case 'gen4_turbo':
-    case 'runway-gen4':
-    default:
-      return 'gen4_turbo'
-  }
+function clampRunwayDuration(duration: number): number {
+  return Math.min(10, Math.max(2, Math.round(duration)))
 }
 
-function resolveRunwayT2vModel(endpoint: string | undefined): RunwayT2vModel {
-  switch (endpoint) {
-    case 'veo3':
-      return 'veo3'
-    case 'veo3.1':
-      return 'veo3.1'
-    case 'veo3.1_fast':
-      return 'veo3.1_fast'
-    case 'gen4.5':
-    case 'runway-gen4.5':
-      return 'gen4.5'
-    case 'gen4_turbo':
-    case 'runway-gen4':
-    default:
-      return 'gen4.5'
-  }
-}
-
-function clampRunwayDuration(duration: number): 5 | 10 {
-  return duration >= 8 ? 10 : 5
+function useGen45(endpoint: string | undefined): boolean {
+  return endpoint === 'gen4.5' || endpoint === 'runway-gen4.5'
 }
 
 export interface RunwayVideoParams {
@@ -98,27 +63,41 @@ export async function runwayVideo(
 ): Promise<string> {
   const RunwayML = (await import('@runwayml/sdk')).default
   const client = new RunwayML({ apiKey: runwayApiKey() })
-  const runwayI2vModel = resolveRunwayI2vModel(model.falEndpoint)
-  const runwayT2vModel = resolveRunwayT2vModel(model.falEndpoint)
   const ratio = mapAspectRatio(params.aspectRatio)
   const duration = clampRunwayDuration(params.duration)
+  const gen45 = useGen45(model.falEndpoint)
 
   if (params.imageUrl) {
-    const task = await client.imageToVideo.create({
-      model: runwayI2vModel,
-      promptText: params.prompt,
-      promptImage: params.imageUrl,
-      duration,
-      ratio,
-    })
+    const task = gen45
+      ? await client.imageToVideo.create({
+          model: 'gen4.5',
+          promptText: params.prompt,
+          promptImage: params.imageUrl,
+          duration,
+          ratio,
+        })
+      : await client.imageToVideo.create({
+          model: 'gen4_turbo',
+          promptText: params.prompt,
+          promptImage: params.imageUrl,
+          duration,
+          ratio,
+        })
     return pollRunwayJob(client, task.id, params.onSubProgress)
   }
 
-  const task = await client.textToVideo.create({
-    model: runwayT2vModel,
-    promptText: params.prompt,
-    duration,
-    ratio,
-  })
+  const task = gen45
+    ? await client.textToVideo.create({
+        model: 'gen4.5',
+        promptText: params.prompt,
+        duration,
+        ratio: ratio === '960:960' ? '1280:720' : ratio,
+      })
+    : await client.textToVideo.create({
+        model: 'gen4.5',
+        promptText: params.prompt,
+        duration,
+        ratio: ratio === '960:960' ? '1280:720' : ratio,
+      })
   return pollRunwayJob(client, task.id, params.onSubProgress)
 }
