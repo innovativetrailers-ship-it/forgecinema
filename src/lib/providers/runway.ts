@@ -39,6 +39,28 @@ function mapAspectRatio(aspectRatio?: string): '1280:720' | '720:1280' | '960:96
   return '1280:720'
 }
 
+type RunwaySdkModel = 'gen4_turbo' | 'veo3' | 'veo3.1' | 'gen4.5' | 'gen3a_turbo' | 'veo3.1_fast'
+
+function resolveRunwayModel(endpoint: string | undefined): RunwaySdkModel {
+  switch (endpoint) {
+    case 'gen4.5':
+    case 'runway-gen4.5':
+      return 'gen4.5'
+    case 'veo3':
+      return 'veo3'
+    case 'veo3.1':
+      return 'veo3.1'
+    case 'veo3.1_fast':
+      return 'veo3.1_fast'
+    case 'gen3a_turbo':
+      return 'gen3a_turbo'
+    case 'gen4_turbo':
+    case 'runway-gen4':
+    default:
+      return 'gen4_turbo'
+  }
+}
+
 function clampRunwayDuration(duration: number): 5 | 10 {
   return duration >= 8 ? 10 : 5
 }
@@ -57,7 +79,7 @@ export async function runwayVideo(
 ): Promise<string> {
   const RunwayML = (await import('@runwayml/sdk')).default
   const client = new RunwayML({ apiKey: runwayApiKey() })
-  const runwayModel = model.falEndpoint === 'runway-gen4' ? 'gen4_turbo' : model.falEndpoint
+  const runwayModel = resolveRunwayModel(model.falEndpoint)
   const ratio = mapAspectRatio(params.aspectRatio)
   const duration = clampRunwayDuration(params.duration)
 

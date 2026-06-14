@@ -8,6 +8,7 @@ import { TopBar } from '@/components/layout/TopBar'
 import { IconRail } from '@/components/layout/IconRail'
 import { LeftPanel } from '@/components/layout/LeftPanel'
 import { useUIStore, type PanelId } from '@/store/ui'
+import { useProjectAutosave } from '@/hooks/useProjectAutosave'
 
 // Lazy-load heavy Ultimate Mode panels to reduce initial bundle
 const ScriptEditor = lazy(() =>
