@@ -39,15 +39,10 @@ function mapAspectRatio(aspectRatio?: string): '1280:720' | '720:1280' | '960:96
   return '1280:720'
 }
 
-type RunwayI2vModel = 'gen4_turbo' | 'gen4.5'
-type RunwayT2vModel = RunwayI2vModel | 'veo3' | 'veo3.1' | 'gen3a_turbo' | 'veo3.1_fast'
+type RunwayI2vModel = 'gen4_turbo' | 'gen4.5' | 'veo3' | 'veo3.1' | 'gen3a_turbo' | 'veo3.1_fast'
+type RunwayT2vModel = 'gen4.5' | 'veo3' | 'veo3.1' | 'veo3.1_fast'
 
 function resolveRunwayI2vModel(endpoint: string | undefined): RunwayI2vModel {
-  if (endpoint === 'gen4.5' || endpoint === 'runway-gen4.5') return 'gen4.5'
-  return 'gen4_turbo'
-}
-
-function resolveRunwayT2vModel(endpoint: string | undefined): RunwayT2vModel {
   switch (endpoint) {
     case 'gen4.5':
     case 'runway-gen4.5':
@@ -64,6 +59,24 @@ function resolveRunwayT2vModel(endpoint: string | undefined): RunwayT2vModel {
     case 'runway-gen4':
     default:
       return 'gen4_turbo'
+  }
+}
+
+function resolveRunwayT2vModel(endpoint: string | undefined): RunwayT2vModel {
+  switch (endpoint) {
+    case 'veo3':
+      return 'veo3'
+    case 'veo3.1':
+      return 'veo3.1'
+    case 'veo3.1_fast':
+      return 'veo3.1_fast'
+    case 'gen4.5':
+    case 'runway-gen4.5':
+      return 'gen4.5'
+    case 'gen4_turbo':
+    case 'runway-gen4':
+    default:
+      return 'gen4.5'
   }
 }
 
