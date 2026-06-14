@@ -39,9 +39,15 @@ function mapAspectRatio(aspectRatio?: string): '1280:720' | '720:1280' | '960:96
   return '1280:720'
 }
 
-type RunwaySdkModel = 'gen4_turbo' | 'veo3' | 'veo3.1' | 'gen4.5' | 'gen3a_turbo' | 'veo3.1_fast'
+type RunwayI2vModel = 'gen4_turbo' | 'gen4.5'
+type RunwayT2vModel = RunwayI2vModel | 'veo3' | 'veo3.1' | 'gen3a_turbo' | 'veo3.1_fast'
 
-function resolveRunwayModel(endpoint: string | undefined): RunwaySdkModel {
+function resolveRunwayI2vModel(endpoint: string | undefined): RunwayI2vModel {
+  if (endpoint === 'gen4.5' || endpoint === 'runway-gen4.5') return 'gen4.5'
+  return 'gen4_turbo'
+}
+
+function resolveRunwayT2vModel(endpoint: string | undefined): RunwayT2vModel {
   switch (endpoint) {
     case 'gen4.5':
     case 'runway-gen4.5':
@@ -79,13 +85,14 @@ export async function runwayVideo(
 ): Promise<string> {
   const RunwayML = (await import('@runwayml/sdk')).default
   const client = new RunwayML({ apiKey: runwayApiKey() })
-  const runwayModel = resolveRunwayModel(model.falEndpoint)
+  const runwayI2vModel = resolveRunwayI2vModel(model.falEndpoint)
+  const runwayT2vModel = resolveRunwayT2vModel(model.falEndpoint)
   const ratio = mapAspectRatio(params.aspectRatio)
   const duration = clampRunwayDuration(params.duration)
 
   if (params.imageUrl) {
     const task = await client.imageToVideo.create({
-      model: runwayModel,
+      model: runwayI2vModel,
       promptText: params.prompt,
       promptImage: params.imageUrl,
       duration,
@@ -95,7 +102,7 @@ export async function runwayVideo(
   }
 
   const task = await client.textToVideo.create({
-    model: runwayModel,
+    model: runwayT2vModel,
     promptText: params.prompt,
     duration,
     ratio,
