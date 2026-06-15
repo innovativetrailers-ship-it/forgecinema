@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { Loader2 } from 'lucide-react'
 import { subscribeJobStream } from '@/lib/jobs/subscribeJobStream'
 import { jobPlaybackPath } from '@/lib/media/jobPlayback'
-import { reconcileTimelineStore } from '@/lib/timeline/reconcileTimeline'
 import type { ShotPlanCard } from '@/lib/studio/shotPlan'
 import type { DirectShotArgs } from '@/lib/types/shot'
 import { AwaitingDirectionCard } from '@/components/ultimate/AwaitingDirectionCard'
@@ -48,7 +47,6 @@ export function ShotPlanPanel({
         const next = d.shots ?? []
         setShots(next)
         setTotalCost(d.totalCost ?? 0)
-        reconcileTimelineStore(next)
         onShotsReloaded?.(next)
         return next
       })
@@ -88,7 +86,6 @@ export function ShotPlanPanel({
       const next = data.shots ?? []
       setShots(next)
       setTotalCost(data.totalCost ?? 0)
-      reconcileTimelineStore(next)
       onShotsReloaded?.(next)
     } catch (err) {
       setParseError(err instanceof Error ? err.message : 'Parse failed')

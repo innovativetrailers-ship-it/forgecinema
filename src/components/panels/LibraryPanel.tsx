@@ -2,8 +2,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useUIStore } from '@/store/ui'
+import { loadProject } from '@/lib/projects/loadProject'
+import { toast } from '@/lib/toast'
 import { ImportProjectPanel } from './ImportProjectPanel'
-import { FolderOpen, Film, Music, Image, Search } from 'lucide-react'
+import { FolderOpen, Film, Music, Image, Search, Loader2 } from 'lucide-react'
 
 type LibraryTab = 'projects' | 'media' | 'audio' | 'stock'
 
@@ -18,6 +20,7 @@ export function LibraryPanel() {
   const [activeTab, setActiveTab] = useState<LibraryTab>('projects')
   const [search, setSearch] = useState('')
   const [showImport, setShowImport] = useState(false)
+  const [loadingId, setLoadingId] = useState<string | null>(null)
   const { openModal } = useUIStore()
 
   const { data: projectsData } = useQuery<{ projects: Project[] }>({
@@ -29,6 +32,18 @@ export function LibraryPanel() {
   const projects = (projectsData?.projects ?? []).filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
   )
+
+  async function handleOpenProject(projectId: string, projectName: string) {
+    setLoadingId(projectId)
+    try {
+      const { project } = await loadProject(projectId)
+      toast.success(`Opened ${project.name ?? projectName ?? 'project'}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to open project')
+    } finally {
+      setLoadingId(null)
+    }
+  }
 
   const TABS: { id: LibraryTab; label: string; icon: React.ReactNode }[] = [
     { id: 'projects', label: 'Projects', icon: <Film size={13} /> },
@@ -93,10 +108,17 @@ export function LibraryPanel() {
               projects.map((project) => (
                 <button
                   key={project.id}
-                  className="w-full text-left p-2.5 rounded-lg hover:bg-[#1a1f2e] border border-transparent hover:border-[#2a3040] transition group"
+                  type="button"
+                  onClick={() => void handleOpenProject(project.id, project.name)}
+                  disabled={loadingId === project.id}
+                  className="w-full text-left p-2.5 rounded-lg hover:bg-[#1a1f2e] border border-transparent hover:border-[#2a3040] transition group disabled:opacity-50"
                 >
                   <div className="flex items-center gap-2">
-                    <Film size={13} className="text-[#00e5c8] flex-shrink-0" />
+                    {loadingId === project.id ? (
+                      <Loader2 size={13} className="text-[#00e5c8] flex-shrink-0 animate-spin" />
+                    ) : (
+                      <Film size={13} className="text-[#00e5c8] flex-shrink-0" />
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="text-white text-xs font-medium truncate">{project.name}</div>
                       <div className="text-gray-500 text-[10px]">

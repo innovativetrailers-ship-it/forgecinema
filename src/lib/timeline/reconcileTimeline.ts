@@ -3,30 +3,12 @@ import { jobPlaybackPath } from '@/lib/media/jobPlayback'
 import type { ShotPlanCard } from '@/lib/studio/shotPlan'
 import type { Clip, TimelineRecipe } from '@/lib/timeline/schema'
 import { computeTimelineDuration, sanitizeClipDuration } from '@/lib/timeline/playback'
-import { useTimelineStore } from '@/store/timeline'
+import { useTimelineStore, type TimelineClip } from '@/store/timeline'
 
 const VIDEO_TRACK_ID = 't-v1'
 
-function isCompletedShot(shot: ShotPlanCard): boolean {
-  return (shot.status === 'completed' || shot.status === 'manual') && Boolean(shot.videoUrl?.trim())
-}
-
-/** Self-heal simple-mode timeline from DB completed shots. */
-export function reconcileTimelineStore(shots: ShotPlanCard[]): void {
-  const existing = new Set(useTimelineStore.getState().clips.map((c) => c.id))
-  const ordered = [...shots].sort((a, b) => a.shotNumber - b.shotNumber)
-
-  for (const shot of ordered) {
-    if (!isCompletedShot(shot) || existing.has(shot.id)) continue
-    useTimelineStore.getState().addClip({
-      id: shot.id,
-      sourceUrl: shot.videoUrl!,
-      posterUrl: shot.lastFrame,
-      durationSec: sanitizeClipDuration(shot.duration, 5),
-      track: 'video',
-      label: `Shot ${shot.shotNumber}`,
-    })
-  }
+function isTimelineShot(shot: ShotPlanCard): boolean {
+  return shot.status === 'completed' || shot.status === 'manual'
 }
 
 function shotIdsOnRecipe(recipe: TimelineRecipe): Set<string> {
@@ -39,7 +21,50 @@ function shotIdsOnRecipe(recipe: TimelineRecipe): Set<string> {
   return ids
 }
 
-/** Add missing shot-plan clips to the Ultimate editor recipe. */
+function logReconcileDiagnostics(
+  shots: ShotPlanCard[],
+  added: number,
+): void {
+  const completed = shots.filter(isTimelineShot).length
+  const withVideo = shots.filter((s) => Boolean(s.videoUrl?.trim())).length
+  console.log('reconcileTimeline', {
+    total: shots.length,
+    completed,
+    withVideo,
+    added,
+  })
+}
+
+/** Mirror completed shots into the shared simple-mode timeline store (no playback double-write). */
+export function syncTimelineStoreFromShots(shots: ShotPlanCard[]): void {
+  const ordered = [...shots].sort((a, b) => a.shotNumber - b.shotNumber)
+  let startSec = 0
+  const clips: TimelineClip[] = []
+
+  for (const shot of ordered) {
+    if (!isTimelineShot(shot)) continue
+    const dur = sanitizeClipDuration(shot.duration, 5)
+    clips.push({
+      id: shot.id,
+      sourceUrl: shot.videoUrl?.trim() ?? '',
+      posterUrl: shot.lastFrame,
+      startSec,
+      durationSec: dur,
+      track: 'video',
+      label: `Shot ${shot.shotNumber}`,
+    })
+    startSec += dur
+  }
+
+  useTimelineStore.setState({ clips, playheadSec: 0, isPlaying: false })
+}
+
+/** @deprecated Use reconcileTimeline — kept for imports that only need the store projection. */
+export function reconcileTimelineStore(shots: ShotPlanCard[]): void {
+  syncTimelineStoreFromShots(shots)
+}
+
+/** Add missing shot-plan clips to the Ultimate/Advanced editor recipe. */
 export function reconcileRecipeFromShots(
   shots: ShotPlanCard[],
   recipe: TimelineRecipe,
@@ -50,7 +75,7 @@ export function reconcileRecipeFromShots(
   const newClips: Clip[] = []
 
   for (const shot of [...shots].sort((a, b) => a.shotNumber - b.shotNumber)) {
-    if (!isCompletedShot(shot) || existing.has(shot.id)) continue
+    if (!isTimelineShot(shot) || existing.has(shot.id)) continue
 
     const dur = sanitizeClipDuration(shot.duration, 5)
     const clipId = nanoid()
@@ -59,7 +84,7 @@ export function reconcileRecipeFromShots(
       trackId: VIDEO_TRACK_ID,
       startTime: lastEnd,
       endTime: lastEnd + dur,
-      sourceUrl: shot.videoUrl!,
+      sourceUrl: shot.videoUrl?.trim() ?? '',
       posterUrl: shot.lastFrame,
       prompt: `Shot ${shot.shotNumber}`,
       metadata: { shotPlanId: shot.id },
@@ -79,6 +104,19 @@ export function reconcileRecipeFromShots(
     tracks: nextTracks,
     durationSeconds: computeTimelineDuration(nextTracks, recipe.durationSeconds),
   }
+}
+
+/** Unified projection: DB completed shots → editor recipe + shared timeline store. */
+export function reconcileTimeline(
+  shots: ShotPlanCard[],
+  recipe: TimelineRecipe,
+): { recipe: TimelineRecipe; added: number } {
+  const before = shotIdsOnRecipe(recipe).size
+  const next = reconcileRecipeFromShots(shots, recipe)
+  syncTimelineStoreFromShots(shots)
+  const added = shotIdsOnRecipe(next).size - before
+  logReconcileDiagnostics(shots, added)
+  return { recipe: next, added }
 }
 
 /** Prefer same-origin playback when a render job id is known. */

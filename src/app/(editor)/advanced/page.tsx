@@ -26,6 +26,9 @@ import { importLegacyPendingClips } from '@/lib/timeline/importLegacyPending'
 import { useJobStore } from '@/store/jobStore'
 import { subscribeJobStream } from '@/lib/jobs/subscribeJobStream'
 import { computeTimelineDuration, isVideoMediaUrl } from '@/lib/timeline/playback'
+import { hydrateTimelineFromShots } from '@/lib/projects/loadProject'
+import type { ProjectLoadedDetail } from '@/lib/projects/loadProject'
+import { useProjectLoadListener } from '@/hooks/useProjectLoadListener'
 
 // Default 8-track timeline scaffold
 const DEFAULT_TRACKS: Track[] = [
@@ -109,6 +112,26 @@ export default function AdvancedPage() {
       }
     })
   }, [])
+
+  useEffect(() => {
+    if (!session) return
+    let cancelled = false
+    const current = usePlaybackStore.getState().recipe ?? buildDefaultRecipe(projectId.current)
+    void hydrateTimelineFromShots(projectId.current, current)
+      .then((next) => {
+        if (cancelled) return
+        if (next !== current) commitHistory(next)
+      })
+      .catch(console.error)
+    return () => { cancelled = true }
+  }, [session, commitHistory])
+
+  useProjectLoadListener(useCallback((detail: ProjectLoadedDetail) => {
+    projectId.current = detail.projectId
+    historyRef.current = []
+    historyIndexRef.current = -1
+    commitHistory(detail.recipe)
+  }, [commitHistory]))
 
   useEffect(() => {
     persistPlayhead(playheadTime)

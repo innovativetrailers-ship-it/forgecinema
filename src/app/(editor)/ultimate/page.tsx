@@ -54,7 +54,10 @@ import { importLegacyPendingClips } from '@/lib/timeline/importLegacyPending'
 import { useJobStore } from '@/store/jobStore'
 import { subscribeJobStream } from '@/lib/jobs/subscribeJobStream'
 import { computeTimelineDuration, isVideoMediaUrl, sanitizeClipDuration } from '@/lib/timeline/playback'
-import { reconcileRecipeFromShots } from '@/lib/timeline/reconcileTimeline'
+import { reconcileTimeline } from '@/lib/timeline/reconcileTimeline'
+import { hydrateTimelineFromShots } from '@/lib/projects/loadProject'
+import type { ProjectLoadedDetail } from '@/lib/projects/loadProject'
+import { useProjectLoadListener } from '@/hooks/useProjectLoadListener'
 import { jobPlaybackPath } from '@/lib/media/jobPlayback'
 import type { ShotPlanCard } from '@/lib/studio/shotPlan'
 
@@ -217,6 +220,26 @@ export default function UltimatePage() {
     setRecipe(r)
     persistRecipe(r)
   }, [persistRecipe])
+
+  useEffect(() => {
+    if (!session) return
+    let cancelled = false
+    const current = usePlaybackStore.getState().recipe ?? buildRecipe(projectId.current)
+    void hydrateTimelineFromShots(projectId.current, current)
+      .then((next) => {
+        if (cancelled) return
+        if (next !== current) commitHistory(next)
+      })
+      .catch(console.error)
+    return () => { cancelled = true }
+  }, [session, commitHistory])
+
+  useProjectLoadListener(useCallback((detail: ProjectLoadedDetail) => {
+    projectId.current = detail.projectId
+    historyRef.current = []
+    historyIndexRef.current = -1
+    commitHistory(detail.recipe)
+  }, [commitHistory]))
 
   useEffect(() => {
     persistPlayhead(playheadTime)
@@ -459,9 +482,8 @@ export default function UltimatePage() {
   }, [recipe, commitHistory])
 
   const handleShotsReloaded = useCallback((shots: ShotPlanCard[]) => {
-    const next = reconcileRecipeFromShots(shots, recipe)
-    if (next === recipe) return
-    commitHistory(next)
+    const { recipe: next } = reconcileTimeline(shots, recipe)
+    if (next !== recipe) commitHistory(next)
   }, [recipe, commitHistory])
 
   // Timeline mutations
