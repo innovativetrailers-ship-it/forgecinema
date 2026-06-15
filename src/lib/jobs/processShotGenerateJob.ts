@@ -132,6 +132,10 @@ export async function processShotGenerateJob(input: ProcessShotGenerateInput): P
       ),
     )
 
+    if (!videoUrl?.trim()) {
+      throw new Error(`shot ${clipId}: provider returned no videoUrl`)
+    }
+
     let finalVideoUrl = videoUrl
     if (clip.lipSyncEnabled) {
       const dialogue = await db.audioTrack.findFirst({

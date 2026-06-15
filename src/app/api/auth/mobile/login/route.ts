@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { SignJWT } from 'jose'
 import { z } from 'zod'
+import { authSecret } from '@/lib/auth/requiredEnv'
 import { db } from '@/lib/db'
 
 const schema = z.object({
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
     }
 
     // Sign a JWT for mobile use (30-day expiry)
-    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!)
+    const secret = new TextEncoder().encode(authSecret())
     const token = await new SignJWT({
       sub: user.id,
       email: user.email,

@@ -1,8 +1,9 @@
 // Edge Runtime-compatible auth config (no Prisma adapter, no db import)
 import type { NextAuthConfig } from 'next-auth'
+import { authSecret } from './auth/requiredEnv'
 
 export const authConfig = {
-  secret:  process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  secret:  authSecret(),
   session: { strategy: 'jwt' as const },
   pages:   { signIn: '/login' },
   trustHost: true,

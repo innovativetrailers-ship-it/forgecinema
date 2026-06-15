@@ -19,7 +19,9 @@ async function pollXAIVideo(
       onSubProgress?.({ pct, message: `Grok Imagine generating ${pct}%`, vendor: 'xai' })
     } else if (res.status === 'done') {
       onSubProgress?.({ pct: 100, message: 'Grok Imagine complete', vendor: 'xai' })
-      return res.video?.url
+      const url = res.video?.url
+      if (!url) throw new Error('Grok Imagine returned no video URL')
+      return url
     } else if (res.status === 'failed') {
       throw new Error(`Grok Imagine failed: ${res.error}`)
     }

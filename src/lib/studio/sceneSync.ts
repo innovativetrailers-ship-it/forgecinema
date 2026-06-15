@@ -54,8 +54,29 @@ export async function syncScenesFromShots(
       const shot = scene.shots[i]
       const clipMeta = chain[i]
       const node = dagByShot.get(shot.shotIndex)
-      const assignedModel = clipMeta?.assignedModel ?? node?.assignedModel ?? 'wan-2.6'
+
+      const existing = await db.studioClip.findUnique({
+        where: { sceneId_clipNumber: { sceneId: row.id, clipNumber: i + 1 } },
+        select: {
+          modelOverride: true,
+          status: true,
+          videoUrl: true,
+          lastFrame: true,
+          manualVideo: true,
+        },
+      })
+
+      const assignedModel =
+        existing?.modelOverride ??
+        clipMeta?.assignedModel ??
+        node?.assignedModel ??
+        'wan-2.6'
       const estimatedCost = node?.estimatedCost ?? estimateShotCost(assignedModel, shot.duration)
+
+      const isLocked =
+        existing?.status === 'COMPLETED' ||
+        existing?.status === 'MANUAL' ||
+        existing?.status === 'GENERATING'
 
       await db.studioClip.upsert({
         where: { sceneId_clipNumber: { sceneId: row.id, clipNumber: i + 1 } },
@@ -81,10 +102,19 @@ export async function syncScenesFromShots(
           assignedModel,
           anchorPolicy: clipMeta?.anchorPolicy ?? 'previous-frame',
           estimatedCost,
-          videoUrl: null,
-          lastFrame: null,
-          status: 'PENDING',
-          manualVideo: false,
+          ...(isLocked
+            ? {
+                videoUrl: existing?.videoUrl ?? null,
+                lastFrame: existing?.lastFrame ?? null,
+                status: existing!.status,
+                manualVideo: existing?.manualVideo ?? false,
+              }
+            : {
+                videoUrl: null,
+                lastFrame: null,
+                status: 'PENDING',
+                manualVideo: false,
+              }),
         },
       })
     }

@@ -54,7 +54,9 @@ import { importLegacyPendingClips } from '@/lib/timeline/importLegacyPending'
 import { useJobStore } from '@/store/jobStore'
 import { subscribeJobStream } from '@/lib/jobs/subscribeJobStream'
 import { computeTimelineDuration, isVideoMediaUrl, sanitizeClipDuration } from '@/lib/timeline/playback'
+import { reconcileRecipeFromShots } from '@/lib/timeline/reconcileTimeline'
 import { jobPlaybackPath } from '@/lib/media/jobPlayback'
+import type { ShotPlanCard } from '@/lib/studio/shotPlan'
 
 type UltimateTab = 'script' | 'storyboard' | 'director' | 'cgi' | 'continuity' | 'audio' | 'locations'
 
@@ -456,6 +458,12 @@ export default function UltimatePage() {
     setActiveTab('storyboard')
   }, [recipe, commitHistory])
 
+  const handleShotsReloaded = useCallback((shots: ShotPlanCard[]) => {
+    const next = reconcileRecipeFromShots(shots, recipe)
+    if (next === recipe) return
+    commitHistory(next)
+  }, [recipe, commitHistory])
+
   // Timeline mutations
   const handleClipMove = useCallback((clipId: string, newStart: number, targetTrackId: string) => {
     const updated = { ...recipe }
@@ -627,6 +635,7 @@ export default function UltimatePage() {
                   onRecipeGenerated={handleRecipeGenerated}
                   onShotCompleted={handleShotPlanCompleted}
                   onShotReset={handleShotPlanReset}
+                  onShotsReloaded={handleShotsReloaded}
                   creditBalance={creditBalance}
                 />
               )}

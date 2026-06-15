@@ -36,11 +36,12 @@ interface Props {
     extras?: { posterUrl?: string; jobId?: string },
   ) => void
   onShotReset?: (shotIds: string[]) => void
+  onShotsReloaded?: (shots: import('@/lib/studio/shotPlan').ShotPlanCard[]) => void
   creditBalance: number
 }
 
 export function AIDirectorPanel({
-  script, projectId, characters, locations, onRecipeGenerated, onShotCompleted, onShotReset, creditBalance,
+  script, projectId, characters, locations, onRecipeGenerated, onShotCompleted, onShotReset, onShotsReloaded, creditBalance,
 }: Props) {
   const [selectedModels, setSelectedModels] = useState<string[]>(['veo-3.1', 'kling-3.0', 'seedance-2.0'])
   const [stylePreset, setStylePreset] = useState('cinematic_drama')
@@ -370,6 +371,7 @@ export function AIDirectorPanel({
           targetDuration={targetDuration}
           onShotCompleted={onShotCompleted}
           onShotReset={onShotReset}
+          onShotsReloaded={onShotsReloaded}
         />
       </div>
     </div>

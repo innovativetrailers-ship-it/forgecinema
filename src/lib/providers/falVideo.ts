@@ -1,5 +1,6 @@
 import { runFal, extractVideoUrl, extractImageUrl } from '@/lib/fal/client'
 import { getEndpointTimeout } from '@/lib/fal/falQueue'
+import { assertModelIntegrity } from '@/lib/models/modelIntegrity'
 import type { ModelDef } from '@/lib/models/resolve'
 import { resolveVideoEndpoint } from '@/lib/models/resolve'
 import { T2V_MODEL_IDS } from '@/lib/orchestration/falEndpoints'
@@ -115,6 +116,8 @@ export async function falVideo(
   if (params.patientZeroUrl) {
     input.reference_image_url = params.patientZeroUrl
   }
+
+  assertModelIntegrity(params.registryModel, _model, modelId, hasStartFrame)
 
   return callFalModel(
     modelId,

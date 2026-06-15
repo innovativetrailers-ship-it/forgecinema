@@ -7,6 +7,7 @@ import {
   klingImageParamForEndpoint,
   supportsKlingEndFrame,
 } from './klingEndpoints'
+import { snapLtx23Duration } from './ltxEndpoints'
 import {
   buildPayload,
   forceRefreshConstraints,
@@ -133,7 +134,9 @@ export async function buildFalVideoInput(
     throw new Error('Prompt is required for video generation')
   }
 
-  let payload = await buildPayload(falModelId, intentToShot(intent))
+  const duration =
+    falModelId.includes('ltx-2.3') ? snapLtx23Duration(intent.duration, falModelId) : intent.duration
+  let payload = await buildPayload(falModelId, intentToShot({ ...intent, duration }))
 
   if (falModelId.includes('kling-video')) {
     payload = applyKlingExtras(falModelId, intent, payload)

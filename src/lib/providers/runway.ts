@@ -25,7 +25,9 @@ async function pollRunwayJob(
       onSubProgress?.({ pct: 0, message: 'Runway queued', vendor: 'runway' })
     } else if (task.status === 'SUCCEEDED') {
       onSubProgress?.({ pct: 100, message: 'Runway complete', vendor: 'runway' })
-      return task.output?.[0]
+      const url = task.output?.[0]
+      if (!url) throw new Error('Runway returned no video URL')
+      return url
     } else if (task.status === 'FAILED') {
       throw new Error(`Runway failed: ${task.failure ?? 'unknown'}`)
     }

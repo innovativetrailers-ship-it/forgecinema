@@ -33,13 +33,18 @@ if [[ ! -f .vercel/project.json ]]; then
   "${VERCEL[@]}" link --yes
 fi
 
-PRODUCTION_ONLY=(NEXTAUTH_URL AUTH_URL NEXT_PUBLIC_APP_URL)
-SKIP_PREFIXES=(DATABASE_DAS_URL) # local-only unless you use Neon DAS in prod
+PRODUCTION_ONLY=(NEXT_PUBLIC_APP_URL)
+# Auth.js v5: trustHost handles URL; use repair-vercel-auth-env.sh for auth secrets.
+SKIP_KEYS=(NEXTAUTH_URL NEXTAUTH_SECRET AUTH_URL BETTER_AUTH_SECRET DEV_ACCOUNT_EMAIL GOOGLE_APPLICATION_CREDENTIALS)
+SKIP_PREFIXES=(DATABASE_DAS_URL NEXT_PUBLIC_ PAYPAL_PLAN_ STRIPE_PRICE_)
 
 should_skip_key() {
   local key="$1"
+  for k in "${SKIP_KEYS[@]}"; do
+    [[ "$key" == "$k" ]] && return 0
+  done
   for p in "${SKIP_PREFIXES[@]}"; do
-    [[ "$key" == "$p" ]] && return 0
+    [[ "$key" == "$p"* ]] && return 0
   done
   return 1
 }
@@ -75,6 +80,10 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   value="${value%\'}"; value="${value#\'}"
 
   [[ -z "$key" || -z "$value" ]] && continue
+  # Auth secrets: never bulk-sync — use scripts/repair-vercel-auth-env.sh
+  if [[ "$key" == "AUTH_SECRET" || "$key" == "GOOGLE_CLIENT_ID" || "$key" == "GOOGLE_CLIENT_SECRET" ]]; then
+    continue
+  fi
   # Never push a mistaken S3 endpoint as the R2 secret.
   if [[ "$key" == "R2_SECRET_ACCESS_KEY" && "$value" == *"://"* ]]; then
     echo "  ✗ $key skipped — value looks like a URL, not an API token secret"
@@ -106,8 +115,8 @@ if [[ -n "$PRODUCTION_URL" ]]; then
 fi
 
 echo ""
-echo "Done. Set CRON_SECRET on production if missing:"
-echo "  openssl rand -hex 32 | vercel env add CRON_SECRET production"
+echo "Done. Auth vars (AUTH_SECRET, GOOGLE_*) are NOT bulk-synced — run:"
+echo "  ./scripts/repair-vercel-auth-env.sh"
 echo ""
-echo "Preview deploys: leave NEXTAUTH_URL unset on preview (auth uses trustHost + VERCEL_URL)."
-echo "Google OAuth: add https://<prod-domain>/api/auth/callback/google"
+echo "Preview deploys: trustHost + VERCEL_URL (no NEXTAUTH_URL needed)."
+echo "Google OAuth callback: https://forgecinema.vercel.app/api/auth/callback/google"

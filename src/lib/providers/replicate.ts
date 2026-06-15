@@ -16,7 +16,9 @@ async function pollReplicate(
       onSubProgress?.({ pct, message: `Sora 2 generating ${pct}%`, vendor: 'replicate' })
     } else if (res.status === 'succeeded') {
       onSubProgress?.({ pct: 100, message: 'Sora 2 complete', vendor: 'replicate' })
-      return Array.isArray(res.output) ? res.output[0] : res.output
+      const url = Array.isArray(res.output) ? res.output[0] : res.output
+      if (!url) throw new Error('Sora 2 returned no video URL')
+      return url
     } else if (res.status === 'failed' || res.status === 'canceled') {
       throw new Error(`Sora 2 ${res.status}: ${res.error ?? 'unknown'}`)
     }

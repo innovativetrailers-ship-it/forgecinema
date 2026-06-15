@@ -138,10 +138,9 @@ export async function generateWithBridging(
       : undefined
 
     let videoUrl = ''
-    let retryCount = 0
-    const MAX_RETRIES = 1  // one retry then LTX fallback
+    const MAX_RETRIES = 1
 
-    while (retryCount <= MAX_RETRIES) {
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
         videoUrl = await withTimeout(
           callVideoModel({
@@ -151,7 +150,6 @@ export async function generateWithBridging(
             imageUrl:       tailFrameUrl,
             patientZeroUrl: characterRef,
             onSubProgress: (sub) => {
-              // Blend per-vendor sub-progress into the overall pipeline band (40-88%)
               const shotsBefore    = node.shot.shotIndex
               const currentFrac    = sub.pct / 100
               const overallShotPct = ((shotsBefore + currentFrac) / Math.max(total, 1)) * 100
@@ -163,23 +161,18 @@ export async function generateWithBridging(
                 subProgress: sub.pct,
                 subMessage:  `Shot ${node.shot.shotIndex + 1}/${total}: ${sub.message}`,
               })
-              void bandPct  // consumed by caller via overall % calculation in index.ts
+              void bandPct
             },
           }),
-          getModelTimeout(node.assignedModel),  // model-aware hard cap per segment
-          `Shot ${node.shot.shotIndex} (${node.assignedModel})`
+          getModelTimeout(node.assignedModel),
+          `Shot ${node.shot.shotIndex} (${node.assignedModel})`,
         )
         break
       } catch (err: unknown) {
-        retryCount++
         const msg = err instanceof Error ? err.message : String(err)
-        console.warn(`[orchestration] shot ${node.shot.shotIndex} attempt ${retryCount} failed:`, msg)
-        if (retryCount > MAX_RETRIES) {
-          // LTX fallback — fast and cheap
-          videoUrl = await callVideoModel({ model: 'ltx-2.3-fast', prompt, duration: node.shot.duration })
-        } else {
-          await new Promise(r => setTimeout(r, 3000 * retryCount))
-        }
+        console.warn(`[orchestration] shot ${node.shot.shotIndex} attempt ${attempt + 1} failed:`, msg)
+        if (attempt >= MAX_RETRIES) throw err
+        await new Promise((r) => setTimeout(r, 3000 * (attempt + 1)))
       }
     }
 
@@ -204,7 +197,7 @@ export async function generateWithBridging(
       contentType:  node.shot.contentType,
       tailFrameUrl: tailFrameUrl ?? '',
       qualityScore: 1.0,
-      retryCount,
+      retryCount:   0,
     })
     onProgress({ shotIndex: node.shot.shotIndex, totalShots: total, status: 'complete' })
   }

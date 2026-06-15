@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Loader2 } from 'lucide-react'
 import { subscribeJobStream } from '@/lib/jobs/subscribeJobStream'
 import { jobPlaybackPath } from '@/lib/media/jobPlayback'
+import { reconcileTimelineStore } from '@/lib/timeline/reconcileTimeline'
 import type { ShotPlanCard } from '@/lib/studio/shotPlan'
 import type { DirectShotArgs } from '@/lib/types/shot'
 import { AwaitingDirectionCard } from '@/components/ultimate/AwaitingDirectionCard'
@@ -21,6 +22,7 @@ interface Props {
     extras?: { posterUrl?: string; jobId?: string },
   ) => void
   onShotReset?: (shotIds: string[]) => void
+  onShotsReloaded?: (shots: ShotPlanCard[]) => void
 }
 
 export function ShotPlanPanel({
@@ -31,6 +33,7 @@ export function ShotPlanPanel({
   targetDuration,
   onShotCompleted,
   onShotReset,
+  onShotsReloaded,
 }: Props) {
   const [shots, setShots] = useState<ShotPlanCard[]>([])
   const [parsing, setParsing] = useState(false)
@@ -42,12 +45,15 @@ export function ShotPlanPanel({
     return fetch(`/api/projects/${projectId}/shots`, { credentials: 'include' })
       .then((r) => r.json())
       .then((d: { shots?: ShotPlanCard[]; totalCost?: number }) => {
-        setShots(d.shots ?? [])
+        const next = d.shots ?? []
+        setShots(next)
         setTotalCost(d.totalCost ?? 0)
-        return d.shots ?? []
+        reconcileTimelineStore(next)
+        onShotsReloaded?.(next)
+        return next
       })
       .catch(() => [] as ShotPlanCard[])
-  }, [projectId])
+  }, [projectId, onShotsReloaded])
 
   useEffect(() => { void reload() }, [reload])
 
@@ -79,8 +85,11 @@ export function ShotPlanPanel({
       })
       const data = await res.json() as { shots?: ShotPlanCard[]; totalCost?: number; error?: string }
       if (!res.ok) throw new Error(data.error ?? 'Parse failed')
-      setShots(data.shots ?? [])
+      const next = data.shots ?? []
+      setShots(next)
       setTotalCost(data.totalCost ?? 0)
+      reconcileTimelineStore(next)
+      onShotsReloaded?.(next)
     } catch (err) {
       setParseError(err instanceof Error ? err.message : 'Parse failed')
     } finally {

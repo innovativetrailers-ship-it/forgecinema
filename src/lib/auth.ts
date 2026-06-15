@@ -4,13 +4,14 @@ import Credentials from 'next-auth/providers/credentials'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import bcrypt from 'bcryptjs'
 import { db } from './db'
+import { authSecret, requiredEnv } from './auth/requiredEnv'
 
 const isBuildTime =
   process.env.NEXT_PHASE === 'phase-production-build' ||
   process.env.NEXT_PHASE === 'phase-export'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  secret: authSecret(),
   adapter: isBuildTime ? undefined : PrismaAdapter(db),
   session: { strategy: 'jwt' },
   pages: { signIn: '/login' },
@@ -21,10 +22,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   providers: [
-    Google({
-      clientId:     process.env.GOOGLE_CLIENT_ID     ?? '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-    }),
+    Google(
+      isBuildTime
+        ? { clientId: 'build', clientSecret: 'build' }
+        : {
+            clientId:     requiredEnv('GOOGLE_CLIENT_ID'),
+            clientSecret: requiredEnv('GOOGLE_CLIENT_SECRET'),
+          },
+    ),
     Credentials({
       name: 'credentials',
       credentials: {
