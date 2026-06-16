@@ -4,6 +4,8 @@ import { ModelResolveError, resolveModel } from '@/lib/models/resolveModel'
 import { traced } from '@/lib/obs/traced'
 import { advanceChain } from '@/lib/studio/advanceChain'
 import { getClipAnchorFrame, listShotPlan } from '@/lib/studio/shotPlan'
+import { persistClipVideoToR2 } from '@/lib/storage/persistMedia'
+import { isGenerationPaused } from '@/lib/generation/pause'
 import { callVideoModel, extractTailFrame, getModelTimeout, withTimeout } from '@/lib/orchestration/bridgedGeneration'
 import type { GenerationMode } from '@/lib/orchestration/costGuard'
 
@@ -21,6 +23,16 @@ export interface ProcessShotGenerateInput {
 export async function processShotGenerateJob(input: ProcessShotGenerateInput): Promise<void> {
   const { jobId, clipId, projectId, prompt: overridePrompt, anchorFrameUrl: inputAnchor, modelOverride } = input
 
+  if (isGenerationPaused()) {
+    const msg = 'Generation is paused (GENERATION_PAUSED). Set GENERATION_PAUSED=false to enable.'
+    await appendJobProgressEvent(
+      jobId,
+      { phase: 'failed', status: 'failed', detail: msg },
+      { status: 'FAILED', errorMessage: msg },
+    )
+    throw new Error(msg)
+  }
+
   const clip = await traced(jobId, 'db_load_shot', 8_000, () =>
     db.studioClip.findUnique({
       where: { id: clipId },
@@ -29,6 +41,27 @@ export async function processShotGenerateJob(input: ProcessShotGenerateInput): P
   )
   if (!clip || clip.scene.projectId !== projectId) {
     throw new Error(`Clip ${clipId} not found`)
+  }
+
+  if (clip.status === 'COMPLETED' && clip.videoUrl?.trim()) {
+    console.log('[shot-generate] idempotent skip — already completed with videoUrl', { clipId, jobId })
+    await appendJobProgressEvent(
+      jobId,
+      {
+        phase: 'complete',
+        status: 'completed',
+        detail: JSON.stringify({ shotId: clipId, videoUrl: clip.videoUrl, idempotent: true }),
+        pct: 100,
+      },
+      {
+        status: 'COMPLETE',
+        progressPct: 100,
+        outputUrl: clip.videoUrl,
+        completedAt: new Date(),
+        statusMessage: 'Shot already complete',
+      },
+    )
+    return
   }
 
   const mode =
@@ -136,7 +169,8 @@ export async function processShotGenerateJob(input: ProcessShotGenerateInput): P
       throw new Error(`shot ${clipId}: provider returned no videoUrl`)
     }
 
-    let finalVideoUrl = videoUrl
+    const providerUrl = videoUrl
+    let finalVideoUrl = providerUrl
     if (clip.lipSyncEnabled) {
       const dialogue = await db.audioTrack.findFirst({
         where: {
@@ -156,6 +190,17 @@ export async function processShotGenerateJob(input: ProcessShotGenerateInput): P
           console.warn('[shot-generate] lip sync failed:', lipErr instanceof Error ? lipErr.message : lipErr)
         }
       }
+    }
+
+    try {
+      finalVideoUrl = await traced(jobId, 'mirror_r2', 120_000, () =>
+        persistClipVideoToR2(finalVideoUrl, projectId, clipId),
+      )
+    } catch (mirrorErr) {
+      console.warn('[shot-generate] R2 mirror failed — playback via /api/media proxy', {
+        clipId,
+        error: mirrorErr instanceof Error ? mirrorErr.message : String(mirrorErr),
+      })
     }
 
     let lastFrame = ''
@@ -181,8 +226,9 @@ export async function processShotGenerateJob(input: ProcessShotGenerateInput): P
         where: { id: clipId },
         data: {
           status: 'COMPLETED',
-        videoUrl: finalVideoUrl,
-        lastFrame: lastFrame || null,
+          videoUrl: finalVideoUrl,
+          rawVideoUrl: providerUrl !== finalVideoUrl ? providerUrl : null,
+          lastFrame: lastFrame || null,
           manualVideo: false,
           generatingAt: null,
         },

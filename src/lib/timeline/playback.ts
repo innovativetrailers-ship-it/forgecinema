@@ -3,11 +3,19 @@ import type { Track } from './schema'
 /** True when URL looks like streamable video (not a still frame). */
 export function isVideoMediaUrl(url: string): boolean {
   if (!url.trim()) return false
+  if (url.startsWith('/api/media/') || url.startsWith('/api/jobs/')) return true
   const path = url.split('?')[0]?.toLowerCase() ?? ''
   if (/\.(jpe?g|png|gif|webp|bmp|svg)$/.test(path)) return false
   if (/\.(mp4|webm|mov|m4v|ogv|ogg)$/.test(path)) return true
   if (path.includes('/playback') || path.includes('/video')) return true
   return !/\.(jpe?g|png|gif|webp|bmp|svg)$/.test(path)
+}
+
+/** Guard <video> play — same-origin paths or http(s) URLs only. */
+export function canPlaySrc(src?: string): boolean {
+  if (!src?.trim()) return false
+  if (src.startsWith('/')) return true
+  return /^https?:\/\//i.test(src)
 }
 
 /** Clamp clip duration — real shots are seconds, not hours. */

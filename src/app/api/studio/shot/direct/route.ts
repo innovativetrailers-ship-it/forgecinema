@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { fastEstimateCost } from '@/lib/orchestration/fastEstimate'
 import { checkAccess } from '@/lib/access/guard'
+import { isGenerationPaused } from '@/lib/generation/pause'
 import type { AnchorSource } from '@/generated/prisma/client'
 
 const schema = z.object({
@@ -43,6 +44,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
   const body = parsed.data
+
+  if (isGenerationPaused()) {
+    return NextResponse.json(
+      { error: 'Generation is paused for maintenance. Set GENERATION_PAUSED=false to enable.' },
+      { status: 503 },
+    )
+  }
 
   const clip = await db.studioClip.findUnique({
     where: { id: body.shotPlanId },
@@ -146,7 +154,7 @@ export async function POST(req: NextRequest) {
       modelOverride: body.modelOverride,
       mode: body.mode,
       source: 'user_directed',
-    })
+    }, { attempts: 2 })
   } catch {
     await db.studioClip.update({
       where: { id: body.shotPlanId },

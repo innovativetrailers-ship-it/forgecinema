@@ -67,6 +67,10 @@ export function renderVideoKey(userId: string, jobId: string): string {
   return `renders/${userId}/${jobId}.mp4`
 }
 
+export function clipVideoKey(projectId: string, clipId: string): string {
+  return `clips/${projectId}/${clipId}.mp4`
+}
+
 export function publicUrlForKey(key: string): string {
   const base = PUBLIC_URL.replace(/\/$/, '')
   return base ? `${base}/${key}` : key

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { fastEstimateCost } from '@/lib/orchestration/fastEstimate'
 import { checkAccess } from '@/lib/access/guard'
+import { isGenerationPaused } from '@/lib/generation/pause'
 
 const schema = z.object({
   shotPlanId: z.string(),
@@ -16,6 +17,13 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = schema.parse(await req.json())
+
+  if (isGenerationPaused()) {
+    return NextResponse.json(
+      { error: 'Generation is paused for maintenance. Set GENERATION_PAUSED=false to enable.' },
+      { status: 503 },
+    )
+  }
 
   const clip = await db.studioClip.findUnique({
     where: { id: body.shotPlanId },
@@ -59,7 +67,7 @@ export async function POST(req: NextRequest) {
       clipId: clip.id,
       prompt: body.overridePrompt,
       mode: body.mode,
-    })
+    }, { attempts: 2 })
   } catch {
     if (process.env.VERCEL) {
       const { processShotGenerateJob } = await import('@/lib/jobs/processShotGenerateJob')

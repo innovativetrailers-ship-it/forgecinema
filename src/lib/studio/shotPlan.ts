@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { falLog } from '@/lib/fal/falQueue'
+import { publicPlaybackUrlForClip } from '@/lib/media/clipPlayback'
 import { buildChainForScene, groupIntoScenes } from '@/lib/orchestration/chainBuilder'
 import { buildDAG } from '@/lib/orchestration/dagRouter'
 import { breakdownToShots } from '@/lib/orchestration/scriptBreakdown'
@@ -88,7 +89,7 @@ export async function listShotPlan(projectId: string): Promise<{ shots: ShotPlan
         assignedModel: clip.assignedModel ?? 'wan-2.6',
         modelOverride: clip.modelOverride ?? undefined,
         status: mapClipStatus(clip.status),
-        videoUrl: clip.videoUrl ?? undefined,
+        videoUrl: publicPlaybackUrlForClip(clip.id, clip.videoUrl, clip.rawVideoUrl),
         lastFrame: clip.lastFrame ?? undefined,
         keyframeUrl: clip.keyframeUrl ?? undefined,
         anchorFrameUrl: clip.anchorFrameUrl ?? undefined,

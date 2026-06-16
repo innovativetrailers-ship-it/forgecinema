@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useCallback } from 'react'
 import { Play, Pause, SkipBack, SkipForward, Maximize2, Loader2 } from 'lucide-react'
 import { PREVIEW_HEIGHT } from './constants'
 import type { Clip, Track } from '@/lib/timeline/schema'
-import { isVideoMediaUrl } from '@/lib/timeline/playback'
+import { isVideoMediaUrl, canPlaySrc } from '@/lib/timeline/playback'
 
 interface ActiveJob {
   jobId: string
@@ -72,6 +72,10 @@ export function VideoPreview({
   useEffect(() => {
     const video = videoRef.current
     if (!video || !currentClip?.sourceUrl) return
+    if (!canPlaySrc(currentClip.sourceUrl)) {
+      console.warn('skip load: invalid src', currentClip.sourceUrl)
+      return
+    }
 
     const localTime = Math.max(0, playheadTime - currentClip.startTime)
     const src = currentClip.sourceUrl
@@ -90,6 +94,10 @@ export function VideoPreview({
   useEffect(() => {
     const video = videoRef.current
     if (!video || !currentClip?.sourceUrl) return
+    if (!canPlaySrc(currentClip.sourceUrl)) {
+      console.warn('skip play: invalid src', currentClip.sourceUrl)
+      return
+    }
 
     if (isPlaying) {
       video.play().catch((e) => console.error('video.play rejected', e))

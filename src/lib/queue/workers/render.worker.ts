@@ -484,16 +484,8 @@ async function bootSelfTest(): Promise<void> {
   }, results)
 
   await withBootTimeout('fal_auth', 8_000, async () => {
-    const { hasFalKey, getFalKey } = await import('@/lib/config/keys')
+    const { hasFalKey } = await import('@/lib/config/keys')
     if (!hasFalKey()) throw new Error('FAL_KEY not set on THIS service')
-    const { probeEndpoint } = await import('@/lib/fal/probeEndpoint')
-    const probe = await probeEndpoint('fal-ai/flux/dev', getFalKey())
-    if (probe.status === 'AUTH_ERROR') {
-      throw new Error(`FAIL ${probe.code ?? 401} — key invalid on THIS service`)
-    }
-    if (probe.status === 'LOCKED') {
-      throw new Error(`FAIL ${probe.code ?? 403} — fal account locked on THIS service`)
-    }
   }, results)
 
   console.log('[worker_boot_selftest]', JSON.stringify(results))
@@ -511,15 +503,30 @@ async function bootSelfTest(): Promise<void> {
 function startEndpointProbeBanner(): void {
   void (async () => {
     try {
-      const { hasFalKey, getFalKey } = await import('@/lib/config/keys')
-      if (!hasFalKey()) return
-      const { probeAllFalEndpoints } = await import('@/lib/fal/registryProbe')
-      const result = await probeAllFalEndpoints(getFalKey(), { skipSchema: true })
-      const dead = result.existence.filter((e) => !e.alive).map((e) => e.id)
-      console.log('[endpoint_probe]', JSON.stringify({
-        alive: result.summary.alive,
+      const { listRegistryVideoEndpoints } = await import('@/lib/fal/registryProbe')
+      const endpoints = listRegistryVideoEndpoints()
+      const rows: Array<{ id: string; ok: boolean }> = []
+
+      for (const entry of endpoints) {
+        try {
+          const res = await fetch(
+            `https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=${encodeURIComponent(entry.endpoint)}`,
+            { signal: AbortSignal.timeout(15_000) },
+          )
+          rows.push({ id: entry.endpoint, ok: res.ok })
+        } catch {
+          rows.push({ id: entry.endpoint, ok: false })
+        }
+        await new Promise((r) => setTimeout(r, 80))
+      }
+
+      const alive = rows.filter((r) => r.ok).map((r) => r.id)
+      const dead = rows.filter((r) => !r.ok).map((r) => r.id)
+      console.log('endpoint_health', JSON.stringify({
+        alive: alive.length,
         dead,
-        total: result.existence.length,
+        total: rows.length,
+        source: 'openapi_schema_fetch',
       }))
     } catch (err) {
       console.warn('[endpoint_probe_error]', err instanceof Error ? err.message : err)
@@ -576,6 +583,15 @@ const workerProcessor = async (job: { name: string; data: RenderJobPayload; id?:
       const { jobId, userId, projectId, clipId, prompt, anchorFrameUrl, modelOverride, mode } = data as unknown as {
         jobId: string; userId: string; projectId: string; clipId: string
         prompt?: string; anchorFrameUrl?: string; modelOverride?: string; mode?: 'draft' | 'production'
+      }
+      const { isGenerationPaused } = await import('@/lib/generation/pause')
+      if (isGenerationPaused()) {
+        console.log('[shot-generate] skipped — GENERATION_PAUSED is ON', { jobId, clipId })
+        await db.renderJob.update({
+          where: { id: jobId },
+          data: { status: 'FAILED', errorMessage: 'Generation paused (GENERATION_PAUSED)' },
+        }).catch(() => {})
+        return
       }
       const { processShotGenerateJob } = await import('@/lib/jobs/processShotGenerateJob')
       await processShotGenerateJob({ jobId, userId, projectId, clipId, prompt, anchorFrameUrl, modelOverride, mode })
@@ -753,7 +769,7 @@ const workerProcessor = async (job: { name: string; data: RenderJobPayload; id?:
 const WORKER_OPTS = {
   connection: bullmqRedis,
   prefix: bullMQPrefix,
-  concurrency: 5,
+  concurrency: Number(process.env.RENDER_WORKER_CONCURRENCY ?? '1'),
   limiter: { max: 20, duration: 60000 },
   lockDuration:    10_800_000,
   lockRenewTime:   300_000,

@@ -39,8 +39,13 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
   isPlaying: false,
 
   addClip: (clip) => {
+    console.log('addClip input', {
+      id: clip.id,
+      sourceUrl: clip.sourceUrl,
+      hasUrl: Boolean(clip.sourceUrl),
+    })
     if (!clip.sourceUrl) {
-      console.error('addClip_rejected_no_sourceUrl', clip)
+      console.error('addClip REJECTED: no sourceUrl', clip)
       return
     }
     if (!clip.durationSec || clip.durationSec <= 0 || clip.durationSec > 3600) {

@@ -4,6 +4,7 @@ import {
   uploadToR2,
   objectExists,
   renderVideoKey,
+  clipVideoKey,
   publicUrlForKey,
   getSignedDownloadUrl,
 } from './r2'
@@ -31,6 +32,34 @@ export async function persistVideoToR2(
   }
 
   return uploadToR2(buffer, renderVideoKey(userId, jobId), 'video/mp4')
+}
+
+/** Mirror a studio clip video to R2 — server fetch bypasses browser CORS. */
+export async function persistClipVideoToR2(
+  sourceUrl: string,
+  projectId: string,
+  clipId: string,
+): Promise<string> {
+  const key = clipVideoKey(projectId, clipId)
+  if (await objectExists(key)) return publicUrlForKey(key)
+
+  const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, '')
+  if (publicBase && sourceUrl.startsWith(publicBase)) return sourceUrl
+
+  const res = await fetch(sourceUrl, {
+    signal: AbortSignal.timeout(120_000),
+    headers: { Accept: 'video/*,*/*' },
+  })
+  if (!res.ok) {
+    throw new Error(`mirror fetch ${res.status} for ${sourceUrl.slice(0, 80)}`)
+  }
+
+  const buffer = Buffer.from(await res.arrayBuffer())
+  if (buffer.length < 1024) {
+    throw new Error('Mirrored clip video is too small — provider may have returned an error page')
+  }
+
+  return uploadToR2(buffer, key, 'video/mp4')
 }
 
 /**
