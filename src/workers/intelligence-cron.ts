@@ -14,16 +14,24 @@
 import cron from 'node-cron'
 import { ModelUpdateWatcher, runWeeklyProbeBattery, generateCrossModelComparisonReport, suggestRoutingMatrixUpdates } from '../lib/intelligence/update-watcher'
 import { getIntelligenceQueueLength } from '../lib/firewall/domain-guard'
+import { intelligenceProbesEnabled } from '../lib/intelligence/guards'
 
 console.log('[Intelligence Cron] Starting — PID', process.pid)
+console.log('[Intelligence Cron] Probes enabled:', intelligenceProbesEnabled(), {
+  ENABLE_INTELLIGENCE_PROBES: process.env.ENABLE_INTELLIGENCE_PROBES,
+  GENERATION_PAUSED: process.env.GENERATION_PAUSED,
+  DISABLE_INTELLIGENCE_PROBES: process.env.DISABLE_INTELLIGENCE_PROBES,
+})
 
-if (process.env.DISABLE_INTELLIGENCE_PROBES === 'true') {
-  console.warn('[Intelligence Cron] DISABLE_INTELLIGENCE_PROBES=true — probe schedules will not run')
+if (!intelligenceProbesEnabled()) {
+  console.warn(
+    '[Intelligence Cron] Billable probe schedules DISABLED — set ENABLE_INTELLIGENCE_PROBES=true and GENERATION_PAUSED=false to run',
+  )
 }
 
 // Every 6 hours: check for model updates and handle them
 cron.schedule('0 */6 * * *', async () => {
-  if (process.env.DISABLE_INTELLIGENCE_PROBES === 'true') return
+  if (!intelligenceProbesEnabled()) return
   console.log('[Intelligence Cron] Running update detection...')
   try {
     const watcher = new ModelUpdateWatcher()
@@ -40,7 +48,7 @@ cron.schedule('0 */6 * * *', async () => {
 
 // Weekly Monday 02:00 UTC: run full probe battery on all models
 cron.schedule('0 2 * * 1', async () => {
-  if (process.env.DISABLE_INTELLIGENCE_PROBES === 'true') return
+  if (!intelligenceProbesEnabled()) return
   console.log('[Intelligence Cron] Starting weekly probe battery...')
   try {
     await runWeeklyProbeBattery()

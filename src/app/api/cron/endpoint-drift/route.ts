@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { denyUnlessCron } from '@/lib/cron-guard'
 import { endpointDrift } from '@/lib/fal/schemaSync'
+import { isGenerationPaused } from '@/lib/generation/pause'
 
 export const runtime = 'nodejs'
 
 export async function GET(req: NextRequest) {
   const denied = denyUnlessCron(req)
   if (denied) return denied
+
+  if (isGenerationPaused()) {
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      reason: 'GENERATION_PAUSED — endpoint drift uses free OpenAPI only',
+      timestamp: new Date().toISOString(),
+    })
+  }
 
   try {
     const rows = await endpointDrift()

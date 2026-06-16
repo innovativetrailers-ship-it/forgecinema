@@ -267,9 +267,13 @@ export async function submitToFal(
   endpoint: string,
   input: Record<string, unknown>,
   jobId?: string,
+  source?: string,
 ): Promise<FalSubmission> {
   const { assertGenerationNotPaused } = await import('@/lib/generation/pause')
   assertGenerationNotPaused(endpoint)
+
+  const promptHead = String(input.prompt ?? '').slice(0, 40)
+  const caller = source ?? new Error().stack?.split('\n')[3]?.trim() ?? 'UNKNOWN'
 
   fal.config({ credentials: getFalKey() })
   assertGenerationPrompt(endpoint, input, jobId)
@@ -277,13 +281,15 @@ export async function submitToFal(
   falLog('info', 'fal_submit_start', {
     endpoint,
     jobId,
+    caller,
+    promptHead,
     prompt: (input.prompt as string | undefined)?.slice(0, 100),
     duration: input.duration,
     aspectRatio: input.aspect_ratio ?? input.aspectRatio,
     hasImage: !!(input.image_url ?? input.start_image_url ?? input.video_url),
     semaphoreQ: videoGenSemaphore.queueDepth,
   })
-  console.log('[fal_outbound]', JSON.stringify({ jobId, endpoint, hasKey: Boolean(process.env.FAL_KEY ?? process.env.FAL_API_KEY) }))
+  console.log('[fal_submit]', JSON.stringify({ endpoint, caller, promptHead, jobId }))
 
   let res: FalSubmitResponse
   try {

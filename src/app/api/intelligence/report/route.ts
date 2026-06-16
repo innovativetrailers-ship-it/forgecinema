@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { intelligenceDb } from '@/lib/firewall/domain-guard'
 import { ModelUpdateWatcher, MODEL_VERSIONS } from '@/lib/intelligence/update-watcher'
+import { intelligenceProbesEnabled } from '@/lib/intelligence/guards'
 
 export async function GET(req: NextRequest) {
   const userId = req.headers.get('x-user-id')
@@ -72,6 +73,16 @@ export async function POST(req: NextRequest) {
   }
 
   const watcher = new ModelUpdateWatcher()
+
+  if (!intelligenceProbesEnabled()) {
+    const updates = await watcher.detectUpdates()
+    return NextResponse.json({
+      updatesDetected: updates.length,
+      probesRun: false,
+      reason: 'Intelligence probes disabled (ENABLE_INTELLIGENCE_PROBES not set)',
+      models: updates.map((u) => u.model_id),
+    })
+  }
 
   if (body.modelId) {
     // Single model update check

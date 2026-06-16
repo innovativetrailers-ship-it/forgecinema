@@ -9,6 +9,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { ModelIntelligenceAnalyser } from '@/lib/intelligence/analyser'
 import { PROBE_BATTERY, getProbeSets } from '@/lib/intelligence/probe-battery'
+import { intelligenceProbesEnabled } from '@/lib/intelligence/guards'
 import type { OutcomeTier } from '@/lib/routing/types'
 
 function countProbes(probeSet: typeof PROBE_BATTERY): number {
@@ -49,8 +50,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (process.env.DISABLE_INTELLIGENCE_PROBES === 'true') {
-    return NextResponse.json({ error: 'Intelligence probes disabled on this deployment' }, { status: 503 })
+  if (!intelligenceProbesEnabled()) {
+    return NextResponse.json(
+      {
+        error:
+          'Intelligence probes disabled. Requires ENABLE_INTELLIGENCE_PROBES=true and GENERATION_PAUSED=false.',
+      },
+      { status: 503 },
+    )
   }
 
   let body: ProbeRequestBody

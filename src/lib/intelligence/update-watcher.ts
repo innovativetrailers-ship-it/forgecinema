@@ -9,6 +9,7 @@
 import { intelligenceDb, callDomainLLM, pushIntelligenceSignal } from '../firewall/domain-guard'
 import { ModelIntelligenceAnalyser } from './analyser'
 import { PROBE_BATTERY, getProbeSets } from './probe-battery'
+import { assertIntelligenceProbesAllowed, intelligenceProbesEnabled } from './guards'
 import { buildDeltaReportPrompt } from './crew'
 import type { ModelUpdate, UpdateDelta, RawProbeResult } from './report-schema'
 
@@ -115,6 +116,16 @@ export class ModelUpdateWatcher {
 
   // Full update handling: targeted probes + delta report + routing review
   async handleUpdate(update: ModelUpdate): Promise<void> {
+    if (!intelligenceProbesEnabled()) {
+      console.warn('[UpdateWatcher] Skipping probe battery — intelligence probes disabled', {
+        model_id: update.model_id,
+        GENERATION_PAUSED: process.env.GENERATION_PAUSED,
+        ENABLE_INTELLIGENCE_PROBES: process.env.ENABLE_INTELLIGENCE_PROBES,
+      })
+      return
+    }
+    assertIntelligenceProbesAllowed(`handleUpdate:${update.model_id}`)
+
     console.log(`[UpdateWatcher] Handling update: ${update.model_id} ${update.previous_version} → ${update.new_version}`)
 
     const targetCategories = CATEGORY_MAP[update.model_id] ?? ['efficiency', 'consistency']
@@ -264,10 +275,11 @@ export class ModelUpdateWatcher {
 
 // Weekly full probe battery across all models
 export async function runWeeklyProbeBattery(): Promise<void> {
-  if (process.env.DISABLE_INTELLIGENCE_PROBES === 'true') {
-    console.log('[Intelligence] Weekly probe battery skipped (DISABLE_INTELLIGENCE_PROBES)')
+  if (!intelligenceProbesEnabled()) {
+    console.log('[Intelligence] Weekly probe battery skipped (probes disabled — set ENABLE_INTELLIGENCE_PROBES=true)')
     return
   }
+  assertIntelligenceProbesAllowed('runWeeklyProbeBattery')
   const analyser = new ModelIntelligenceAnalyser()
   const models = Object.keys(MODEL_VERSIONS)
 

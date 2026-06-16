@@ -8,6 +8,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { ModelUpdateWatcher, generateCrossModelComparisonReport, suggestRoutingMatrixUpdates } from '@/lib/intelligence/update-watcher'
+import { intelligenceProbesEnabled } from '@/lib/intelligence/guards'
 import { getIntelligenceQueueLength, pushIntelligenceSignal } from '@/lib/firewall/domain-guard'
 import { denyUnlessCron } from '@/lib/cron-guard'
 
@@ -30,8 +31,14 @@ export async function GET(req: NextRequest) {
       log.push(`Detected ${updates.length} model update(s)`)
 
       for (const update of updates) {
-        await watcher.handleUpdate(update)
-        log.push(`Handled update: ${update.model_id} ${update.previous_version} → ${update.new_version}`)
+        if (intelligenceProbesEnabled()) {
+          await watcher.handleUpdate(update)
+          log.push(`Handled update: ${update.model_id} ${update.previous_version} → ${update.new_version}`)
+        } else {
+          log.push(
+            `Detected update (probes skipped): ${update.model_id} ${update.previous_version} → ${update.new_version}`,
+          )
+        }
       }
     }
 

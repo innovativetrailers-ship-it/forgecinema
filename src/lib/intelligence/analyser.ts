@@ -6,8 +6,9 @@
  * structured intelligence reports stored in the intelligence domain.
  */
 
-import { fal } from '../fal/client'
+
 import { intelligenceDb, callDomainLLM, pushIntelligenceSignal } from '../firewall/domain-guard'
+import { assertIntelligenceProbesAllowed } from './guards'
 import type { ProbeSet, RawProbeResult, RawProbeResults, ModelIntelligenceReport } from './report-schema'
 import { OUTPUT_ASSESSMENT_PROMPT, buildReportPrompt } from './crew'
 import {
@@ -44,6 +45,7 @@ export class ModelIntelligenceAnalyser {
     probeSet: ProbeSet[]
     tier: OutcomeTier
   }): Promise<RawProbeResults> {
+    assertIntelligenceProbesAllowed(`probeModel:${params.modelId}`)
     const results: RawProbeResult[] = []
     const generateFn = MODEL_DISPATCH[params.modelId]
 
