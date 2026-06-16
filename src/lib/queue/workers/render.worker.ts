@@ -26,6 +26,31 @@ import { captureGeneration } from '../../telemetry/delta'
 import { loraAutoTrigger, incrementRenderCount } from '../../vault/lora-trigger'
 import type { GenerateVideoOutput } from '../../models/types'
 import { startShotWatchdog } from '../../studio/watchdog'
+import { drainRenderQueueIfPaused } from '../drainRenderQueue'
+import { isGenerationPaused, isGenerationPausedError } from '../../generation/pause'
+
+const BILLABLE_JOB_NAMES = new Set([
+  'orchestrate',
+  'shot-generate',
+  'scene-generate',
+  'render-simple',
+])
+
+async function skipIfGenerationPaused(
+  jobName: string,
+  jobId?: string,
+): Promise<boolean> {
+  if (!BILLABLE_JOB_NAMES.has(jobName) && jobName !== 'legacy-generate') return false
+  if (!isGenerationPaused()) return false
+  console.warn('generation_paused_skip', { jobName, jobId })
+  if (jobId) {
+    await db.renderJob.update({
+      where: { id: jobId },
+      data: { status: 'FAILED', errorMessage: 'Generation paused (GENERATION_PAUSED)' },
+    }).catch(() => {})
+  }
+  return true
+}
 
 const POLL_INTERVAL_MS = 4000
 // fal video models can sit in-queue for 15+ min under load before execution.
@@ -548,6 +573,7 @@ const workerProcessor = async (job: { name: string; data: RenderJobPayload; id?:
         fccCognitionContext?: { name: string; behavioralPrompt?: string; wardrobeSummary?: string; appearanceSummary?: string }
         projectId?: string; generationMode?: 'draft' | 'production'; source?: string
       }
+      if (await skipIfGenerationPaused('orchestrate', jobId)) return
       const { resolveOrchestrationScript } = await import('@/lib/jobs/resolveOrchestrationScript')
       const prompt = await resolveOrchestrationScript(jobId, data as { prompt?: string; script?: string })
       console.log('[orchestrate] Received job payload:', {
@@ -584,12 +610,10 @@ const workerProcessor = async (job: { name: string; data: RenderJobPayload; id?:
         jobId: string; userId: string; projectId: string; clipId: string
         prompt?: string; anchorFrameUrl?: string; modelOverride?: string; mode?: 'draft' | 'production'
       }
-      const { isGenerationPaused } = await import('@/lib/generation/pause')
-      if (isGenerationPaused()) {
-        console.log('[shot-generate] skipped — GENERATION_PAUSED is ON', { jobId, clipId })
-        await db.renderJob.update({
-          where: { id: jobId },
-          data: { status: 'FAILED', errorMessage: 'Generation paused (GENERATION_PAUSED)' },
+      if (await skipIfGenerationPaused('shot-generate', jobId)) {
+        await db.studioClip.update({
+          where: { id: clipId },
+          data: { status: 'AWAITING_DIRECTION', generatingAt: null },
         }).catch(() => {})
         return
       }
@@ -608,6 +632,7 @@ const workerProcessor = async (job: { name: string; data: RenderJobPayload; id?:
         selectedModels: string[]; mode?: 'draft' | 'production'
       }
       const { processSceneGenerateJob } = await import('@/lib/jobs/processSceneGenerateJob')
+      if (await skipIfGenerationPaused('scene-generate', jobId)) return
       await processSceneGenerateJob({
         jobId, userId, projectId, sceneId, sceneNumber, isFirstScene,
         crossSceneAnchor, selectedModels, mode: mode ?? 'draft',
@@ -620,6 +645,7 @@ const workerProcessor = async (job: { name: string; data: RenderJobPayload; id?:
         jobId: string; prompt: string; duration: number; engine: string; userId: string
       }
       const { processRenderSimpleJob } = await import('@/lib/jobs/processOrchestrateJob')
+      if (await skipIfGenerationPaused('render-simple', jobId)) return
       await processRenderSimpleJob({ jobId, userId, prompt, duration, engine })
       return
     }
@@ -694,6 +720,10 @@ const workerProcessor = async (job: { name: string; data: RenderJobPayload; id?:
     }
 
     // ── Legacy GENERATE / REPAINT / TRANSCRIBE jobs ─────────────────────────
+    if (data.type === 'GENERATE' || data.type === 'REPAINT') {
+      if (await skipIfGenerationPaused('legacy-generate', data.jobId)) return
+    }
+
     // Mark processing in DB
     await db.renderJob.update({
       where: { id: data.jobId },
@@ -720,6 +750,14 @@ const workerProcessor = async (job: { name: string; data: RenderJobPayload; id?:
           await handleGenerateJob(data)
       }
     } catch (err) {
+      if (isGenerationPausedError(err)) {
+        console.warn('generation_paused_blocked', { jobId: data.jobId, message: err instanceof Error ? err.message : err })
+        await db.renderJob.update({
+          where: { id: data.jobId },
+          data: { status: 'FAILED', errorMessage: 'Generation paused (GENERATION_PAUSED)' },
+        }).catch(() => {})
+        return
+      }
       const message = describeProviderError(err)
 
       // Refund credits
@@ -781,6 +819,16 @@ let renderWorker: Worker<RenderJobPayload> | null = null
 
 async function startRenderWorker(): Promise<void> {
   await bootSelfTest()
+
+  console.log('[worker_generation_pause]', JSON.stringify({
+    GENERATION_PAUSED: process.env.GENERATION_PAUSED,
+    paused: isGenerationPaused(),
+    RENDER_WORKER_CONCURRENCY: process.env.RENDER_WORKER_CONCURRENCY ?? '1',
+  }))
+
+  if (isGenerationPaused()) {
+    await drainRenderQueueIfPaused(true)
+  }
 
   console.log('[render_worker_online]', JSON.stringify({
     queue: RENDER_QUEUE_NAME,

@@ -268,6 +268,9 @@ export async function submitToFal(
   input: Record<string, unknown>,
   jobId?: string,
 ): Promise<FalSubmission> {
+  const { assertGenerationNotPaused } = await import('@/lib/generation/pause')
+  assertGenerationNotPaused(endpoint)
+
   fal.config({ credentials: getFalKey() })
   assertGenerationPrompt(endpoint, input, jobId)
 

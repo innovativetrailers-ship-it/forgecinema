@@ -5,7 +5,7 @@ import { traced } from '@/lib/obs/traced'
 import { advanceChain } from '@/lib/studio/advanceChain'
 import { getClipAnchorFrame, listShotPlan } from '@/lib/studio/shotPlan'
 import { persistClipVideoToR2 } from '@/lib/storage/persistMedia'
-import { isGenerationPaused } from '@/lib/generation/pause'
+import { isGenerationPaused, isGenerationPausedError } from '@/lib/generation/pause'
 import { callVideoModel, extractTailFrame, getModelTimeout, withTimeout } from '@/lib/orchestration/bridgedGeneration'
 import type { GenerationMode } from '@/lib/orchestration/costGuard'
 
@@ -25,12 +25,17 @@ export async function processShotGenerateJob(input: ProcessShotGenerateInput): P
 
   if (isGenerationPaused()) {
     const msg = 'Generation is paused (GENERATION_PAUSED). Set GENERATION_PAUSED=false to enable.'
+    console.warn('generation_paused_skip', { jobId, clipId })
+    await db.studioClip.update({
+      where: { id: clipId },
+      data: { status: 'AWAITING_DIRECTION', generatingAt: null },
+    }).catch(() => {})
     await appendJobProgressEvent(
       jobId,
-      { phase: 'failed', status: 'failed', detail: msg },
+      { phase: 'cancelled', status: 'paused', detail: msg },
       { status: 'FAILED', errorMessage: msg },
     )
-    throw new Error(msg)
+    return
   }
 
   const clip = await traced(jobId, 'db_load_shot', 8_000, () =>
@@ -142,6 +147,20 @@ export async function processShotGenerateJob(input: ProcessShotGenerateInput): P
   )
 
   try {
+    if (isGenerationPaused()) {
+      console.warn('generation_paused_skip_before_submit', { jobId, clipId })
+      await db.studioClip.update({
+        where: { id: clipId },
+        data: { status: 'AWAITING_DIRECTION', generatingAt: null },
+      })
+      await appendJobProgressEvent(
+        jobId,
+        { phase: 'cancelled', status: 'paused', detail: 'Generation paused before submit' },
+        { status: 'FAILED', errorMessage: 'Generation paused (GENERATION_PAUSED)' },
+      )
+      return
+    }
+
     const videoUrl = await traced(jobId, 'fal_submit', 30_000, () =>
       withTimeout(
         callVideoModel({
@@ -256,6 +275,19 @@ export async function processShotGenerateJob(input: ProcessShotGenerateInput): P
       },
     )
   } catch (err) {
+    if (isGenerationPausedError(err)) {
+      console.warn('generation_paused_blocked', { jobId, clipId, message: err instanceof Error ? err.message : err })
+      await db.studioClip.update({
+        where: { id: clipId },
+        data: { status: 'AWAITING_DIRECTION', generatingAt: null },
+      }).catch(() => {})
+      await appendJobProgressEvent(
+        jobId,
+        { phase: 'cancelled', status: 'paused', detail: err instanceof Error ? err.message : String(err) },
+        { status: 'FAILED', errorMessage: 'Generation paused (GENERATION_PAUSED)' },
+      )
+      return
+    }
     const msg = err instanceof Error ? err.message : String(err)
     await db.studioClip.update({
       where: { id: clipId },

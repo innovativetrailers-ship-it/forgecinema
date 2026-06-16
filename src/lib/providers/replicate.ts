@@ -1,3 +1,4 @@
+import { assertGenerationNotPaused } from '@/lib/generation/pause'
 import type { ModelDef } from '@/lib/models/resolve'
 import type { SubProgressFn } from '@/lib/orchestration/types'
 
@@ -37,6 +38,7 @@ export async function replicateVideo(
   _model: ModelDef,
   params: ReplicateVideoParams,
 ): Promise<string> {
+  assertGenerationNotPaused('replicate:sora-2')
   const token = process.env.REPLICATE_API_TOKEN
   if (!token) throw new Error('sora-2 requires REPLICATE_API_TOKEN')
 

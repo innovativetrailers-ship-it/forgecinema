@@ -1,3 +1,4 @@
+import { assertGenerationNotPaused } from '@/lib/generation/pause'
 import type { ModelDef } from '@/lib/models/resolve'
 import type { SubProgressFn } from '@/lib/orchestration/types'
 
@@ -41,6 +42,7 @@ export async function grokVideo(
   _model: ModelDef,
   params: GrokVideoParams,
 ): Promise<string> {
+  assertGenerationNotPaused('xai:grok-imagine-video')
   const apiKey = process.env.XAI_API_KEY
   if (!apiKey) throw new Error('Grok Imagine requires XAI_API_KEY')
 

@@ -1,3 +1,4 @@
+import { assertGenerationNotPaused } from '@/lib/generation/pause'
 import type { ModelDef } from '@/lib/models/resolve'
 import type { SubProgressFn } from '@/lib/orchestration/types'
 
@@ -63,6 +64,7 @@ export async function runwayVideo(
   model: ModelDef,
   params: RunwayVideoParams,
 ): Promise<string> {
+  assertGenerationNotPaused(`runway:${model.id}`)
   const RunwayML = (await import('@runwayml/sdk')).default
   const client = new RunwayML({ apiKey: runwayApiKey() })
   const ratio = mapAspectRatio(params.aspectRatio)

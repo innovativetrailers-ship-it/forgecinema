@@ -61,6 +61,8 @@ export async function falWithTimeout<T = unknown>(
 
     if (!submission) {
       while (submitAttempt < 2) {
+        const { assertGenerationNotPaused } = await import('@/lib/generation/pause')
+        assertGenerationNotPaused(endpoint)
         try {
           submission = await submitToFal(endpoint, currentInput)
           if (options?.checkpoint) {

@@ -2,6 +2,7 @@
 
 import { fal as falSdk } from '@fal-ai/client'
 import { getFalKey } from '@/lib/config/keys'
+import { assertGenerationNotPaused } from '@/lib/generation/pause'
 import {
   parseFalSubmission,
   pollFalStatusOnce,
@@ -49,15 +50,27 @@ export async function runFal<T = unknown>(
 /**
  * SDK-compatible facade — subscribe delegates to runFal.
  */
+const guardedQueue = {
+  ...falSdk.queue,
+  submit: async (
+    endpoint: string,
+    options: { input: Record<string, unknown> } & Record<string, unknown>,
+  ) => {
+    assertGenerationNotPaused(endpoint)
+    return falSdk.queue.submit(endpoint, options)
+  },
+}
+
 export const fal = {
   subscribe: async <T = unknown>(
     modelId: string,
     options: { input: Record<string, unknown> } & Record<string, unknown>,
   ): Promise<{ data: T }> => {
+    assertGenerationNotPaused(modelId)
     const data = await runFal<T>(modelId, options.input)
     return { data }
   },
-  queue: falSdk.queue,
+  queue: guardedQueue,
   storage: falSdk.storage,
 }
 
