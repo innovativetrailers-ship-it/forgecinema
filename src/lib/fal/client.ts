@@ -57,6 +57,11 @@ const guardedQueue = {
     options: { input: Record<string, unknown> } & Record<string, unknown>,
   ) => {
     assertGenerationNotPaused(endpoint)
+    console.log('[fal_submit]', JSON.stringify({
+      endpoint,
+      source: 'fal:sdk:queue',
+      promptHead: String(options.input?.prompt ?? '').slice(0, 50),
+    }))
     return falSdk.queue.submit(endpoint, options)
   },
 }
@@ -109,7 +114,7 @@ export async function submitFalQueue(
   modelId: string,
   input: Record<string, unknown>,
 ): Promise<string> {
-  const submission = await submitToFal(modelId, input)
+  const submission = await submitToFal(modelId, input, 'fal:client:submitFalQueue')
   return submission.requestId
 }
 
@@ -118,7 +123,7 @@ export async function submitFalQueueFull(
   modelId: string,
   input: Record<string, unknown>,
 ): Promise<FalSubmission> {
-  return submitToFal(modelId, input)
+  return submitToFal(modelId, input, 'fal:client:submitFalQueueFull')
 }
 
 /** Poll FAL queue using persisted submission (pollUrl JSON or FalSubmission). */

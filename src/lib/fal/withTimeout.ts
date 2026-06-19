@@ -36,6 +36,8 @@ export interface FalWithTimeoutOptions {
   submission?: FalSubmission
   /** Rebuild input after 422 schema refresh — enables one self-heal retry. */
   rebuildInput?: () => Promise<Record<string, unknown>>
+  /** Caller attribution for fal_submit audit log (required at submit). */
+  source?: string
   checkpoint?: {
     save: (submission: FalSubmission) => Promise<void>
     load: () => Promise<FalSubmission | null>
@@ -64,7 +66,7 @@ export async function falWithTimeout<T = unknown>(
         const { assertGenerationNotPaused } = await import('@/lib/generation/pause')
         assertGenerationNotPaused(endpoint)
         try {
-          submission = await submitToFal(endpoint, currentInput)
+          submission = await submitToFal(endpoint, currentInput, options?.source ?? 'fal:withTimeout')
           if (options?.checkpoint) {
             await options.checkpoint.save(submission)
           }

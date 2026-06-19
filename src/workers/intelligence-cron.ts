@@ -19,6 +19,9 @@ import { intelligenceProbesEnabled } from '../lib/intelligence/guards'
 console.log('[Intelligence Cron] Starting — PID', process.pid)
 console.log('[Intelligence Cron] Probes enabled:', intelligenceProbesEnabled(), {
   ENABLE_INTELLIGENCE_PROBES: process.env.ENABLE_INTELLIGENCE_PROBES,
+  RUN_MODEL_EVAL: process.env.RUN_MODEL_EVAL,
+  ALLOW_BILLABLE_EVAL: process.env.ALLOW_BILLABLE_EVAL,
+  NODE_ENV: process.env.NODE_ENV,
   GENERATION_PAUSED: process.env.GENERATION_PAUSED,
   DISABLE_INTELLIGENCE_PROBES: process.env.DISABLE_INTELLIGENCE_PROBES,
 })

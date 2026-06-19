@@ -13,6 +13,7 @@ export async function callAgentLLM(params: {
 }): Promise<string> {
   const { content } = await callLLM({
     model: params.fast ? 'claude-haiku' : 'claude-sonnet',
+    source: 'cognition:agent',
     maxTokens: params.maxTokens ?? 800,
     system: params.system,
     messages: [{ role: 'user', content: params.user }],

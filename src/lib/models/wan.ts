@@ -31,7 +31,7 @@ export async function generateVideo(
   input: GenerateVideoInput & { quality?: string },
 ): Promise<GenerateVideoOutput> {
   const model = input.startFrameUrl ? WAN_I2V_MODEL : WAN_T2V_MODEL
-  const submission = await submitToFal(model, await buildWan26Input(input))
+  const submission = await submitToFal(model, await buildWan26Input(input), 'model:wan')
   return {
     jobId: submission.requestId,
     status: 'pending',

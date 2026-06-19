@@ -115,6 +115,8 @@ export class ModelIntelligenceAnalyser {
     const groupedByCategory = this.groupResults(results)
 
     const rawReport = await callDomainLLM('intelligence', {
+      source: 'intelligence:probe:writeReport',
+      billableClass: 'eval',
       systemPrompt: `You are a machine learning research analyst writing internal competitive intelligence reports.
 Write precise, factual, technical reports based on benchmark probe results.
 Focus on: failure patterns, prompt sensitivity, capability boundaries.
@@ -164,6 +166,8 @@ Return structured JSON only.`,
 
     try {
       const raw = await callDomainLLM('intelligence', {
+        source: 'intelligence:probe:assessOutput',
+        billableClass: 'eval',
         systemPrompt: OUTPUT_ASSESSMENT_PROMPT,
         userMessage: `Probe ID: ${params.probe.id}
 Probe prompt: "${params.probe.prompt}"

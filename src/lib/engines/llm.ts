@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { runFal } from '@/lib/fal/client'
+import { claudeCall } from '@/lib/llm/anthropicClient'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
@@ -32,7 +33,9 @@ export async function callLLM(params: {
   system?:    string
   messages:   Array<{ role: 'user' | 'assistant'; content: string }>
   maxTokens?: number
+  source?:    string
 }): Promise<{ content: string; model: string }> {
+  const source = params.source ?? 'llm:callLLM'
 
   if (
     params.model === 'claude-opus' ||
@@ -44,12 +47,16 @@ export async function callLLM(params: {
       params.model === 'claude-sonnet' ? 'claude-sonnet-4-5' :
       'claude-haiku-4-5'
 
-    const response = await anthropic.messages.create({
-      model:      modelId,
-      max_tokens: params.maxTokens ?? 1024,
-      system:     params.system,
-      messages:   params.messages,
-    })
+    const response = await claudeCall(
+      anthropic,
+      {
+        model:      modelId,
+        max_tokens: params.maxTokens ?? 1024,
+        system:     params.system,
+        messages:   params.messages,
+      },
+      { source, billableClass: 'interactive' },
+    )
 
     const text = response.content
       .filter(b => b.type === 'text')

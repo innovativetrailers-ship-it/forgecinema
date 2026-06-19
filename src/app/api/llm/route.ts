@@ -50,7 +50,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const result = await callLLM({ model: model as LLMModel, system, messages, maxTokens })
+    const result = await callLLM({ model: model as LLMModel, system, messages, maxTokens, source: 'api:llm' })
     return NextResponse.json(result)
   } catch (err: unknown) {
     await refundCredits(userId, cost, `LLM ${model} failed`)

@@ -13,6 +13,7 @@
 import { db } from '../db'
 import { redis } from '../redis'
 import Anthropic from '@anthropic-ai/sdk'
+import { claudeCall, type ClaudeBillableClass } from '@/lib/llm/anthropicClient'
 
 // ── Domain-specific Anthropic clients ────────────────────────
 // All fall back to the shared key; separate keys can be injected via env
@@ -224,29 +225,35 @@ export function sanitiseForProduct(content: string): string {
 export async function callDomainLLM(
   domain: keyof typeof DOMAIN_CLIENTS,
   params: {
+    source: string
+    billableClass?: ClaudeBillableClass
     systemPrompt: string
     userMessage: string
     requireJSON?: boolean
     model?: string
-  }
+  },
 ): Promise<string> {
   const client = DOMAIN_CLIENTS[domain]
 
-  // Domain-appropriate model selection (cheapest that's capable)
   const modelMap: Record<keyof typeof DOMAIN_CLIENTS, string> = {
     marketing:    'claude-haiku-4-5',
     product:      'claude-sonnet-4-5',
     technical:    'claude-sonnet-4-5',
-    intelligence: 'claude-haiku-4-5',  // cheap crew — Haiku for report writing
+    intelligence: 'claude-haiku-4-5',
   }
   const model = params.model ?? modelMap[domain]
+  const billableClass = params.billableClass ?? (domain === 'intelligence' ? 'eval' : 'background')
 
-  const msg = await client.messages.create({
-    model,
-    max_tokens: 4096,
-    system: params.systemPrompt,
-    messages: [{ role: 'user', content: params.userMessage }],
-  })
+  const msg = await claudeCall(
+    client,
+    {
+      model,
+      max_tokens: 4096,
+      system: params.systemPrompt,
+      messages: [{ role: 'user', content: params.userMessage }],
+    },
+    { source: params.source, billableClass },
+  )
 
   const raw = msg.content.find(b => b.type === 'text')?.text ?? ''
   return params.requireJSON

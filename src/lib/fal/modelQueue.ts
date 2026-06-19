@@ -14,7 +14,7 @@ export async function falGenerateJob(
   endpoint: string,
   input: Record<string, unknown>,
 ): Promise<GenerateVideoOutput> {
-  const submission = await submitToFal(endpoint, input)
+  const submission = await submitToFal(endpoint, input, 'fal:modelQueue')
   return {
     jobId: submission.requestId,
     status: 'pending',

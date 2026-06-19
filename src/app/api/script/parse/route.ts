@@ -34,7 +34,7 @@ Return JSON array:
     throw new Error('ANTHROPIC_API_KEY required for script parsing')
   }
 
-  const { content } = await callLLM({ model: 'claude-opus', ...request })
+  const { content } = await callLLM({ model: 'claude-opus', source: 'api:script-parse', ...request })
   if (!content.trim()) {
     throw new Error('Opus returned empty response')
   }

@@ -266,14 +266,18 @@ export function parseFalSubmission(raw: string): FalSubmission | null {
 export async function submitToFal(
   endpoint: string,
   input: Record<string, unknown>,
+  source: string,
   jobId?: string,
-  source?: string,
 ): Promise<FalSubmission> {
   const { assertGenerationNotPaused } = await import('@/lib/generation/pause')
   assertGenerationNotPaused(endpoint)
 
-  const promptHead = String(input.prompt ?? '').slice(0, 40)
-  const caller = source ?? new Error().stack?.split('\n')[3]?.trim() ?? 'UNKNOWN'
+  const caller = source?.trim()
+  if (!caller || caller === 'UNKNOWN') {
+    throw new Error(`FAL submit with no caller source — refusing (endpoint=${endpoint})`)
+  }
+
+  const promptHead = String(input.prompt ?? '').slice(0, 50)
 
   fal.config({ credentials: getFalKey() })
   assertGenerationPrompt(endpoint, input, jobId)
@@ -589,6 +593,6 @@ export async function runFalQueue(
   input: Record<string, unknown>,
   options?: Parameters<typeof pollFalResult>[1],
 ): Promise<FalResult> {
-  const submission = await submitToFal(endpoint, input)
+  const submission = await submitToFal(endpoint, input, 'fal:runFalQueue')
   return pollFalResult(submission, options)
 }

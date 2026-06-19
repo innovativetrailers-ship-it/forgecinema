@@ -205,6 +205,8 @@ export class ModelUpdateWatcher {
     }, {})
 
     const rawReport = await callDomainLLM('intelligence', {
+      source: 'intelligence:update:deltaReport',
+      billableClass: 'eval',
       systemPrompt: `You are a machine learning research analyst. Write precise delta reports comparing model versions.`,
       userMessage: buildDeltaReportPrompt(
         update.model_id,
@@ -302,6 +304,11 @@ export async function runWeeklyProbeBattery(): Promise<void> {
 
 // Monthly cross-model comparison report
 export async function generateCrossModelComparisonReport(): Promise<void> {
+  if (!intelligenceProbesEnabled()) {
+    console.log('[Intelligence] Cross-model comparison skipped (eval harness disabled)')
+    return
+  }
+
   const allReports = await intelligenceDb.getProbeResultsForModel(
     '',
     new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
@@ -313,6 +320,8 @@ export async function generateCrossModelComparisonReport(): Promise<void> {
   }
 
   const summary = await callDomainLLM('intelligence', {
+    source: 'intelligence:monthly:comparison',
+    billableClass: 'eval',
     systemPrompt: `You are a machine learning research analyst. Write cross-model comparison summaries for routing optimisation.`,
     userMessage: `Write a cross-model comparison report from ${allReports.length} probe results from the last 30 days.
 Group by capability category. Identify which models lead in each category.
