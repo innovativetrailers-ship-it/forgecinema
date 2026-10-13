@@ -1,5 +1,5 @@
 import { ltxDuration } from '@cinema/core'
-import { MissingPriceError, calculateGenerationCost } from '@/lib/credits'
+import { MissingPriceError, calculateGenerationCost } from '@/lib/credits/math'
 import { MODEL_COSTS, MODEL_COUNCIL_DISPLAY, TIER_ENGINE_MAP } from '@/lib/routing/engineRegistry'
 
 /** Registry ids the council can actually submit. Copy must use this count. */
