@@ -2,6 +2,25 @@
 
 export type DesktopPlatform = 'mac_arm' | 'mac_intel' | 'windows'
 
+/** Fail closed. A platform is offered only when `released` is exactly true. */
+export interface PlatformReleaseEntry {
+  version: string | null
+  released: boolean
+}
+
+export const PLATFORM_RELEASES: Record<DesktopPlatform, PlatformReleaseEntry> = {
+  mac_arm: { version: '3.0.5', released: false },
+  mac_intel: { version: '3.0.5', released: false },
+  // No explicit Windows release is recorded. Unknown stays closed.
+  windows: { version: null, released: false },
+}
+
+export function isPlatformReleased(platform: string | null | undefined): boolean {
+  if (!platform) return false
+  const entry = PLATFORM_RELEASES[platform as DesktopPlatform]
+  return entry?.released === true
+}
+
 export interface DesktopDownloadUrls {
   mac_arm: string
   mac_intel: string
@@ -305,6 +324,7 @@ export async function getDesktopReleaseStatus(
   })
   const checks = await Promise.all(
     (['mac_arm', 'mac_intel', 'windows'] as DesktopPlatform[]).map(async (platform) => {
+      if (!isPlatformReleased(platform)) return false
       if (platform !== 'windows' && !macNotarized) return false
       if (platform === 'windows' && !manifest.windows.signed) return false
       const url = meta[platform]

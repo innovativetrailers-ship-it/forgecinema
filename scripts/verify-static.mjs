@@ -13,6 +13,7 @@ const steps = [
   'scripts/check-third-party-marks.mjs',
   'scripts/check-no-header-auth.mjs',
   'scripts/check-no-shell.mjs',
+  'scripts/check-download-gate.mjs',
 ]
 
 for (const step of steps) {

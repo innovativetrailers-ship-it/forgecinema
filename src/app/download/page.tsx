@@ -111,15 +111,16 @@ export default function DownloadPage() {
             Professional timeline editing, a full colour suite, node compositing, and studio audio — one desktop app. Included with Ultimate.
           </p>
 
-          {canDownload ? (
-            releaseInfo && !releaseInfo.available ? (
-              <div className="max-w-lg mx-auto rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-100/90">
-                <p className="font-semibold text-amber-200 mb-1">Installers not published yet</p>
-                <p className="text-amber-100/70 leading-relaxed">
-                  {releaseInfo.message ?? 'Desktop builds are being prepared. Check back soon or contact support.'}
-                </p>
-              </div>
-            ) : (
+          {!releaseInfo ? (
+            <p className="text-sm text-gray-500">Checking release availability…</p>
+          ) : !releaseInfo.available ? (
+            <div className="max-w-lg mx-auto rounded-xl border border-white/15 bg-white/5 px-5 py-4 text-sm text-gray-200">
+              <p className="font-semibold text-white mb-1">Desktop download opens soon</p>
+              <p className="text-gray-400 leading-relaxed">
+                The desktop studio is not available to download yet. The web app is ready to use.
+              </p>
+            </div>
+          ) : canDownload ? (
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 {(platform === 'mac' || platform === 'unknown') && releaseInfo?.macNotarized && (
                   <>
@@ -148,9 +149,6 @@ export default function DownloadPage() {
                     Download for Windows
                   </a>
                 )}
-                {!releaseInfo && (
-                  <p className="text-sm text-gray-500">Checking release availability…</p>
-                )}
                 {releaseInfo && !releaseInfo.macNotarized && (platform === 'mac' || platform === 'unknown') && (
                   <p className="text-sm text-gray-400">The Mac app is being prepared — signed builds are coming. Use the web app meanwhile.</p>
                 )}
@@ -158,7 +156,6 @@ export default function DownloadPage() {
                   <p className="text-sm text-gray-400">The Windows app is being prepared — signed builds are coming. Use the web app meanwhile.</p>
                 )}
               </div>
-            )
           ) : (
             <div className="flex flex-col items-center gap-4">
               <div className="flex items-center gap-2 text-gray-500">

@@ -9,6 +9,7 @@ import {
   fetchReleaseManifest,
   fetchShaSidecar,
   macReleaseReady,
+  isPlatformReleased,
 } from '@/lib/desktop/releases'
 import { releaseObjectExists, getSignedReleaseUrl, releaseObjectKey } from '@/lib/storage/releasesR2'
 
@@ -18,6 +19,14 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
+  const platform = request.nextUrl.searchParams.get('platform') as DesktopPlatform | null
+  if (!platform || !PLATFORMS.includes(platform)) {
+    return NextResponse.json({ error: 'Invalid platform' }, { status: 400 })
+  }
+  if (!isPlatformReleased(platform)) {
+    return NextResponse.json({ error: 'downloads_closed' }, { status: 503 })
+  }
+
   const session = await auth()
   const userId = session?.user?.id
   if (!userId) {
@@ -41,11 +50,6 @@ export async function GET(request: NextRequest) {
       { error: 'Forge Extreme download requires Ultimate subscription or Dev Account' },
       { status: 403 },
     )
-  }
-
-  const platform = request.nextUrl.searchParams.get('platform') as DesktopPlatform | null
-  if (!platform || !PLATFORMS.includes(platform)) {
-    return NextResponse.json({ error: 'Invalid platform' }, { status: 400 })
   }
 
   const asset = await resolveReleaseAsset(platform)
