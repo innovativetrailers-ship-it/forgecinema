@@ -84,6 +84,7 @@ export function VideoPreview({
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
   const isPlayingRef = useRef(isPlaying)
   const [noMedia, setNoMedia] = useState(false)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
 
@@ -93,7 +94,7 @@ export function VideoPreview({
   const resolvedSrc = fromRecipe?.src || (currentClip ? playbackSrc(currentClip) : '')
   const hasGenerating = activeJobs.length > 0
 
-  useEffect(() => { setNoMedia(false) }, [currentClip?.id, resolvedSrc])
+  useEffect(() => { setNoMedia(false); setLoadError(false) }, [currentClip?.id, resolvedSrc])
 
   useEffect(() => {
     const video = videoRef.current
@@ -238,6 +239,7 @@ export function VideoPreview({
               onEnded={handleEnded}
               onError={() => {
                 console.warn('play_aborted', { src: videoRef.current?.currentSrc })
+                setLoadError(true)
                 setNoMedia(true)
               }}
               onLoadedMetadata={(e) => {
@@ -249,8 +251,14 @@ export function VideoPreview({
             />
           ) : (
             <div className="flex flex-col items-center gap-1 px-4 text-center text-sm text-white/70">
-              <p>Select a clip</p>
-              <p className="text-[11px] text-white/40">or import media</p>
+              {loadError ? (
+                <p>Could not load media</p>
+              ) : (
+                <>
+                  <p>Select a clip</p>
+                  <p className="text-[11px] text-white/40">or import media</p>
+                </>
+              )}
             </div>
           )}
           {control && (

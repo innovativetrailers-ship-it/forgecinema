@@ -1,0 +1,15 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": [
+        "https://forgecinema.vercel.app",
+        "https://cinema.ai-forge.co",
+        "http://localhost:3000"
+      ],
+      "AllowedMethods": ["GET", "HEAD"],
+      "AllowedHeaders": ["Range", "Content-Type", "If-Match", "If-None-Match"],
+      "ExposeHeaders": ["Content-Length", "Content-Range", "Accept-Ranges", "ETag"],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+}

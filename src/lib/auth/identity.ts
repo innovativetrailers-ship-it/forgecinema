@@ -11,6 +11,7 @@ const PUBLIC_API = [
   '/api/entitlement/heartbeat',
   '/api/entitlement/verify',
   '/api/desktop/releases',
+  '/api/desktop/download',
 ]
 
 export function stripSpoofedIdentity(headers: Headers): Headers {

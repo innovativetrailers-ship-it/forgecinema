@@ -10,7 +10,7 @@ function secret(): string {
 
 export function signFalWebhookToken(subjectId: string, ttlSec = 86_400, nowSec = Math.floor(Date.now() / 1000)): string {
   const key = secret()
-  if (!key) throw new Error('NEXTAUTH_SECRET is not set')
+  if (!key) throw new Error('FAL_WEBHOOK_SECRET is not set')
   const body = `${subjectId}.${nowSec + ttlSec}`
   const sig = createHmac('sha256', key).update(body).digest('base64url')
   return `${body}.${sig}`

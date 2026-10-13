@@ -41,7 +41,8 @@ const TABS: Array<{ id: SimpleTab; label: string; icon: string }> = [
 export default function SimplePage() {
   const router = useRouter()
   const { data: session } = useSession()
-  const { balance: creditBalance } = useCredits()
+  const { balance: creditBalance, isLoading: creditsLoading, unlimited } = useCredits()
+  const shownBalance = creditsLoading ? null : creditBalance
   const [activeTab, setActiveTab] = useState<SimpleTab>('text')
   const clips = useSimpleClipsStore((s) => s.clips)
   const upsertClip = useSimpleClipsStore((s) => s.upsertClip)
@@ -221,7 +222,8 @@ export default function SimplePage() {
                 {activeTab === 'text' && (
                   <TextToVideoTab
                     onGenerated={handleGenerated}
-                    creditBalance={creditBalance ?? 0}
+                    creditBalance={shownBalance}
+                    unlimited={unlimited}
                     userRole={userRole}
                   />
                 )}

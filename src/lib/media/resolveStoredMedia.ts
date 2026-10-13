@@ -51,7 +51,7 @@ export async function resolveOwnedMedia(id: string, userId: string): Promise<Res
 
 export async function signedUrlForStoredKey(key: string): Promise<string | null> {
   if (!(await objectExists(key))) return null
-  return getSignedDownloadUrl(key, 3600)
+  return getSignedDownloadUrl(key, 6 * 60 * 60)
 }
 
 export function mediaMissMessage(id: string, resolved: ResolvedMedia): string {

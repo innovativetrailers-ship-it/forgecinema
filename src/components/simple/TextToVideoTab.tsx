@@ -9,11 +9,12 @@ import { nanoid } from 'nanoid'
 
 interface Props {
   onGenerated: (clip: GeneratedClip) => void
-  creditBalance: number
+  creditBalance: number | null
   userRole: string
+  unlimited?: boolean
 }
 
-export function TextToVideoTab({ onGenerated, creditBalance, userRole }: Props) {
+export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited = false }: Props) {
   const [prompt, setPrompt] = useState('')
   const [quality, setQuality] = useState<QualityTier>('standard')
   const [duration, setDuration] = useState<Duration>(5)
@@ -24,6 +25,8 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole }: Props) 
   const [isLoading, setIsLoading] = useState(false)
 
   const selectedPill = QUALITY_PILLS.find((p) => p.id === quality)!
+  const balanceKnown = unlimited || creditBalance !== null
+  const short = !unlimited && creditBalance !== null && selectedPill.credits > creditBalance
   const actualDuration = duration === 'custom' ? customDuration : duration
   const canAdvanced = userRole === 'PRO' || userRole === 'STUDIO' || userRole === 'ADMIN'
 
@@ -152,7 +155,7 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole }: Props) 
             <button
               key={pill.id}
               onClick={() => setQuality(pill.id)}
-              disabled={pill.credits > creditBalance}
+              disabled={!unlimited && creditBalance !== null && pill.credits > creditBalance}
               className={`
                 group px-3 py-2.5 rounded-xl border text-left transition-all
                 ${quality === pill.id
@@ -165,7 +168,7 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole }: Props) 
                 {pill.label}
               </div>
               <div className="text-[10px] text-white/40">{pill.description}</div>
-              <div className={`text-[10px] mt-1 font-medium ${pill.credits > creditBalance ? 'text-red-400' : 'text-[#00e5c8]/70'}`}>
+              <div className={`text-[10px] mt-1 font-medium ${!unlimited && creditBalance !== null && pill.credits > creditBalance ? 'text-red-400' : 'text-[#00e5c8]/70'}`}>
                 ⬡ {pill.credits}
               </div>
             </button>
@@ -265,7 +268,7 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole }: Props) 
       {/* Generate button */}
       <button
         onClick={handleGenerate}
-        disabled={!prompt.trim() || isLoading || selectedPill.credits > creditBalance}
+        disabled={!prompt.trim() || isLoading || !balanceKnown || short}
         className="
           w-full py-4 rounded-xl font-semibold text-base
           bg-gradient-to-r from-teal-500 to-teal-600
@@ -289,7 +292,7 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole }: Props) 
         )}
       </button>
 
-      {selectedPill.credits > creditBalance && (
+      {short && (
         <p className="text-xs text-center text-red-400">
           Insufficient credits — <span className="text-white/60">need ⬡ {selectedPill.credits}, have ⬡ {creditBalance}</span>
         </p>
