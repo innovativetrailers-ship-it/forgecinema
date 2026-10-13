@@ -9,11 +9,26 @@ export function playerStreamPath(id: string): string {
   return `/api/media/${encodeURIComponent(id)}/stream`
 }
 
+const API_MEDIA = /\/api\/media\/([^/?#]+)/
+const OUR_BUCKET = /(?:\.r2\.cloudflarestorage\.com|\.r2\.dev)\b/i
+
+/** Library or job id stored in an old redirect path or in an object-storage URL. */
+export function mediaIdFromPlaybackUrl(url: string): string | null {
+  const api = url.match(API_MEDIA)
+  if (api && api[1] !== 'bins') return decodeURIComponent(api[1])
+  if (!OUR_BUCKET.test(url)) return null
+  let path = url
+  try { path = new URL(url).pathname } catch { /* already a path */ }
+  const file = path.split('/').filter(Boolean).pop() ?? ''
+  const bare = decodeURIComponent(file).replace(/\.(mp4|webm|mov|m4v)$/i, '')
+  return bare || null
+}
+
 export function playerSrc(sourceUrl: string, mediaId?: string | null): string {
   const url = sourceUrl.trim()
-  if (mediaId?.trim()) return playerStreamPath(mediaId.trim())
-  const match = url.match(/^\/api\/media\/([^/?]+)/)
-  if (match && match[1] !== 'bins' && !url.includes('/stream')) return playerStreamPath(match[1])
+  const fromUrl = url ? mediaIdFromPlaybackUrl(url) : null
+  const id = (mediaId?.trim() || fromUrl || '').replace(/\/stream$/, '')
+  if (id && id !== 'bins') return playerStreamPath(id)
   if (url.includes('/stream')) return url
   return url
 }

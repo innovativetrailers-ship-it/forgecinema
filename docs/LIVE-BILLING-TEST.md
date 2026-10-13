@@ -1,6 +1,8 @@
 # Live billing test
 
-Do not run this proof until the charge table in the run report is accepted. A generate button shows `quoteGenerationHold`. `/api/generate` then reserves `ceil(quote × 1.2)` and settlement charges the quote, releasing the extra 20%. A failed or cancelled job releases the whole hold. `jobs/create` deducts the quote directly. The verify script checks those numbers when `creditsCharged` is set.
+The charge table is in `docs/PRICING-TABLE.md`. Do not run this proof from a coding session. Run it by hand when you want the ledger checked.
+
+The cheapest clip is Quick Draft (LTX Fast). A 5 second ask is delivered and billed as 6 seconds: 33 credits. `/api/generate` reserves `ceil(33 × 1.2) = 40`. Settlement charges 33 and releases the extra 7. A failed or cancelled job releases the whole hold. `jobs/create` deducts 33 directly. The default grant of 50 covers one reserve of 40.
 
 Do this once, as one ordinary test account, after the web and the four workers are on the same release. Generation stays paused until step (c), and goes back to paused in step (h).
 
@@ -24,9 +26,9 @@ The default grant is 50. `--credits` accepts 1 through 200 and refuses anything 
 
 Set `GENERATION_PAUSED` to `false` on Vercel production and on `worker-render`, `worker-training`, `worker-export`, and `worker-das`. Only `false`, `0`, or `off` unpauses. Restart the web deployment and the four workers so the running processes load that value. One consumer per queue.
 
-## (d) One cheap image
+## (d) One cheap clip
 
-Sign in as the test user and run one inexpensive image generation. Do not start a second one.
+Sign in as the test user. On Simple, choose Quick Draft, 5 seconds, and generate once. Expect a quote of 33 credits and, on the hold path, a reserve of 40. Do not start a second one.
 
 ## (e) Read the ledger
 

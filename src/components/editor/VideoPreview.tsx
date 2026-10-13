@@ -9,7 +9,7 @@ import { sampleControl } from '@/lib/timeline/controlLayer'
 import { sampleSpeed } from '@/lib/timeline/timeRemap'
 import { usePlaybackStore } from '@/store/playbackStore'
 import { previewAt } from '@/lib/timeline/nleDepth'
-import { deepGradeCss, gradeHasDesktopDepth } from '@cinema/core'
+import { deepGradeCss } from '@cinema/core'
 import { Scopes } from '@/components/editor/Scopes'
 import { useProgramScopesMounted, useProgramVideoRef } from '@/components/editor/programMedia'
 import { ClipControlBar } from '@/components/editor/ClipControlBar'
@@ -49,11 +49,7 @@ function playbackSrc(clip: Clip): string {
   const url = clip.sourceUrl.trim()
   const meta = clip.metadata as { shotPlanId?: string; jobId?: string; mediaId?: string } | undefined
   const mediaId = meta?.mediaId || meta?.jobId || meta?.shotPlanId || null
-  if (mediaId) return playerSrc(url || clipMediaPath(mediaId), mediaId)
-  if (url.startsWith('/api/media/') || url.startsWith('/api/jobs/')) return playerSrc(url)
-  if (url.startsWith('/')) return url
-  if (/^https?:\/\//i.test(url)) return url
-  return ''
+  return playerSrc(url || (mediaId ? clipMediaPath(mediaId) : ''), mediaId)
 }
 
 function pickClipAtPlayhead(clips: Clip[], playheadTime: number): Clip | undefined {
@@ -84,16 +80,22 @@ export function VideoPreview({
   const isPlayingRef = useRef(isPlaying)
   const [noMedia, setNoMedia] = useState(false)
   const [loadError, setLoadError] = useState(false)
+  const [loadedKey, setLoadedKey] = useState('')
 
   useEffect(() => { isPlayingRef.current = isPlaying }, [isPlaying])
 
   const storedRecipe = usePlaybackStore((state) => state.recipe)
   const fromRecipe = storedRecipe ? previewAt(storedRecipe, playheadTime) : null
   const currentClip = fromRecipe?.clip ?? pickClipAtPlayhead(clips, playheadTime)
-  const resolvedSrc = fromRecipe?.src || (currentClip ? playbackSrc(currentClip) : '')
+  const rawSrc = fromRecipe?.src || (currentClip ? playbackSrc(currentClip) : '')
+  const resolvedSrc = rawSrc ? playerSrc(rawSrc) : ''
   const hasGenerating = activeJobs.length > 0
-
-  useEffect(() => { setNoMedia(false); setLoadError(false) }, [currentClip?.id, resolvedSrc])
+  const loadKey = `${currentClip?.id ?? ''}:${resolvedSrc}`
+  if (loadedKey !== loadKey) {
+    setLoadedKey(loadKey)
+    setNoMedia(false)
+    setLoadError(false)
+  }
 
   useEffect(() => {
     const video = videoRef.current
@@ -129,7 +131,6 @@ export function VideoPreview({
     const video = videoRef.current
     if (!video) return
     if (!resolvedSrc || !canPlaySrc(resolvedSrc)) return
-    setNoMedia(false)
 
     if (isPlaying) {
       const result = playMedia(video, resolvedSrc)
@@ -303,7 +304,7 @@ export function VideoPreview({
       </div>
 
       <div className="flex items-center justify-center gap-1 py-2 bg-[#0a0a12] border-t border-white/5 relative">
-        <span className="absolute left-4 font-mono text-[10px] text-white/70">
+        <span data-testid="program-timecode" className="absolute left-4 font-mono text-[10px] text-white/70">
           {formatTimecode(playheadTime)}
         </span>
         <button

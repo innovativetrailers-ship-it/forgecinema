@@ -442,6 +442,18 @@ if (allowedSubmits.length) {
   for (const row of allowedSubmits) console.log(row)
 }
 
+const costFile = readFileSync(join(root, 'packages/core/src/pricing/falCosts.ts'), 'utf8')
+const councilFile = readFileSync(join(root, 'src/lib/routing/engineRegistry.ts'), 'utf8')
+const councilBlock = councilFile.slice(councilFile.indexOf('MODEL_COUNCIL_DISPLAY'))
+const councilIds = [...councilBlock.matchAll(/id:\s*'([^']+)'/g)].map((match) => match[1])
+for (const id of councilIds) {
+  const start = costFile.indexOf(`modelKey: '${id}'`)
+  const slice = start < 0 ? '' : costFile.slice(start, start + 700)
+  if (!/usdPerSecond:|usdPerVideo:/.test(slice)) {
+    violations.push(`${id} is in a picker and has no fal usdPerSecond or usdPerVideo`)
+  }
+}
+
 if (violations.length) {
   console.error(`check-chokepoints: ${violations.length} violation(s)`)
   for (const v of violations) console.error(v)

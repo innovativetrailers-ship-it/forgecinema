@@ -1,4 +1,5 @@
 # RUN INDEX — feed these to Cursor, one file per run, in this order
+## Run 43 (2026-10-14) on branch run-43-pricing: fal cost table, credit floor charge, legacy playback through /stream. Live billing proof not run.
 ## Run 42 (2026-10-14) finished on branch run-42-finish: timeline drop, same-origin media stream, USD plan labels, stock sources, tab strip. Charges unchanged. Live billing proof not run.
 ## ONE file = ONE run. Each file is internally ordered (its own tasks/phases) — do them top to
 ## bottom within the file. No file is split across runs. After each run: verify the gates, deploy

@@ -6,6 +6,7 @@ import { config } from 'dotenv'
 config({ path: new URL('../.env.local', import.meta.url), quiet: true })
 config({ path: new URL('../.env', import.meta.url), quiet: true })
 
+const LTX_FAST_FIVE_SECOND_QUOTE = 33
 const RELEASE_TYPES = new Set(['release'])
 const REFUND_PREFIX = 'Refund'
 
@@ -55,6 +56,13 @@ export function assessBilling({ balance, held, jobs, holds, transactions }) {
         && countType(transactions, job.id, 'release') <= 1
         && countType(transactions, job.id, 'deduction') <= 1
       lines.push(`${settledOnce ? 'PASS' : 'FAIL'} job ${job.id} settled exactly once`)
+      const payload = job.inputPayload && typeof job.inputPayload === 'object' ? job.inputPayload : {}
+      const model = typeof payload.model === 'string' ? payload.model : ''
+      const asked = Number(payload.requestedDuration ?? payload.duration)
+      if (model === 'ltx-2.3-fast' && (asked === 5 || asked === 6)) {
+        const exact = Number(job.creditsCharged) === LTX_FAST_FIVE_SECOND_QUOTE
+        lines.push(`${exact ? 'PASS' : 'FAIL'} job ${job.id} LTX Fast 5s ask charged ${LTX_FAST_FIVE_SECOND_QUOTE}`)
+      }
       const quote = Number(job.creditsCharged)
       if (Number.isFinite(quote) && quote > 0 && jobHolds[0]) {
         const expectedHeld = Math.ceil(quote * 1.2)

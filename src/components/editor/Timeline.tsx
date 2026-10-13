@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback, useEffect } from 'react'
-import { Volume2, VolumeX, Lock, Unlock, Eye } from 'lucide-react'
+import { Volume2, VolumeX } from 'lucide-react'
 import { TRACK_LABEL_WIDTH, RULER_HEIGHT, TRACK_HEIGHT, MODEL_CLIP_COLOURS, TRACK_COLOURS } from './constants'
 import type { TimelineRecipe, Track, Clip } from '@/lib/timeline/schema'
 import { DEFAULT_TRACKS } from '@/lib/timeline/defaultRecipe'
@@ -81,16 +81,18 @@ export function Timeline({
   const heightKey = `cinema-track-height:${projectId || 'local'}`
   const [rowHeight, setRowHeight] = useState(TRACK_HEIGHT)
   const [heightMode, setHeightMode] = useState<'S' | 'M' | 'L' | 'fit'>('M')
+  const [heightKeySeen, setHeightKeySeen] = useState(heightKey)
   const [magnet, setMagnet] = useState(false)
   const [ripple, setRipple] = useState(false)
 
-  useEffect(() => {
+  if (heightKeySeen !== heightKey && typeof window !== 'undefined') {
+    setHeightKeySeen(heightKey)
     const saved = window.localStorage.getItem(heightKey)
     if (saved === 'S' || saved === 'M' || saved === 'L' || saved === 'fit') {
       setHeightMode(saved)
       if (saved !== 'fit') setRowHeight(saved === 'S' ? 28 : saved === 'L' ? 72 : TRACK_HEIGHT)
     }
-  }, [heightKey])
+  }
 
   function chooseHeight(mode: 'S' | 'M' | 'L') {
     const next = mode === 'S' ? 28 : mode === 'L' ? 72 : TRACK_HEIGHT
@@ -487,7 +489,6 @@ function TrackRow({
   scrollOffset,
   selectedClipId,
   hoveredClipId,
-  playheadX,
   clipJobMap,
   onClipSelect,
   onSeek,

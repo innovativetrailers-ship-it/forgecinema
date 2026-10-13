@@ -1,3 +1,4 @@
+import { playerSrc } from '@/lib/media/clipPlayback'
 import type { Clip, ClipColourGrade, ClipEffect, TimelineRecipe, Transition } from '@/lib/timeline/schema'
 
 function nextId(): string {
@@ -16,8 +17,9 @@ export interface LookPreset {
 }
 
 export function editPlaybackUrl(clip: Clip, editWithProxies: boolean | undefined): string {
-  if (editWithProxies && clip.proxyUrl?.trim()) return clip.proxyUrl.trim()
-  return clip.sourceUrl
+  const raw = editWithProxies && clip.proxyUrl?.trim() ? clip.proxyUrl.trim() : clip.sourceUrl
+  const meta = clip.metadata as { mediaId?: string; jobId?: string; shotPlanId?: string } | undefined
+  return playerSrc(raw, meta?.mediaId || meta?.jobId || meta?.shotPlanId)
 }
 
 export function exportPlaybackUrl(clip: Clip): string {

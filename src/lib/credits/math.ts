@@ -1,4 +1,4 @@
-import { MODEL_COSTS } from '@/lib/routing/engineRegistry'
+import { creditsForRequest, hasFalPrice } from '@cinema/core'
 
 export class MissingPriceError extends Error {
   constructor(message: string) {
@@ -19,17 +19,14 @@ export function calculateGenerationCost(
   durationSeconds: number,
   shotNumber?: number,
 ): number {
-  const ratePerFiveSeconds = MODEL_COSTS[model]
   const seconds = asPositive(durationSeconds)
   console.log('[cost_inputs]', JSON.stringify({
     model,
     durationSeconds,
-    ratePerFiveSeconds,
+    priced: hasFalPrice(model),
     shot: shotNumber ?? null,
   }))
-  if (typeof ratePerFiveSeconds !== 'number' || !Number.isFinite(ratePerFiveSeconds) || ratePerFiveSeconds <= 0) {
-    throw new MissingPriceError(`no price for model ${model}`)
-  }
+  if (!hasFalPrice(model)) throw new MissingPriceError(`${model} price not set`)
   if (seconds == null) {
     throw new MissingPriceError(
       shotNumber == null
@@ -37,7 +34,7 @@ export function calculateGenerationCost(
         : `duration unresolved for shot ${shotNumber}`,
     )
   }
-  const credits = Math.ceil((ratePerFiveSeconds / 5) * seconds)
+  const credits = creditsForRequest(model, seconds)
   if (!Number.isFinite(credits) || credits <= 0) {
     throw new MissingPriceError(`no price for model ${model}`)
   }

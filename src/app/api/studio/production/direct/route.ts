@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const entityResolutions = await loadEntityResolutions(userId, parsed.data.projectId, breakdown)
   const selectedModels = parsed.data.selectedModels.length
     ? parsed.data.selectedModels
-    : ['gemini-omni', 'veo-3.1', 'kling-3.0', 'seedance-2.0', 'runway-gen4', 'grok-imagine-video', 'wan-2.7', 'ltx-2.3-fast']
+    : ['gemini-omni', 'veo-3.1', 'kling-3.0', 'seedance-2.0', 'grok-imagine-video', 'wan-2.7', 'ltx-2.3-fast']
   const compiledPlan = compileProductionPlan({ breakdown, entities: entityResolutions })
   try {
     const result = await withCreditHold(userId, Math.max(1, Math.ceil(parsed.data.totalDuration / 5)), () => orchestrate({

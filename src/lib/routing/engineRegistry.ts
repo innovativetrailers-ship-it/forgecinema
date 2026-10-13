@@ -1,16 +1,10 @@
-/** Per-5s credit rates — silent generation except Grok, which is audio-native. */
+/** Credits for a 5-second request. Derived from the fal cost table. Unpriced models are absent. */
+import { creditsForRequest, FAL_COSTS, hasFalPrice } from '@cinema/core'
 import { VIDEO_MODEL_REGISTRY } from '@/lib/models/registry'
 
-export const MODEL_COSTS: Record<string, number> = {
-  'gemini-omni':        25,
-  'veo-3.1':            23,
-  'kling-3.0':          17,
-  'seedance-2.0':       20,
-  'runway-gen4':        22,
-  'grok-imagine-video': 20,
-  'wan-2.7':             8,
-  'ltx-2.3-fast':        2,
-}
+export const MODEL_COSTS: Record<string, number> = Object.fromEntries(
+  FAL_COSTS.filter((row) => hasFalPrice(row.modelKey)).map((row) => [row.modelKey, creditsForRequest(row.modelKey, 5)]),
+)
 
 export const MODEL_SPECIALTIES: Record<string, {
   costTier:   'budget' | 'mid' | 'premium'
@@ -99,7 +93,6 @@ export const MODEL_COUNCIL_DISPLAY: Array<{
   { id: 'veo-3.1',            name: 'Veo 3.1',       role: '4K / Long',       tagline: '4K and long takes. Silent picture.',        dotColor: '#a855f7' },
   { id: 'kling-3.0',          name: 'Kling 3.0',     role: 'Motion Expert',   tagline: 'Camera movement, locomotion',               dotColor: '#3b82f6' },
   { id: 'seedance-2.0',       name: 'Seedance 2.0',  role: 'Performance',     tagline: 'Faces, dialogue, continuity',               dotColor: '#22c55e' },
-  { id: 'runway-gen4',        name: 'Runway Gen-4.5', role: 'Camera Control', tagline: 'Camera sentence in the prompt',             dotColor: '#ec4899' },
   { id: 'grok-imagine-video', name: 'Grok Imagine',  role: 'Audio-Native',    tagline: 'The one model that bakes sound',            dotColor: '#e879f9' },
   { id: 'wan-2.7',            name: 'Wan 2.7',       role: 'Budget',          tagline: 'Volume, first and last frame, 720p',        dotColor: '#06b6d4' },
   { id: 'ltx-2.3-fast',       name: 'LTX Fast',      role: 'Draft Artist',    tagline: 'Instant pre-vis drafts',                    dotColor: '#2dd4bf' },

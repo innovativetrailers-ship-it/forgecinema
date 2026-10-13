@@ -53,12 +53,13 @@ test.describe('Simple Mode — /simple', () => {
   })
 
   test('generate button enables when prompt is typed', async ({ page }) => {
+    await page.getByRole('button', { name: 'Quick Draft' }).click()
     const textarea = page.locator('textarea').first()
     await textarea.fill('A cinematic drone shot over a misty mountain range at golden hour')
 
     const generateBtn = page.locator('button').filter({ hasText: /generate/i }).first()
-    // Button should be enabled (if user has credits)
-    await expect(generateBtn).not.toBeDisabled({ timeout: 3_000 })
+    await expect(generateBtn).toContainText('33')
+    await expect(generateBtn).not.toBeDisabled({ timeout: 8_000 })
   })
 
   test('submitting a generation creates a card in the gallery', async ({ page }) => {

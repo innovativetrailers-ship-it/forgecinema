@@ -143,11 +143,13 @@ export default function AdvancedPage() {
     persistPlayhead(playheadTime)
   }, [playheadTime, persistPlayhead])
 
-  useEffect(() => {
-    if (!canonicalRecipe || canonicalRecipe === recipe) return
-    if (!canonicalRecipe.tracks?.length && recipe.tracks?.length) return
+  if (
+    canonicalRecipe
+    && canonicalRecipe !== recipe
+    && !(!canonicalRecipe.tracks?.length && recipe.tracks?.length)
+  ) {
     setRecipe(canonicalRecipe)
-  }, [canonicalRecipe, recipe])
+  }
 
   // Load characters + locations
   useEffect(() => {

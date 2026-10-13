@@ -3,7 +3,6 @@
 import { useState, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { nanoid } from 'nanoid'
-import { Play, Pause } from 'lucide-react'
 import { TopBar } from '@/components/layout/TopBar'
 import { IconRail } from '@/components/layout/IconRail'
 import { LeftPanel } from '@/components/layout/LeftPanel'
@@ -54,8 +53,6 @@ import { fireRewardSignal } from '@/lib/feedback/signal'
 import { useScriptStore } from '@/store/scriptStore'
 import { usePlaybackStore } from '@/store/playbackStore'
 import { importLegacyPendingClips } from '@/lib/timeline/importLegacyPending'
-import { useJobStore } from '@/store/jobStore'
-import { subscribeJobStream } from '@/lib/jobs/subscribeJobStream'
 import { computeTimelineDuration, isVideoMediaUrl, sanitizeClipDuration } from '@/lib/timeline/playback'
 import { moveClipInRecipe, recipeForTimeline, reconcileTimeline } from '@/lib/timeline/reconcileTimeline'
 import { adoptEditorRecipe, ensureEditorProject, hydrateTimelineFromShots } from '@/lib/projects/loadProject'
@@ -120,6 +117,8 @@ export default function UltimatePage() {
   const shots = useScriptStore((s) => s.parsedShots)
   const setParsed = useScriptStore((s) => s.setParsed)
   const setShots = useScriptStore((s) => s.setShots)
+  const storedRecipe = usePlaybackStore((s) => s.recipe)
+  const [recipe, setRecipe] = useState<TimelineRecipe>(() => storedRecipe ?? buildRecipe('pending'))
 
   useEffect(() => {
     if (!session) return
@@ -189,7 +188,6 @@ export default function UltimatePage() {
   }, [])
 
   // Timeline state
-  const storedRecipe = usePlaybackStore((s) => s.recipe)
   const storedPlayhead = usePlaybackStore((s) => s.playheadTime)
   const persistRecipe = usePlaybackStore((s) => s.setRecipe)
   const commitRecipe = usePlaybackStore((s) => s.commitRecipe)
@@ -198,7 +196,6 @@ export default function UltimatePage() {
   const canonicalRecipe = usePlaybackStore((s) => s.recipe)
   const persistPlayhead = usePlaybackStore((s) => s.setPlayhead)
 
-  const [recipe, setRecipe] = useState<TimelineRecipe>(() => storedRecipe ?? buildRecipe('pending'))
   useProjectAutosave(recipe.projectId === 'pending' ? null : recipe)
 
   const [playheadTime, setPlayheadTime] = useState(storedPlayhead)
@@ -217,11 +214,13 @@ export default function UltimatePage() {
     commitRecipe(r)
   }, [commitRecipe])
 
-  useEffect(() => {
-    if (!canonicalRecipe || canonicalRecipe === recipe) return
-    if (!canonicalRecipe.tracks?.length && recipe.tracks?.length) return
+  if (
+    canonicalRecipe
+    && canonicalRecipe !== recipe
+    && !(!canonicalRecipe.tracks?.length && recipe.tracks?.length)
+  ) {
     setRecipe(canonicalRecipe)
-  }, [canonicalRecipe, recipe])
+  }
 
   useProjectLoadListener(useCallback((detail: ProjectLoadedDetail) => {
     projectId.current = detail.projectId
@@ -268,16 +267,12 @@ export default function UltimatePage() {
 
   // Sync icon rail / film toolbar → local activeTab
   const filmToolbarTab = useUIStore((state) => state.filmToolbarTab)
-  useEffect(() => {
-    if (activePanel) {
-      const mapped = PANEL_TO_FILM_TAB[activePanel]
-      if (mapped) setActiveTab(mapped)
-      return
-    }
-    if (filmToolbarTab === 'colour' || filmToolbarTab === 'edit' || filmToolbarTab === 'motion' || filmToolbarTab === 'review') {
-      setActiveTab('layout')
-    }
-  }, [activePanel, filmToolbarTab])
+  const mappedTab = activePanel ? PANEL_TO_FILM_TAB[activePanel] : undefined
+  const layoutTab = !activePanel && (filmToolbarTab === 'colour' || filmToolbarTab === 'edit' || filmToolbarTab === 'motion' || filmToolbarTab === 'review')
+    ? 'layout' as const
+    : undefined
+  const wantedTab = mappedTab ?? layoutTab
+  if (wantedTab && wantedTab !== activeTab) setActiveTab(wantedTab)
 
   const selectedClip = selectedClipId ? allClips.find((c) => c.id === selectedClipId) ?? null : null
 

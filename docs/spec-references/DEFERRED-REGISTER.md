@@ -40,11 +40,11 @@ VFX-T5 is in the web compositor schema (`Cryptomatte`, `DeepMerge`, `VectorWarp`
 
 Desktop ship: electron-builder is the packager (dmg, zip, NSIS, portable, AppImage, deb). Signing and notarization run only when the CI secrets are present. The entitlement token is stored with the OS keychain helper, not as plaintext. A second launch focuses the running app. Updates download and wait for a restart. Crash uploads carry version, OS, and channel, with home directories and project ids redacted.
 
-Run 42 left these on purpose:
+Run 43 left these on purpose:
 
-- Charge table is not applied. Fal dollar costs are not in the repo, so every margin row is unknown until Neo approves a table.
-- Live billing proof is not run. Trigger: Neo accepts the charge table.
+- Live billing proof is written for the new quote and is not run. Cheapest clip is Quick Draft, 33 credits, reserve 40. Commands are in `docs/LIVE-BILLING-TEST.md`.
 - R2 CORS is not applied. The token returned AccessDenied. Trigger: Neo pastes the dashboard rule, then runs `node scripts/verify-r2-cors.mjs`.
-- Phone drag from the library is skipped. The drawer covers the video track at iPhone width. Desktop Chrome drops on /ultimate and /advanced.
-- Playback asserts the monitor leaves "Select a clip". It does not assert `currentTime` against a decodable file. The fixture stream is not a real video.
-- Desktop generate-panel account gate is in cinematic-forge-v3 and is not in this web commit. The v3 checkout and the dirty cinema worktree stay uncommitted.
+- Phone drag from the library is skipped. The drawer covers the video track at iPhone width.
+- `runway-gen4` has no fal price, so it is not in the pickers and a non-internal account cannot be charged for it. An ungated account can still submit it at 0 credits. The UI string is `price not set`.
+- Full `npm run lint` is not clean. The errors from the Run 42 editor files are gone. The repo still reports older errors outside this run.
+- Desktop prices still read the cinema checkout's `@cinema/core`, not this worktree, until that checkout has this commit.

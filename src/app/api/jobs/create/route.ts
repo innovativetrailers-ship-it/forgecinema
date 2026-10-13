@@ -16,6 +16,7 @@ import type { SceneSegment } from '@/lib/routing/types'
 import type { StructuredShot } from '@/lib/orchestration/types'
 import { enrichGeneratePayload } from '@/lib/character/jobIdentity'
 import { recordGenerateShot } from '@/lib/studio/recordGenerateShot'
+import { isUngatedAccount } from '@/lib/billing/accountAllow'
 
 const createJobSchema = z.object({
   projectId: z.string().optional(),
@@ -274,7 +275,12 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.warn('[quote]', err instanceof Error ? err.message : err)
       const message = err instanceof MissingPriceError || err instanceof Error ? err.message : 'No price for this model'
-      return NextResponse.json({ error: message }, { status: 400 })
+      const account = await db.user.findUnique({ where: { id: userId }, select: { email: true, isInternal: true } })
+      if (account && isUngatedAccount(account.email, account.isInternal) && message.includes('price not set')) {
+        cost = 0
+      } else {
+        return NextResponse.json({ error: message }, { status: 400 })
+      }
     }
   }
 

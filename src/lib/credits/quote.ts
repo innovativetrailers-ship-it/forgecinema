@@ -1,6 +1,6 @@
-import { ltxDuration } from '@cinema/core'
-import { MissingPriceError, calculateGenerationCost } from '@/lib/credits/math'
-import { MODEL_COSTS, MODEL_COUNCIL_DISPLAY, TIER_ENGINE_MAP } from '@/lib/routing/engineRegistry'
+import { billedSecondsFor, creditsForRequest, hasFalPrice } from '@cinema/core'
+import { MissingPriceError } from '@/lib/credits/math'
+import { MODEL_COUNCIL_DISPLAY, TIER_ENGINE_MAP } from '@/lib/routing/engineRegistry'
 
 /** Registry ids the council can actually submit. Copy must use this count. */
 export const COUNCIL_MODEL_COUNT = MODEL_COUNCIL_DISPLAY.length
@@ -29,18 +29,20 @@ function tierKey(tier?: string | null): string | null {
 
 /** Model the server will submit for this tier, unless the caller named one in the price table. */
 export function quoteModel(tier?: string | null, model?: string | null): string {
-  if (model && typeof MODEL_COSTS[model] === 'number') return model
+  if (model) {
+    if (!hasFalPrice(model)) throw new MissingPriceError(`${model} price not set`)
+    return model
+  }
   const key = tierKey(tier) ?? 'standard'
   const engine = TIER_ENGINE_MAP[key]
-  if (!engine || typeof MODEL_COSTS[engine] !== 'number') {
+  if (!engine || !hasFalPrice(engine)) {
     throw new MissingPriceError(`no price for tier ${tier ?? 'missing'}`)
   }
   return engine
 }
 
 function billedDuration(model: string, requested: number): number {
-  if (model !== 'ltx-2.3-fast') return requested
-  return ltxDuration(requested, true, () => {})
+  return billedSecondsFor(model, requested)
 }
 
 function tierNoteFor(model: string, tier?: string | null): string | null {
@@ -50,10 +52,10 @@ function tierNoteFor(model: string, tier?: string | null): string | null {
   if (index <= 0) return null
   const lowerTier = TIER_ORDER[index - 1]
   const lowerModel = TIER_ENGINE_MAP[lowerTier]
-  const rate = MODEL_COSTS[model]
-  const lowerRate = lowerModel ? MODEL_COSTS[lowerModel] : undefined
+  const rate = hasFalPrice(model) ? creditsForRequest(model, 5) : undefined
+  const lowerRate = lowerModel && hasFalPrice(lowerModel) ? creditsForRequest(lowerModel, 5) : undefined
   if (typeof rate !== 'number' || typeof lowerRate !== 'number' || rate >= lowerRate) return null
-  return `${key} uses ${model} at ${rate} credits per 5s. ${lowerTier} uses ${lowerModel} at ${lowerRate}, so this tier costs less at the same length.`
+  return `${key} uses ${model} at ${rate} credits for a 5s ask. ${lowerTier} uses ${lowerModel} at ${lowerRate}, so this tier costs less at the same length.`
 }
 
 /**
@@ -64,18 +66,20 @@ export function quoteGenerationHold(args: {
   tier?: string | null
   model?: string | null
   durationSeconds: number
+  /** These model pages do not change the per-second rate by aspect at the resolution Forge sends. */
+  aspectRatio?: string | null
 }): GenerationQuote {
   const model = quoteModel(args.tier, args.model)
   const requested = args.durationSeconds
   const billed = billedDuration(model, requested)
-  const credits = calculateGenerationCost(model, billed)
+  const credits = creditsForRequest(model, requested)
   const durationNote = billed === requested
     ? null
     : `${model} cannot render ${requested}s. This request is billed and delivered as ${billed}s.`
   return {
     model,
     credits,
-    ratePerFiveSeconds: MODEL_COSTS[model],
+    ratePerFiveSeconds: creditsForRequest(model, 5),
     requestedDurationSeconds: requested,
     billedDurationSeconds: billed,
     durationNote,

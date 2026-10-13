@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Grant a small credit pack to one ordinary test account.
 // Uses grantCredits(), the same writer as a Stripe pack purchase.
-// A later generate quotes with quoteGenerationHold. openHold reserves ceil(quote * 1.2).
+// The cheapest clip is LTX Fast: a 5s ask bills 6s at 33 credits. openHold reserves ceil(33 * 1.2) = 40.
+// The default grant of 50 covers that one reserve.
 import { randomUUID } from 'node:crypto'
 import { createInterface } from 'node:readline'
 import pg from 'pg'

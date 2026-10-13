@@ -74,7 +74,10 @@ export function TierSelector({ value, onChange }: Props) {
 
             <span className="text-[11px] font-semibold leading-none">{qt.label}</span>
             <span className="text-[9px] mt-0.5 opacity-70">{quoteGenerationHold({ tier: qt.id, durationSeconds: 5 }).model}</span>
-            <span className="text-[9px] mt-0.5 opacity-50">{quoteGenerationHold({ tier: qt.id, durationSeconds: 5 }).ratePerFiveSeconds}cr/5s</span>
+            <span className="text-[9px] mt-0.5 opacity-50">{(() => {
+              const quote = quoteGenerationHold({ tier: qt.id, durationSeconds: 5 })
+              return quote.billedDurationSeconds === 5 ? `${quote.credits}cr/5s` : `${quote.credits}cr for ${quote.billedDurationSeconds}s`
+            })()}</span>
 
             {!unlocked && required && (
               <span className="mt-1 text-[8px] px-1 py-0.5 rounded bg-white/5 text-gray-500">

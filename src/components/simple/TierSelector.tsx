@@ -62,7 +62,12 @@ export function TierSelector({ value, onChange, compact = false }: Props) {
             {cfg.label}
           </div>
           <div className="text-[10px] text-gray-500">{cfg.description}</div>
-          <div className={`text-[10px] mt-1 font-mono ${cfg.color}`}>{quoteGenerationHold({ tier: key, durationSeconds: 5 }).credits} cr / 5s</div>
+          <div className={`text-[10px] mt-1 font-mono ${cfg.color}`}>{(() => {
+            const quote = quoteGenerationHold({ tier: key, durationSeconds: 5 })
+            return quote.billedDurationSeconds === 5
+              ? `${quote.credits} cr / 5s`
+              : `${quote.credits} cr for ${quote.billedDurationSeconds}s`
+          })()}</div>
         </button>
       ))}
     </div>
