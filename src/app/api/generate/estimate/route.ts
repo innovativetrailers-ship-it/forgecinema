@@ -1,8 +1,6 @@
 import { orchestrate } from '@/lib/orchestration'
 import { priceOrchestratePlan } from '@/lib/routing/estimatePlan'
-import { calculateSimpleCost }             from '@/lib/credits'
-import { TIER_ENGINE_MAP }                 from '@/lib/routing/engineRegistry'
-import { refuseSilentModelSwap } from '@/lib/orchestration/costGuard'
+import { quoteGenerationHold } from '@/lib/credits/quote'
 import { requireUser } from '@/lib/auth/requireUser'
 
 export async function POST(req: Request) {
@@ -33,11 +31,12 @@ export async function POST(req: Request) {
     return Response.json(priceOrchestratePlan(planned))
   }
 
-  const engine = TIER_ENGINE_MAP[tier ?? 'standard'] ?? refuseSilentModelSwap(tier ?? 'missing', 'ltx-2.3-fast')
-  const cost   = calculateSimpleCost(tier ?? 'standard', duration)
+  const quote = quoteGenerationHold({ tier: tier ?? 'standard', durationSeconds: duration })
+  const engine = quote.model
+  const cost   = quote.credits
   return Response.json({
     totalCredits:   cost,
-    totalDuration:  duration,
+    totalDuration:  quote.billedDurationSeconds,
     segments:       [{ assignedModel: engine, duration, creditCost: cost }],
     modelBreakdown: { [engine]: { duration, cost } },
   })

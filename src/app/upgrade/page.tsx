@@ -5,12 +5,14 @@ import Link from 'next/link'
 import { Check, Download, Lock, Monitor, Zap } from 'lucide-react'
 import { useUserTier } from '@/hooks/useUserTier'
 import { TIER_DISPLAY_NAMES } from '@/lib/access/tiers'
+import { COUNCIL_MODEL_COUNT } from '@/lib/credits/quote'
+import { PLAN_DISPLAY_PRICES, formatPlanAud } from '@/lib/billing/planPrices'
 
 const PLANS = [
   {
     id:       'pro' as const,
     label:    'Simple',
-    price:    '$19',
+    price:    formatPlanAud(PLAN_DISPLAY_PRICES[1].monthlyAud),
     period:   '/mo or pay-as-you-go',
     color:    '#10b981',
     desc:     'Start creating with AI generation. No subscription required — just buy credits.',
@@ -29,7 +31,7 @@ const PLANS = [
   {
     id:       'studio' as const,
     label:    'Advanced',
-    price:    '$49',
+    price:    formatPlanAud(PLAN_DISPLAY_PRICES[2].monthlyAud),
     period:   '/mo',
     color:    '#8b5cf6',
     desc:     'The full professional toolkit. Subscription required.',
@@ -48,7 +50,7 @@ const PLANS = [
   {
     id:       'ultimate' as const,
     label:    'Ultimate',
-    price:    '$99',
+    price:    formatPlanAud(PLAN_DISPLAY_PRICES[3].monthlyAud),
     period:   '/mo',
     color:    '#00e5c8',
     desc:     'Every capability unlocked. Includes Forge Extreme desktop.',
@@ -57,7 +59,7 @@ const PLANS = [
     noSubNote: null,
     features: [
       'Everything in Advanced',
-      'Director Mode (21 models)',
+      `Director Mode (${COUNCIL_MODEL_COUNT} models)`,
       'ForgeFlow production tracking',
       'ForgeReview collaboration',
       'DCP & IMF export',

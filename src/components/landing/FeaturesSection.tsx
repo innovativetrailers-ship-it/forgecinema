@@ -47,7 +47,7 @@ const FEATURES = [
   {
     icon: Shield,
     title: 'Knowledge Firewall',
-    description: 'All prompts sanitised through domain-specific databases — no model leakage, no hallucinations.',
+    description: 'Prompts are checked against the project vocabulary before they are sent.',
   },
   {
     icon: Zap,
@@ -65,7 +65,7 @@ export function FeaturesSection() {
             Everything in one forge
           </h2>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            Replace 6 subscriptions with one platform that does it all, better.
+            Script, generate, edit, and export in one studio.
           </p>
         </div>
 

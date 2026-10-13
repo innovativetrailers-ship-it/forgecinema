@@ -1,3 +1,5 @@
+import { quoteGenerationHold, type GenerationQuote } from '@/lib/credits/quote'
+
 export type QualityTier = 'draft' | 'standard' | 'cinematic' | 'film_grade'
 export type AspectRatio = '16:9' | '9:16' | '1:1' | '21:9'
 export type Duration = 5 | 10 | 15 | 30 | 60 | 'custom'
@@ -6,17 +8,21 @@ export type SimpleTab = 'text' | 'image' | 'audio' | 'social'
 export interface QualityPill {
   id: QualityTier
   label: string
-  credits: number
   model: string
   description: string
 }
 
 export const QUALITY_PILLS: QualityPill[] = [
-  { id: 'draft', label: 'Quick Draft', credits: 2, model: 'ltx-2.3-fast', description: '~8s • Budget' },
-  { id: 'standard', label: 'Standard', credits: 20, model: 'seedance-2.0', description: '~15s • Performance' },
-  { id: 'cinematic', label: 'Cinematic', credits: 17, model: 'kling-3.0', description: '~30s • Motion' },
-  { id: 'film_grade', label: 'Film Grade', credits: 23, model: 'veo-3.1', description: '~60s • Cinema' },
+  { id: 'draft', label: 'Quick Draft', model: 'ltx-2.3-fast', description: 'Budget' },
+  { id: 'standard', label: 'Standard', model: 'seedance-2.0', description: 'Performance' },
+  { id: 'cinematic', label: 'Cinematic', model: 'kling-3.0', description: 'Motion' },
+  { id: 'film_grade', label: 'Film Grade', model: 'veo-3.1', description: 'Cinema' },
 ]
+
+export function pillQuote(id: QualityTier, durationSeconds: number): GenerationQuote {
+  const pill = QUALITY_PILLS.find((row) => row.id === id) ?? QUALITY_PILLS[1]
+  return quoteGenerationHold({ tier: id, model: pill.model, durationSeconds })
+}
 
 export const DURATION_OPTIONS: Array<{ value: Duration; label: string }> = [
   { value: 5, label: '5s' },

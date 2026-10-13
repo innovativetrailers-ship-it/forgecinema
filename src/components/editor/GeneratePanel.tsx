@@ -2,7 +2,9 @@
 
 import { useState, useCallback } from 'react'
 import { Sparkles, Camera, Sun, Sliders } from 'lucide-react'
-import { QUALITY_PILLS } from '@/components/simple/types'
+import { QUALITY_PILLS, pillQuote, type QualityTier } from '@/components/simple/types'
+import { quoteGenerationHold, creditShortfall } from '@/lib/credits/quote'
+import { MODEL_COUNCIL_DISPLAY } from '@/lib/routing/engineRegistry'
 
 interface Character { id: string; name: string; loraStatus?: string }
 interface Location { id: string; name: string }
@@ -12,20 +14,11 @@ interface Props {
   characters: Character[]
   locations: Location[]
   onJobCreated: (jobId: string, clipData: Record<string, unknown>) => void
-  creditBalance: number
+  creditBalance: number | null
+  unlimited?: boolean
 }
 
-const MODELS = [
-  { value: 'kling_standard', label: 'Kling Standard' },
-  { value: 'kling_pro',      label: 'Kling Pro' },
-  { value: 'veo3',           label: 'Veo 3' },
-  { value: 'seedance',       label: 'Seedance' },
-  { value: 'runway',         label: 'Runway Gen-4' },
-  { value: 'luma',           label: 'Luma Dream Machine' },
-  { value: 'pika',           label: 'Pika v2' },
-  { value: 'minimax',        label: 'Minimax' },
-  { value: 'hunyuan',        label: 'HunyuanVideo' },
-]
+const MODELS = MODEL_COUNCIL_DISPLAY.map((row) => ({ value: row.id, label: row.name }))
 
 const CAMERA_PRESETS = [
   { id: 'static',       label: 'Static',        prompt: 'static locked-off shot, no camera movement' },
@@ -81,10 +74,10 @@ const EFFECT_PARAMS = [
 
 type Tab = 'generate' | 'camera' | 'lighting' | 'effects'
 
-export function GeneratePanel({ projectId, characters, locations, onJobCreated, creditBalance }: Props) {
+export function GeneratePanel({ projectId, characters, locations, onJobCreated, creditBalance, unlimited = false }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('generate')
   const [prompt, setPrompt] = useState('')
-  const [model, setModel] = useState('kling_standard')
+  const [model, setModel] = useState('seedance-2.0')
   const [quality, setQuality] = useState('standard')
   const [duration, setDuration] = useState(5)
   const [characterId, setCharacterId] = useState('')
@@ -110,7 +103,13 @@ export function GeneratePanel({ projectId, characters, locations, onJobCreated, 
     })
   }, [])
 
-  const selectedPill = QUALITY_PILLS.find((p) => p.id === quality) ?? QUALITY_PILLS[1]
+  const quote = quoteGenerationHold({ model, tier: quality, durationSeconds: duration })
+  const gate = creditShortfall({
+    balance: creditBalance,
+    credits: quote.credits,
+    unlimited,
+    loading: !unlimited && creditBalance === null,
+  })
 
   const buildFullPrompt = useCallback(() => {
     const parts = [prompt.trim()]
@@ -221,7 +220,7 @@ export function GeneratePanel({ projectId, characters, locations, onJobCreated, 
                 {QUALITY_PILLS.map((pill) => (
                   <button
                     key={pill.id}
-                    onClick={() => setQuality(pill.id)}
+                    onClick={() => { setQuality(pill.id); setModel(pill.model) }}
                     className={`py-1.5 px-2 rounded-lg border text-[10px] text-left transition-all ${
                       quality === pill.id
                         ? 'border-[#00e5c8] bg-[#00e5c8]/15 text-[#00e5c8]'
@@ -229,7 +228,7 @@ export function GeneratePanel({ projectId, characters, locations, onJobCreated, 
                     }`}
                   >
                     <div className="font-medium">{pill.label}</div>
-                    <div className="text-[#00e5c8]/60">⬡ {pill.credits}</div>
+                    <div className="text-[#00e5c8]/60">⬡ {pillQuote(pill.id as QualityTier, duration).credits}</div>
                   </button>
                 ))}
               </div>
@@ -374,7 +373,7 @@ export function GeneratePanel({ projectId, characters, locations, onJobCreated, 
         )}
         <button
           onClick={() => void handleGenerate()}
-          disabled={!prompt.trim() || isLoading || selectedPill.credits > creditBalance}
+          disabled={!prompt.trim() || isLoading || gate.generateDisabled}
           className="w-full py-2.5 rounded-lg font-semibold text-xs bg-[#00e5c8] text-black
             hover:bg-[#00f0d5] disabled:opacity-40 disabled:cursor-not-allowed transition-colors
             flex items-center justify-center gap-1.5"
@@ -382,7 +381,7 @@ export function GeneratePanel({ projectId, characters, locations, onJobCreated, 
           {isLoading ? (
             <><div className="w-3 h-3 border border-black/40 border-t-black rounded-full animate-spin" />Queuing…</>
           ) : (
-            <><Sparkles className="w-3.5 h-3.5" />Generate · ⬡ {selectedPill.credits}</>
+            <><Sparkles className="w-3.5 h-3.5" />Generate · ⬡ {quote.credits}</>
           )}
         </button>
       </div>

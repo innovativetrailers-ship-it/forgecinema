@@ -2,39 +2,41 @@
 
 import { useEffect, useState } from 'react'
 import { X, Zap, Monitor } from 'lucide-react'
+import { PLAN_DISPLAY_PRICES, formatPlanAud } from '@/lib/billing/planPrices'
+import { COUNCIL_MODEL_COUNT } from '@/lib/credits/quote'
 
 const PLAN_DETAILS: Record<string, {
   label: string; price: string; credits: string; highlights: string[]
 }> = {
   pro: {
     label:      'Simple',
-    price:      '$19/mo',
+    price:      `${formatPlanAud(PLAN_DISPLAY_PRICES[1].monthlyAud)}/mo`,
     credits:    '500 credits/month — or pay-as-you-go',
     highlights: [
       'No subscription required for credits',
       'Standard + Cinematic quality',
       'Advanced mode',
-      '2 Director models',
+      `Director mode (${COUNCIL_MODEL_COUNT} models)`,
     ],
   },
   studio: {
     label:      'Advanced',
-    price:      '$49/mo',
+    price:      `${formatPlanAud(PLAN_DISPLAY_PRICES[2].monthlyAud)}/mo`,
     credits:    '2,000 credits/month',
     highlights: [
       'Active subscription required',
       'Film quality + Director mode',
-      '7 Director models',
+      `Director mode (${COUNCIL_MODEL_COUNT} models)`,
       'Voice cloning & 4K export',
     ],
   },
   ultimate: {
     label:      'Ultimate',
-    price:      '$99/mo',
+    price:      `${formatPlanAud(PLAN_DISPLAY_PRICES[3].monthlyAud)}/mo`,
     credits:    '6,000 credits/month',
     highlights: [
       'Forge Extreme desktop included',
-      '21 Director models',
+      `Director mode (${COUNCIL_MODEL_COUNT} models)`,
       'ForgeFlow + ForgeReview',
       'DCP + IMF export',
     ],

@@ -3,18 +3,17 @@
 import { Lock } from 'lucide-react'
 import { useUserTier } from '@/hooks/useUserTier'
 import { type QualityTier, getRequiredUpgrade } from '@/lib/access/tiers'
+import { quoteGenerationHold } from '@/lib/credits/quote'
 
 const QUALITY_TIERS: Array<{
   id:      QualityTier
   label:   string
-  model:   string
-  crPer5s: number
   feature: string
 }> = [
-  { id: 'draft',     label: 'Draft',     model: 'LTX Fast',  crPer5s: 2,  feature: '' },
-  { id: 'standard',  label: 'Standard',  model: 'Wan 2.2',   crPer5s: 2,  feature: 'quality_standard' },
-  { id: 'cinematic', label: 'Cinematic', model: 'Luma Ray3', crPer5s: 8,  feature: 'quality_cinematic' },
-  { id: 'film',      label: 'Film',      model: 'Kling 3.0', crPer5s: 25, feature: 'quality_film' },
+  { id: 'draft',     label: 'Draft',     feature: '' },
+  { id: 'standard',  label: 'Standard',  feature: 'quality_standard' },
+  { id: 'cinematic', label: 'Cinematic', feature: 'quality_cinematic' },
+  { id: 'film',      label: 'Film',      feature: 'quality_film' },
 ]
 
 const UPGRADE_LABELS: Record<string, string> = {
@@ -74,8 +73,8 @@ export function TierSelector({ value, onChange }: Props) {
             )}
 
             <span className="text-[11px] font-semibold leading-none">{qt.label}</span>
-            <span className="text-[9px] mt-0.5 opacity-70">{qt.model}</span>
-            <span className="text-[9px] mt-0.5 opacity-50">{qt.crPer5s}cr/5s</span>
+            <span className="text-[9px] mt-0.5 opacity-70">{quoteGenerationHold({ tier: qt.id, durationSeconds: 5 }).model}</span>
+            <span className="text-[9px] mt-0.5 opacity-50">{quoteGenerationHold({ tier: qt.id, durationSeconds: 5 }).ratePerFiveSeconds}cr/5s</span>
 
             {!unlocked && required && (
               <span className="mt-1 text-[8px] px-1 py-0.5 rounded bg-white/5 text-gray-500">

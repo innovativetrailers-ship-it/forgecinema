@@ -1,19 +1,20 @@
 'use client'
 
+import { quoteGenerationHold } from '@/lib/credits/quote'
+
 export type GenerationTier = 'draft' | 'standard' | 'cinematic' | 'film'
 
 interface TierConfig {
   label:       string
   description: string
-  cost:        number
   color:       string
 }
 
 export const TIER_CONFIG: Record<GenerationTier, TierConfig> = {
-  draft:     { label: 'Quick Draft',  description: '~10s · fal.ai fast', cost: 2,  color: 'text-gray-400' },
-  standard:  { label: 'Standard',     description: '~30s · balanced',    cost: 8,  color: 'text-blue-400' },
-  cinematic: { label: 'Cinematic',    description: '~60s · high quality', cost: 25, color: 'text-[#00e5c8]' },
-  film:      { label: 'Film Grade',   description: '~90s · best quality', cost: 40, color: 'text-violet-400' },
+  draft:     { label: 'Quick Draft', description: 'Budget',       color: 'text-gray-400' },
+  standard:  { label: 'Standard',    description: 'Performance',  color: 'text-blue-400' },
+  cinematic: { label: 'Cinematic',   description: 'Motion',       color: 'text-[#00e5c8]' },
+  film:      { label: 'Film Grade',  description: 'Cinema',       color: 'text-violet-400' },
 }
 
 interface Props {
@@ -61,7 +62,7 @@ export function TierSelector({ value, onChange, compact = false }: Props) {
             {cfg.label}
           </div>
           <div className="text-[10px] text-gray-500">{cfg.description}</div>
-          <div className={`text-[10px] mt-1 font-mono ${cfg.color}`}>{cfg.cost} cr</div>
+          <div className={`text-[10px] mt-1 font-mono ${cfg.color}`}>{quoteGenerationHold({ tier: key, durationSeconds: 5 }).credits} cr / 5s</div>
         </button>
       ))}
     </div>

@@ -230,13 +230,14 @@ export default function SimplePage() {
                 {activeTab === 'image' && (
                   <ImageToVideoTab
                     onGenerated={handleGenerated}
-                    creditBalance={creditBalance ?? 0}
+                    creditBalance={shownBalance}
+                    unlimited={unlimited}
                   />
                 )}
                 {activeTab === 'audio' && (
                   <AudioToVideoTab
                     onGenerated={handleGenerated}
-                    creditBalance={creditBalance ?? 0}
+                    creditBalance={shownBalance ?? 0}
                   />
                 )}
                 {activeTab === 'social' && (
@@ -250,7 +251,7 @@ export default function SimplePage() {
               {[
                 { label: 'Generated', value: clips.length },
                 { label: 'Complete', value: clips.filter((c) => c.status === 'complete').length },
-                { label: 'Credits', value: creditBalance ?? '…' },
+                { label: 'Credits', value: creditsLoading ? '…' : creditBalance },
               ].map((stat) => (
                 <div key={stat.label} className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border)] p-3 text-center">
                   <div className="text-lg font-bold text-[var(--text-primary)]">{stat.value}</div>

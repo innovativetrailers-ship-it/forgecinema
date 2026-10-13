@@ -10,6 +10,7 @@ import { usePlaybackStore } from '@/store/playbackStore'
 import { useEditorRecipeView } from '@/lib/timeline/to-editor-recipe'
 import { ensureEditorProject } from '@/lib/projects/loadProject'
 import { toast } from 'sonner'
+import { creditShortfall, quoteGenerationHold } from '@/lib/credits/quote'
 
 interface CameraControl {
   panDirection:  number
@@ -35,11 +36,11 @@ const CAMERA_PRESETS: Record<string, Partial<CameraControl>> = {
 
 type Tier = 'draft' | 'standard' | 'cinematic' | 'film'
 
-const TIER_CONFIG: Record<Tier, { label: string; cost: number; color: string }> = {
-  draft:     { label: 'Quick Draft',   cost: 2,  color: 'text-gray-400' },
-  standard:  { label: 'Standard',      cost: 8,  color: 'text-blue-400' },
-  cinematic: { label: 'Cinematic',     cost: 25, color: 'text-[#00e5c8]' },
-  film:      { label: 'Film Grade',    cost: 40, color: 'text-violet-400' },
+const TIER_CONFIG: Record<Tier, { label: string; color: string }> = {
+  draft:     { label: 'Quick Draft', color: 'text-gray-400' },
+  standard:  { label: 'Standard',    color: 'text-blue-400' },
+  cinematic: { label: 'Cinematic',   color: 'text-[#00e5c8]' },
+  film:      { label: 'Film Grade',  color: 'text-violet-400' },
 }
 
 const ASPECT_RATIOS = ['16:9', '9:16', '1:1', '4:3', '21:9']
@@ -54,30 +55,29 @@ export function GeneratePanel() {
   const [selectedCharacterId, setSelectedChar]  = useState<string | null>(null)
   const [selectedLocationId, setSelectedLoc]    = useState<string | null>(null)
   const [isGenerating, setIsGenerating]         = useState(false)
-  const [estimatedCost, setEstimatedCost]       = useState(8)
   const [progress, setProgress]                 = useState<number | null>(null)
   const [camera, setCamera]                     = useState<CameraControl>(DEFAULT_CAMERA)
 
   const queryClient    = useQueryClient()
   const addClipToTrack = useEditorStore((s) => s.addClipToTrack)
   const timeline = useEditorRecipeView()
-  const { balance }    = useCredits()
+  const { balance, isLoading: creditsLoading, unlimited } = useCredits()
+  const quote = quoteGenerationHold({ tier, durationSeconds: duration })
+  const gate = creditShortfall({
+    balance: creditsLoading ? null : balance,
+    credits: quote.credits,
+    loading: creditsLoading,
+    unlimited,
+  })
   const editorProjectId = usePlaybackStore((s) => s.projectId)
   const { characters } = useVault(editorProjectId)
   const eventSourceRef = useRef<EventSource | null>(null)
 
-  useEffect(() => {
-    const baseCost = TIER_CONFIG[tier].cost
-    setEstimatedCost(Math.ceil(duration / 5) * baseCost)
-  }, [tier, duration])
-
   useEffect(() => () => { eventSourceRef.current?.close() }, [])
-
-  const insufficientCredits = balance < estimatedCost
 
   async function handleGenerate() {
     if (!prompt.trim()) { toast.error('Enter a prompt first'); return }
-    if (insufficientCredits) { toast.error(`Need ${estimatedCost} credits — you have ${balance}`); return }
+    if (gate.short) { toast.error(`Need ${quote.credits} credits — you have ${balance}`); return }
 
     setIsGenerating(true)
     setProgress(0)
@@ -94,6 +94,7 @@ export function GeneratePanel() {
           quality: tier,
           payload: {
             prompt,
+            model: quote.model,
             duration,
             aspectRatio,
             characterIds: selectedCharacterId ? [selectedCharacterId] : [],
@@ -367,18 +368,20 @@ export function GeneratePanel() {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5" />
             </svg>
-            <span className={`text-xs font-mono ${insufficientCredits ? 'text-red-400' : 'text-white'}`}>
-              {estimatedCost} credits
+            <span className={`text-xs font-mono ${gate.short ? 'text-red-400' : 'text-white'}`}>
+              {quote.credits} credits
             </span>
           </div>
-          {insufficientCredits && (
+          {gate.short && (
             <span className="text-[10px] text-red-400">You have {balance}</span>
           )}
+          {quote.durationNote && <p className="text-[10px] text-gray-400 mb-1">{quote.durationNote}</p>}
+          {quote.tierNote && <p className="text-[10px] text-gray-400 mb-1">{quote.tierNote}</p>}
         </div>
 
         <button
           onClick={handleGenerate}
-          disabled={isGenerating || !prompt.trim()}
+          disabled={isGenerating || !prompt.trim() || gate.generateDisabled}
           className="w-full py-2 bg-[#00e5c8] text-black text-xs font-bold rounded-lg hover:bg-[#00d4b8] disabled:opacity-40 disabled:cursor-not-allowed transition"
         >
           {isGenerating ? 'Generating...' : 'Generate'}

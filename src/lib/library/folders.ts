@@ -107,6 +107,24 @@ export async function createLibraryAsset(input: {
       : await ensureMainFolder(input.projectId)
   const main = await ensureMainFolder(input.projectId)
   const folderId = folder?.id ?? main.id
+  const existing = await db.asset.findFirst({
+    where: { ownerId: input.userId, mediaKind: input.kind, sourceRefs: { has: input.storageKey } },
+    select: { id: true, folderId: true, label: true, contentType: true, variationOf: true },
+  })
+  if (existing) {
+    return {
+      id: existing.id,
+      kind: input.kind,
+      sourceUrl: `/api/media/${existing.id}`,
+      folderId: existing.folderId,
+      label: existing.label || input.label,
+      createdBy: input.kind === 'imported' ? 'import' : existing.variationOf ? 'director' : 'generate',
+      variationOf: existing.variationOf,
+      durationSec: 5,
+      contentType: existing.contentType || contentTypeForKey(input.storageKey, input.contentType),
+      transition: input.transition,
+    }
+  }
   const id = `lib_${nanoid()}`
   await db.asset.create({
     data: {

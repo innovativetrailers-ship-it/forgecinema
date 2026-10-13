@@ -5,7 +5,8 @@ Every row is a call site and the chokepoint that must sit in front of it. `scrip
 | Call | Chokepoint |
 |---|---|
 | Desktop submit / poll | `POST /api/desktop/generate/submit` → `submitGenerateRelay` → `runMetered` / `openHold` |
-| Web `/api/generate` | `openHold` before the render queue |
+| Web `/api/generate` | `quoteGenerationHold` then `openHold` before the render queue. The button shows the quote. `openHold` reserves `ceil(quote × 1.2)` |
+| Web `POST /api/jobs/create` GENERATE | `quoteGenerationHold` then `checkAndDeductCredits` for that amount. Flat `OPERATION_COSTS` remains for non-generate job types |
 | Desktop cognition think / learn / feedback | `meterDesktopRelay` → `runMetered` |
 | Provider queue submit | `packages/core/src/fal/guardedSubmit.ts` (`fal.queue.submit`) |
 | Web provider queue wrapper | `src/lib/fal/falQueue.ts` `submitToFal` (calls guarded submit) |

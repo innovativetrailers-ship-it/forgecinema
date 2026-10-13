@@ -5,6 +5,7 @@ import { Music, Sparkles, Zap, Loader2 } from 'lucide-react'
 import { nanoid } from 'nanoid'
 import type { GeneratedClip } from './types'
 import { MODEL_FAMILY_COLOURS } from './types'
+import { quoteGenerationHold } from '@/lib/credits/quote'
 
 interface Props {
   onGenerated: (clip: GeneratedClip) => void
@@ -18,12 +19,12 @@ interface BeatAnalysis {
 }
 
 const STYLE_PRESETS = [
-  { id: 'cinematic', label: 'Cinematic', model: 'kling_pro', desc: 'Film-quality visuals' },
-  { id: 'music_video', label: 'Music Video', model: 'runway', desc: 'Bold & stylised' },
-  { id: 'nature', label: 'Nature', model: 'luma', desc: 'Organic scenery' },
-  { id: 'abstract', label: 'Abstract', model: 'animatediff', desc: 'Surreal & artistic' },
-  { id: 'urban', label: 'Urban', model: 'seedance', desc: 'City & street' },
-  { id: 'documentary', label: 'Documentary', model: 'veo3', desc: 'Realistic & grounded' },
+  { id: 'cinematic', label: 'Cinematic', model: 'kling-3.0', desc: 'Film-quality visuals' },
+  { id: 'music_video', label: 'Music Video', model: 'runway-gen4', desc: 'Bold and stylised' },
+  { id: 'nature', label: 'Nature', model: 'veo-3.1', desc: 'Organic scenery' },
+  { id: 'abstract', label: 'Abstract', model: 'ltx-2.3-fast', desc: 'Surreal and artistic' },
+  { id: 'urban', label: 'Urban', model: 'seedance-2.0', desc: 'City and street' },
+  { id: 'documentary', label: 'Documentary', model: 'veo-3.1', desc: 'Realistic and grounded' },
 ]
 
 export function AudioToVideoTab({ onGenerated, creditBalance }: Props) {
@@ -35,6 +36,17 @@ export function AudioToVideoTab({ onGenerated, creditBalance }: Props) {
   const [isDragging, setIsDragging] = useState(false)
 
   const selectedStyle = STYLE_PRESETS.find((s) => s.id === stylePreset)!
+  const segments = beats?.downbeats.slice(0, 6) ?? []
+  const segmentDuration = (index: number) => {
+    const start = segments[index] ?? 0
+    const end = segments[index + 1] ?? start + 5
+    return Math.min(Math.max(end - start, 3), 10)
+  }
+  const quotedTotal = segments.length === 0
+    ? null
+    : segments.reduce((sum, _start, index) => (
+      sum + quoteGenerationHold({ model: selectedStyle.model, durationSeconds: segmentDuration(index) }).credits
+    ), 0)
 
   const analyseAudio = async (file: File) => {
     setIsAnalysing(true)
@@ -90,8 +102,8 @@ export function AudioToVideoTab({ onGenerated, creditBalance }: Props) {
       const segments = beats?.downbeats.slice(0, 6) ?? [0]
 
       for (let i = 0; i < segments.length; i++) {
-        const segStart = segments[i]
-        const segEnd = segments[i + 1] ?? segStart + 5
+        const segDuration = Math.min(Math.max((segments[i + 1] ?? segments[i] + 5) - segments[i], 3), 10)
+        const segQuote = quoteGenerationHold({ model: selectedStyle.model, durationSeconds: segDuration })
 
         const clientId = nanoid()
         const newClip: GeneratedClip = {
@@ -100,8 +112,8 @@ export function AudioToVideoTab({ onGenerated, creditBalance }: Props) {
           prompt: `${selectedStyle.label.toLowerCase()} visual at beat ${i + 1} of ${segments.length}`,
           model: selectedStyle.model,
           quality: 'standard',
-          creditsUsed: 8,
-          duration: segEnd - segStart,
+          creditsUsed: segQuote.credits,
+          duration: segQuote.billedDurationSeconds,
           aspectRatio: '16:9',
           status: 'queued',
           progress: 0,
@@ -117,7 +129,7 @@ export function AudioToVideoTab({ onGenerated, creditBalance }: Props) {
             payload: {
               prompt: `${selectedStyle.label} visual, beat ${i + 1}, cinematic, high energy, synced to music`,
               model: selectedStyle.model,
-              duration: Math.min(Math.max(segEnd - segStart, 3), 10),
+              duration: segDuration,
               aspectRatio: '16:9',
             },
           }),
@@ -258,7 +270,7 @@ export function AudioToVideoTab({ onGenerated, creditBalance }: Props) {
 
       <button
         onClick={handleGenerate}
-        disabled={!audioFile || isGenerating || isAnalysing}
+        disabled={!audioFile || isGenerating || isAnalysing || quotedTotal == null}
         className="w-full py-4 rounded-xl font-semibold bg-gradient-to-r from-teal-500 to-teal-600
           text-black shadow-lg shadow-teal-500/25 hover:from-teal-400 hover:to-teal-500
           disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
@@ -266,7 +278,7 @@ export function AudioToVideoTab({ onGenerated, creditBalance }: Props) {
         {isGenerating ? (
           <><Loader2 className="w-5 h-5 animate-spin" />Generating visuals…</>
         ) : (
-          <><Sparkles className="w-5 h-5" />Generate Beat-Synced Video</>
+          <><Sparkles className="w-5 h-5" />{quotedTotal == null ? 'Read the track to price these clips' : `Generate Beat-Synced Video · ⬡ ${quotedTotal}`}</>
         )}
       </button>
     </div>

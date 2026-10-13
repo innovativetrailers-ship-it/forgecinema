@@ -75,6 +75,8 @@ Railway, on `worker-render`, `worker-training`, `worker-export`, and `worker-das
 | Check | Expected |
 |---|---|
 | `GET /api/health` with no session | `401`, body `{ "error": "Unauthorized" }`, no `Access-Control-Allow-Origin` |
+| `GET /api/desktop/download?platform=mac_arm` and `mac_intel` | `503`, body `{ "error": "downloads_closed" }`, no `Location` header. Same while the platform entry is not `released: true` |
+| R2 media CORS | `node scripts/apply-r2-cors.mjs` after the token can `PutBucketCors`. Policy is `infra/r2-cors.json`. Do not delete objects |
 | Stripe webhook with no `stripe-signature` | `400`, `Missing stripe-signature` |
 | Stripe webhook with a forged signature | `400`, `Invalid signature` |
 | Generate with a balance below the hold | `402` or an insufficient-credits error, and no new provider request id |

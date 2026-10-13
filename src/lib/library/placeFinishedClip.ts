@@ -5,7 +5,7 @@ import { usePlaybackStore } from '@/store/playbackStore'
 export type MediaIntent = 'placement' | 'reference'
 
 /** Finished media. Never an entity reference. */
-export async function placeFinishedClip(clip: Pick<GeneratedClip, 'jobId' | 'prompt'> & { label?: string }): Promise<GeneratedClip['mediaId']> {
+export async function placeFinishedClip(clip: Pick<GeneratedClip, 'jobId' | 'prompt' | 'model' | 'creditsUsed' | 'duration' | 'quality' | 'aspectRatio'> & { label?: string }): Promise<GeneratedClip['mediaId']> {
   const { projectId } = await ensureEditorProject()
   const res = await fetch('/api/studio/library', {
     method: 'POST',
@@ -29,11 +29,11 @@ export async function placeFinishedClip(clip: Pick<GeneratedClip, 'jobId' | 'pro
     id: body.item.id,
     jobId: clip.jobId,
     prompt: clip.prompt,
-    model: 'library',
-    quality: 'standard',
-    creditsUsed: 0,
-    duration: 5,
-    aspectRatio: '16:9',
+    model: clip.model,
+    quality: clip.quality,
+    creditsUsed: clip.creditsUsed,
+    duration: clip.duration,
+    aspectRatio: clip.aspectRatio,
     status: 'complete',
     videoUrl: body.item.sourceUrl,
     createdAt: new Date(),

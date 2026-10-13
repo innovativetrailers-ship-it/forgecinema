@@ -3,49 +3,18 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Check } from 'lucide-react'
+import { PLAN_DISPLAY_PRICES, formatPlanAud } from '@/lib/billing/planPrices'
 
-const PLANS = [
-  {
-    name: 'Free Trial',
-    monthlyPrice: 0,
-    yearlyPrice: 0,
-    credits: '50 credits (one-time)',
-    cta: 'Start Free',
-    href: '/signup?plan=free',
-    features: ['Text-to-video', 'Standard quality', 'Simple mode only', '5 exports'],
-    highlighted: false,
-  },
-  {
-    name: 'Pro',
-    monthlyPrice: 19,
-    yearlyPrice: 190,
-    credits: '500 credits / month',
-    cta: 'Start Pro',
-    href: '/signup?plan=pro',
-    features: ['Advanced timeline', 'All quality tiers', 'Character vault', '500 exports'],
-    highlighted: false,
-  },
-  {
-    name: 'Studio',
-    monthlyPrice: 49,
-    yearlyPrice: 490,
-    credits: '2,000 credits / month',
-    cta: 'Start Studio',
-    href: '/signup?plan=studio',
-    features: ['Ultimate mode', 'Film exports', 'Node compositor', 'Client review portal'],
-    highlighted: true,
-  },
-  {
-    name: 'Ultimate',
-    monthlyPrice: 99,
-    yearlyPrice: 990,
-    credits: '6,000 credits / month',
-    cta: 'Start Ultimate',
-    href: '/signup?plan=ultimate',
-    features: ['All features', 'AI Director', 'DCP export', 'Plugin API', 'Priority queue'],
-    highlighted: false,
-  },
-]
+const PLANS = PLAN_DISPLAY_PRICES.map((plan) => ({
+  name: plan.name,
+  monthlyPrice: plan.monthlyAud,
+  yearlyPrice: plan.yearlyAud,
+  credits: plan.credits,
+  cta: plan.monthlyAud === 0 ? 'Start Free' : `Start ${plan.name}`,
+  href: `/signup?plan=${plan.id}`,
+  features: plan.features,
+  highlighted: plan.highlighted === true,
+}))
 
 export function PricingSection() {
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly')
@@ -105,12 +74,12 @@ export function PricingSection() {
                   <h3 className="text-white font-bold text-lg mb-1">{plan.name}</h3>
                   <div className="flex items-end gap-1 mb-1">
                     <span className="text-3xl font-bold text-white">
-                      {price === 0 ? 'Free' : `$${price}`}
+                      {formatPlanAud(price)}
                     </span>
                     {price > 0 && <span className="text-gray-500 text-sm mb-1">/mo</span>}
                   </div>
                   {isYearlySaving && (
-                    <p className="text-xs text-[#00e5c8]">Billed as ${plan.yearlyPrice}/yr</p>
+                    <p className="text-xs text-[#00e5c8]">Billed as {formatPlanAud(plan.yearlyPrice)}/yr</p>
                   )}
                   <p className="text-xs text-gray-500 mt-1">{plan.credits}</p>
                 </div>

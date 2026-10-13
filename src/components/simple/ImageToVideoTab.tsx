@@ -3,15 +3,17 @@
 import { useState, useCallback } from 'react'
 import { Upload, ImageIcon, Sparkles } from 'lucide-react'
 import { nanoid } from 'nanoid'
-import { QUALITY_PILLS } from './types'
+import { QUALITY_PILLS, pillQuote } from './types'
+import { creditShortfall } from '@/lib/credits/quote'
 import type { QualityTier, GeneratedClip } from './types'
 
 interface Props {
   onGenerated: (clip: GeneratedClip) => void
-  creditBalance: number
+  creditBalance: number | null
+  unlimited?: boolean
 }
 
-export function ImageToVideoTab({ onGenerated, creditBalance }: Props) {
+export function ImageToVideoTab({ onGenerated, creditBalance, unlimited = false }: Props) {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [prompt, setPrompt] = useState('')
@@ -21,6 +23,13 @@ export function ImageToVideoTab({ onGenerated, creditBalance }: Props) {
   const [isLoading, setIsLoading] = useState(false)
 
   const selectedPill = QUALITY_PILLS.find((p) => p.id === quality)!
+  const quote = pillQuote(quality, 5)
+  const gate = creditShortfall({
+    balance: creditBalance,
+    credits: quote.credits,
+    unlimited,
+    loading: !unlimited && creditBalance === null,
+  })
 
   const handleFileSelect = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) return
@@ -56,7 +65,7 @@ export function ImageToVideoTab({ onGenerated, creditBalance }: Props) {
         prompt: prompt || 'Animate this image naturally',
         model: selectedPill.model,
         quality,
-        creditsUsed: selectedPill.credits,
+        creditsUsed: quote.credits,
         duration: 5,
         aspectRatio: '16:9',
         status: 'queued',
@@ -108,7 +117,7 @@ export function ImageToVideoTab({ onGenerated, creditBalance }: Props) {
     } catch (err) {
       console.warn("[caught] src/components/simple/ImageToVideoTab.tsx:108", err instanceof Error ? { name: err.name, message: err.message } : err)
 
-      onGenerated({ id: nanoid(), jobId: nanoid(), prompt, model: selectedPill.model, quality, creditsUsed: selectedPill.credits, duration: 5, aspectRatio: '16:9', status: 'failed', error: (err as Error).message, createdAt: new Date() })
+      onGenerated({ id: nanoid(), jobId: nanoid(), prompt, model: quote.model, quality, creditsUsed: quote.credits, duration: quote.billedDurationSeconds, aspectRatio: '16:9', status: 'failed', error: (err as Error).message, createdAt: new Date() })
     } finally {
       setIsLoading(false)
     }
@@ -189,7 +198,7 @@ export function ImageToVideoTab({ onGenerated, creditBalance }: Props) {
           <button
             key={pill.id}
             onClick={() => setQuality(pill.id)}
-            disabled={pill.credits > creditBalance}
+            disabled={!unlimited && creditBalance !== null && pillQuote(pill.id, 5).credits > creditBalance}
             className={`
               p-2.5 rounded-xl border text-left transition-all text-xs
               ${quality === pill.id ? 'border-[#00e5c8] bg-[#00e5c8]/15 text-[#00e5c8]' : 'border-white/8 bg-white/3 text-white/50 hover:border-white/20'}
@@ -197,14 +206,14 @@ export function ImageToVideoTab({ onGenerated, creditBalance }: Props) {
             `}
           >
             <div className="font-medium">{pill.label}</div>
-            <div className="text-[10px] text-[#00e5c8]/70 mt-0.5">⬡ {pill.credits}</div>
+            <div className="text-[10px] text-[#00e5c8]/70 mt-0.5">⬡ {pillQuote(pill.id, 5).credits}</div>
           </button>
         ))}
       </div>
 
       <button
         onClick={handleGenerate}
-        disabled={!imageFile || isLoading || selectedPill.credits > creditBalance}
+        disabled={!imageFile || isLoading || gate.generateDisabled}
         className="w-full py-4 rounded-xl font-semibold bg-gradient-to-r from-teal-500 to-teal-600
           text-black shadow-lg shadow-teal-500/25 hover:from-teal-400 hover:to-teal-500
           disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
@@ -212,7 +221,7 @@ export function ImageToVideoTab({ onGenerated, creditBalance }: Props) {
         {isLoading ? (
           <><div className="w-4 h-4 border-2 border-black/40 border-t-black rounded-full animate-spin" />Animating…</>
         ) : (
-          <><Sparkles className="w-5 h-5" />Animate Image · ⬡ {selectedPill.credits}</>
+          <><Sparkles className="w-5 h-5" />Animate Image · ⬡ {quote.credits}</>
         )}
       </button>
     </div>

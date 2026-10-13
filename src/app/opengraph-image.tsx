@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og'
+import { appUrl } from '@/lib/appUrl'
 
 export const runtime = 'edge'
 export const alt = 'CINÉMA — AI Film Production Platform'
@@ -112,7 +113,7 @@ export default function OGImage() {
             letterSpacing: '0.1em',
           }}
         >
-          cinema.growthengine.ai
+          {appUrl().replace(/^https:\/\//, '')}
         </div>
       </div>
     ),

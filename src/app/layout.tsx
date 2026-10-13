@@ -6,8 +6,9 @@ import { Providers } from '@/components/providers'
 import { ToastContainer } from '@/components/ui/ToastContainer'
 import { UpgradeModal } from '@/components/ui/UpgradeModal'
 import { FeatureRequestButton } from '@/components/features/FeatureRequestButton'
+import { appUrl } from '@/lib/appUrl'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://cinema.growthengine.ai'
+const APP_URL = appUrl()
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),

@@ -8,7 +8,8 @@ import { auth } from '@/lib/auth'
 import { nanoid } from 'nanoid'
 import { db } from '@/lib/db'
 import { renderQueue, getPriorityForRole } from '@/lib/queue'
-import { checkAndDeductCredits, refundCredits, OPERATION_COSTS } from '@/lib/credits'
+import { checkAndDeductCredits, refundCredits, OPERATION_COSTS, MissingPriceError } from '@/lib/credits'
+import { quoteGenerationHold } from '@/lib/credits/quote'
 import { getOperationCostKey, normalizeWorkerModelId, normaliseModelId } from '@/lib/models/router'
 import { orchestrate } from '@/lib/orchestration'
 import type { SceneSegment } from '@/lib/routing/types'
@@ -165,7 +166,11 @@ export async function POST(request: NextRequest) {
           requirements: [],
           characterIds: p.characterIds,
           isHardCut: index === 0,
-          estimatedCredits: Math.max(1, Math.ceil((seg.duration || duration) / 5)),
+          estimatedCredits: quoteGenerationHold({
+            model: seg.model,
+            tier: quality,
+            durationSeconds: seg.duration || duration,
+          }).credits,
         }))
       } else {
         plannedModel = explicit ?? planned.segments[0]?.model ?? null
@@ -179,11 +184,9 @@ export async function POST(request: NextRequest) {
     if (segments && segments.length > 1) {
       // Multi-engine path: deduct credits per segment
       const totalCost = segments.reduce((s, seg) => s + seg.estimatedCredits, 0)
-      const chargedUnits = Math.ceil(totalCost / (OPERATION_COSTS['generate_wan'] ?? 2))
 
       try {
-        // Deduct aggregate cost as a single logical operation
-        await checkAndDeductCredits(userId, 'generate_wan', chargedUnits)
+        await checkAndDeductCredits(db, userId, totalCost, 'generate multi')
       } catch (err) {
         console.warn("[caught] src/app/api/jobs/create/route.ts:137", err instanceof Error ? { name: err.name, message: err.message } : err)
 
@@ -199,7 +202,7 @@ export async function POST(request: NextRequest) {
           type: 'GENERATE' as never,
           status: 'QUEUED',
           modelUsed: 'multi_engine',
-          creditsCharged: chargedUnits,
+          creditsCharged: totalCost,
           inputPayload: { ...payload, segments } as never,
           priority: getPriorityForRole(userRole),
         },
@@ -220,7 +223,7 @@ export async function POST(request: NextRequest) {
         )
       } catch (queueErr) {
         await db.renderJob.update({ where: { id: renderJob.id }, data: { status: 'FAILED', errorMessage: 'Queue unavailable' } })
-        await refundCredits(userId, chargedUnits, 'queue_unavailable').catch((err) => logCaught('app/api/jobs/create/route', err))
+        await refundCredits(userId, totalCost, 'queue_unavailable').catch((err) => logCaught('app/api/jobs/create/route', err))
         console.error('[jobs/create] Queue error:', (queueErr as Error).message)
         return NextResponse.json({ error: 'Job queue temporarily unavailable. Credits refunded.' }, { status: 503 })
       }
@@ -258,10 +261,28 @@ export async function POST(request: NextRequest) {
     ? getOperationCostKey(normalizeWorkerModelId(model))
     : type.toLowerCase()
 
-  const cost = OPERATION_COSTS[operationKey] ?? 0
+  let cost = OPERATION_COSTS[operationKey] ?? 0
+  if (type === 'GENERATE' && model) {
+    try {
+      const requested = Number((payload as { duration?: unknown }).duration ?? 5)
+      const quote = quoteGenerationHold({ model, tier: quality, durationSeconds: requested })
+      cost = quote.credits
+      model = quote.model
+      if (quote.billedDurationSeconds !== requested) {
+        payload = { ...payload, duration: quote.billedDurationSeconds, requestedDuration: requested }
+      }
+    } catch (err) {
+      const message = err instanceof MissingPriceError || err instanceof Error ? err.message : 'No price for this model'
+      return NextResponse.json({ error: message }, { status: 400 })
+    }
+  }
 
   try {
-    await checkAndDeductCredits(userId, operationKey)
+    if (type === 'GENERATE' && model) {
+      await checkAndDeductCredits(db, userId, cost, `generate ${model}`)
+    } else {
+      await checkAndDeductCredits(userId, operationKey)
+    }
   } catch (err) {
     console.warn("[caught] src/app/api/jobs/create/route.ts:251", err instanceof Error ? { name: err.name, message: err.message } : err)
 

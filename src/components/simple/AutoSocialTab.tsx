@@ -232,22 +232,13 @@ export function AutoSocialTab({ onRecipeReady }: Props) {
         </>
       )}
 
-      {/* Generate button */}
-      {assets.length > 0 && (
-        <button
-          onClick={handleGenerate}
-          disabled={isGenerating}
-          className="w-full py-4 rounded-xl font-semibold bg-gradient-to-r from-teal-500 to-teal-600
-            text-black shadow-lg shadow-teal-500/25 hover:from-teal-400 hover:to-teal-500
-            disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-        >
-          {isGenerating ? (
-            <><Loader2 className="w-5 h-5 animate-spin" />{progress}</>
-          ) : (
-            <><Sparkles className="w-5 h-5" />Generate Content · {assets.length} assets</>
-          )}
-        </button>
-      )}
+      <button
+        type="button"
+        disabled
+        className="w-full py-4 rounded-xl font-semibold bg-white/5 text-white/50 cursor-not-allowed"
+      >
+        Drop & Direct has no credit price yet, so it stays off.
+      </button>
 
       {/* Result */}
       {result && (

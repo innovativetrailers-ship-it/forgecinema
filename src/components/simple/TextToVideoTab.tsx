@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import type { QualityTier, AspectRatio, Duration, GeneratedClip } from './types'
-import { QUALITY_PILLS, DURATION_OPTIONS, ASPECT_RATIOS, ALL_MODELS } from './types'
+import { QUALITY_PILLS, DURATION_OPTIONS, ASPECT_RATIOS, ALL_MODELS, pillQuote } from './types'
+import { creditShortfall, quoteGenerationHold } from '@/lib/credits/quote'
 import { nanoid } from 'nanoid'
 
 interface Props {
@@ -25,9 +26,16 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited
   const [isLoading, setIsLoading] = useState(false)
 
   const selectedPill = QUALITY_PILLS.find((p) => p.id === quality)!
-  const balanceKnown = unlimited || creditBalance !== null
-  const short = !unlimited && creditBalance !== null && selectedPill.credits > creditBalance
   const actualDuration = duration === 'custom' ? customDuration : duration
+  const quote = modelOverride
+    ? quoteGenerationHold({ model: modelOverride, tier: quality, durationSeconds: actualDuration })
+    : pillQuote(quality, actualDuration)
+  const gate = creditShortfall({
+    balance: creditBalance,
+    credits: quote.credits,
+    unlimited,
+    loading: !unlimited && creditBalance === null,
+  })
   const canAdvanced = userRole === 'PRO' || userRole === 'STUDIO' || userRole === 'ADMIN'
 
   const handleGenerate = async () => {
@@ -39,9 +47,9 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited
       id: clipId,
       jobId: clipId,
       prompt,
-      model: modelOverride || selectedPill.model,
+      model: modelOverride || quote.model,
       quality,
-      creditsUsed: selectedPill.credits,
+      creditsUsed: quote.credits,
       duration: actualDuration,
       aspectRatio,
       status: 'queued',
@@ -57,7 +65,7 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited
           type: 'GENERATE',
           payload: {
             prompt,
-            model: modelOverride || selectedPill.model,
+            model: modelOverride || quote.model,
             duration: actualDuration,
             aspectRatio,
             quality,
@@ -155,7 +163,7 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited
             <button
               key={pill.id}
               onClick={() => setQuality(pill.id)}
-              disabled={!unlimited && creditBalance !== null && pill.credits > creditBalance}
+              disabled={!unlimited && creditBalance !== null && pillQuote(pill.id, actualDuration).credits > creditBalance}
               className={`
                 group px-3 py-2.5 rounded-xl border text-left transition-all
                 ${quality === pill.id
@@ -168,8 +176,8 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited
                 {pill.label}
               </div>
               <div className="text-[10px] text-white/40">{pill.description}</div>
-              <div className={`text-[10px] mt-1 font-medium ${!unlimited && creditBalance !== null && pill.credits > creditBalance ? 'text-red-400' : 'text-[#00e5c8]/70'}`}>
-                ⬡ {pill.credits}
+              <div className={`text-[10px] mt-1 font-medium ${!unlimited && creditBalance !== null && pillQuote(pill.id, actualDuration).credits > creditBalance ? 'text-red-400' : 'text-[#00e5c8]/70'}`}>
+                ⬡ {pillQuote(pill.id, actualDuration).credits}
               </div>
             </button>
           ))}
@@ -268,7 +276,7 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited
       {/* Generate button */}
       <button
         onClick={handleGenerate}
-        disabled={!prompt.trim() || isLoading || !balanceKnown || short}
+        disabled={!prompt.trim() || isLoading || gate.generateDisabled}
         className="
           w-full py-4 rounded-xl font-semibold text-base
           bg-gradient-to-r from-teal-500 to-teal-600
@@ -287,14 +295,21 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited
         ) : (
           <>
             <Sparkles className="w-5 h-5" />
-            Generate Video · ⬡ {selectedPill.credits}
+            Generate Video · ⬡ {quote.credits}
           </>
         )}
       </button>
 
-      {short && (
+      {quote.durationNote && (
+        <p className="text-xs text-center text-white/50">{quote.durationNote}</p>
+      )}
+      {quote.tierNote && (
+        <p className="text-xs text-center text-white/50">{quote.tierNote}</p>
+      )}
+
+      {gate.short && (
         <p className="text-xs text-center text-red-400">
-          Insufficient credits — <span className="text-white/60">need ⬡ {selectedPill.credits}, have ⬡ {creditBalance}</span>
+          Insufficient credits — <span className="text-white/60">need ⬡ {quote.credits}, have ⬡ {creditBalance}</span>
         </p>
       )}
 

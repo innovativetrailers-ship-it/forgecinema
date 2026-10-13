@@ -10,6 +10,7 @@ import { useUserTier } from '@/hooks/useUserTier'
 import { UpgradeModal } from '@/components/ui/UpgradeModal'
 import { BrandLogo } from '@/components/brand/BrandLogo'
 import { TopBar } from '@/components/layout/TopBar'
+import { COUNCIL_MODEL_COUNT } from '@/lib/credits/quote'
 interface ReleaseApiResponse {
   version: string | null
   available: boolean
@@ -57,7 +58,7 @@ const BLOG_FEATURES = [
   },
   {
     icon: <Zap className="w-5 h-5" />,
-    title: 'AI Generation Studio — 21 Models + Cognitive Director',
+    title: `AI Generation Studio — ${COUNCIL_MODEL_COUNT} models in the council`,
     desc: 'Full model pool with intent modeling, Reflexion critique, and character consistency pipeline.',
   },
   {

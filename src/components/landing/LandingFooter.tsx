@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { appUrl } from '@/lib/appUrl'
 
 export function LandingFooter() {
   return (
@@ -54,7 +55,7 @@ export function LandingFooter() {
           <p className="text-gray-600 text-xs">
             &copy; {new Date().getFullYear()} INNOVATIVE. All rights reserved.
           </p>
-          <p className="text-gray-700 text-xs">cinematicforge.ai</p>
+          <p className="text-gray-700 text-xs">{appUrl().replace(/^https:\/\//, '')}</p>
         </div>
       </div>
     </footer>

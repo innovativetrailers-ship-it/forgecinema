@@ -6,7 +6,7 @@ import { requireUser } from '@/lib/auth/requireUser'
 export const maxDuration = 300
 
 import { fastEstimateCost, estimateRenderSeconds } from '@/lib/orchestration/fastEstimate'
-import { calculateSimpleCost }                     from '@/lib/credits'
+import { quoteGenerationHold } from '@/lib/credits/quote'
 import { checkAccess }          from '@/lib/access/guard'
 import { MODEL_COUNCIL_DISPLAY, MODEL_COSTS, TIER_ENGINE_MAP } from '@/lib/routing/engineRegistry'
 import { parseQualityTier } from '@/lib/orchestration/tierPolicy'
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
 
   let creditCost = mode === 'director'
     ? fastEstimateCost(selectedModels, duration)
-    : calculateSimpleCost(tier, duration)
+    : quoteGenerationHold({ tier, durationSeconds: duration }).credits
 
   if (creditCost === 0) {
     creditCost = Math.max(5, Math.ceil((duration / 5) * 6))
