@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { planDisplay, type PlanDisplayPrice } from '@cinema/core'
 import { useSignupStore } from '@/store/signup'
 
-const PLAN_PRICES: Record<string, Record<string, number>> = {
-  pro:      { monthly: 19, yearly: 190 },
-  studio:   { monthly: 49, yearly: 490 },
-  ultimate: { monthly: 99, yearly: 990 },
+function planAmount(plan: string, billing: 'monthly' | 'yearly'): number {
+  if (plan !== 'pro' && plan !== 'studio' && plan !== 'ultimate') return 0
+  const row: PlanDisplayPrice = planDisplay(plan)
+  return billing === 'yearly' ? row.yearlyAud : row.monthlyAud
 }
 
 export function SignupStep3() {
@@ -16,7 +17,7 @@ export function SignupStep3() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const price = plan !== 'free' ? PLAN_PRICES[plan]?.[billing] : 0
+  const price = planAmount(plan, billing)
 
   const handleFreeTrial = async () => {
     setLoading(true)

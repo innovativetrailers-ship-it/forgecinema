@@ -1,5 +1,7 @@
 'use client'
 
+import { planDisplay } from '@cinema/core'
+
 export interface Plan {
   id: string
   name: string
@@ -14,24 +16,24 @@ const PLANS: Plan[] = [
   {
     id: 'free',
     name: 'Free Trial',
-    monthlyPrice: 0,
-    yearlyPrice: 0,
+    monthlyPrice: planDisplay('free').monthlyAud,
+    yearlyPrice: planDisplay('free').yearlyAud,
     credits: '50 credits (once)',
     features: ['Text-to-video', 'Standard quality', 'Simple mode'],
   },
   {
     id: 'pro',
     name: 'Pro',
-    monthlyPrice: 19,
-    yearlyPrice: 190,
+    monthlyPrice: planDisplay('pro').monthlyAud,
+    yearlyPrice: planDisplay('pro').yearlyAud,
     credits: '500 credits/month',
     features: ['Advanced timeline', 'Character vault', 'All quality tiers'],
   },
   {
     id: 'studio',
     name: 'Studio',
-    monthlyPrice: 49,
-    yearlyPrice: 490,
+    monthlyPrice: planDisplay('studio').monthlyAud,
+    yearlyPrice: planDisplay('studio').yearlyAud,
     credits: '2,000 credits/month',
     features: ['Film exports', 'Node compositor', 'Client review portal'],
     popular: true,
@@ -39,8 +41,8 @@ const PLANS: Plan[] = [
   {
     id: 'ultimate',
     name: 'Ultimate',
-    monthlyPrice: 99,
-    yearlyPrice: 990,
+    monthlyPrice: planDisplay('ultimate').monthlyAud,
+    yearlyPrice: planDisplay('ultimate').yearlyAud,
     credits: '6,000 credits/month',
     features: ['All features', 'AI Director', 'DCP export', 'Plugin API'],
   },

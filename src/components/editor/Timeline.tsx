@@ -4,6 +4,7 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 import { Volume2, VolumeX, Lock, Unlock, Eye } from 'lucide-react'
 import { TRACK_LABEL_WIDTH, RULER_HEIGHT, TRACK_HEIGHT, MODEL_CLIP_COLOURS, TRACK_COLOURS } from './constants'
 import type { TimelineRecipe, Track, Clip } from '@/lib/timeline/schema'
+import { DEFAULT_TRACKS } from '@/lib/timeline/defaultRecipe'
 import { recipeForTimeline, videoTrackCount } from '@/lib/timeline/reconcileTimeline'
 import { usePlaybackStore } from '@/store/playbackStore'
 import { clipPosterUrl, computeTimelineDuration, isVideoMediaUrl } from '@/lib/timeline/playback'
@@ -11,6 +12,7 @@ import { ClipContextMenu } from '@/components/editor/ClipContextMenu'
 import { placeDraggedLibraryItem } from '@/lib/library/placeOnTimeline'
 import { toast } from '@/lib/toast'
 import { useTimelineDock } from '@/components/editor/timelineDock'
+import { consumeLibraryDrag, noteLibraryDrop } from '@/lib/library/pointerDrag'
 
 interface ActiveJob { jobId: string; clipId: string; progress?: number }
 
@@ -79,6 +81,8 @@ export function Timeline({
   const heightKey = `cinema-track-height:${projectId || 'local'}`
   const [rowHeight, setRowHeight] = useState(TRACK_HEIGHT)
   const [heightMode, setHeightMode] = useState<'S' | 'M' | 'L' | 'fit'>('M')
+  const [magnet, setMagnet] = useState(false)
+  const [ripple, setRipple] = useState(false)
 
   useEffect(() => {
     const saved = window.localStorage.getItem(heightKey)
@@ -106,7 +110,12 @@ export function Timeline({
 
   const storeRecipe = usePlaybackStore((state) => state.recipe)
   const rendered = recipeForTimeline(storeRecipe, recipe)
-  const tracks = rendered?.tracks ?? []
+  const tracks = rendered?.tracks?.length
+    ? rendered.tracks
+    : (recipe?.tracks?.length ? recipe.tracks : DEFAULT_TRACKS)
+  const contentEnd = tracks.reduce((max, track) => (
+    track.clips.reduce((end, clip) => Math.max(end, clip.endTime), max)
+  ), 0)
 
   useEffect(() => {
     console.log('[timeline_render]', { clips: videoTrackCount(rendered) })
@@ -172,6 +181,7 @@ export function Timeline({
     e.preventDefault()
     e.stopPropagation()
     onClipSelect(clip.id)
+    if (type === 'clip') onSeek(clip.startTime + 0.001)
     if (razor && type === 'clip' && onClipSplit) {
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
       const span = Math.max(0.1, clip.endTime - clip.startTime)
@@ -186,7 +196,7 @@ export function Timeline({
       startTime: type === 'clip' ? clip.startTime : type === 'trim-start' ? clip.startTime : clip.endTime,
       trackId: clip.trackId,
     })
-  }, [onClipSelect, onClipSplit, razor])
+  }, [onClipSelect, onClipSplit, onSeek, razor])
 
   useEffect(() => {
     if (!dragging) return
@@ -197,6 +207,7 @@ export function Timeline({
       const dt = dx / zoomLevel
 
       if (dragging.type === 'clip') {
+        if (Math.abs(dx) < 4) return
         const newStart = Math.max(0, dragging.startTime + dt)
         onClipMove(dragging.clipId, newStart, dragging.trackId!)
       } else if (dragging.type === 'trim-start') {
@@ -247,6 +258,7 @@ export function Timeline({
         >
           Timeline {playheadTime.toFixed(1)}s
         </button>
+        <span data-testid="timeline-duration">{contentEnd.toFixed(1)}s</span>
         {dock.mode === 'compact' && (
           <div
             className="relative h-8 flex-1 overflow-hidden rounded bg-black/40"
@@ -295,6 +307,9 @@ export function Timeline({
             <button key={mode} type="button" className={heightMode === mode ? 'text-[#00e5c8]' : ''} onClick={(event) => { event.stopPropagation(); chooseHeight(mode) }}>{mode}</button>
           ))}
           <button type="button" className={heightMode === 'fit' ? 'text-[#00e5c8]' : ''} onClick={(event) => { event.stopPropagation(); fitTracks() }}>Fit</button>
+          <button type="button" aria-pressed={magnet} data-testid="magnet-toggle" className={magnet ? 'text-[#00e5c8]' : ''} onClick={(event) => { event.stopPropagation(); setMagnet((on) => !on) }}>Magnet</button>
+          <button type="button" aria-pressed={ripple} data-testid="ripple-toggle" className={ripple ? 'text-[#00e5c8]' : ''} onClick={(event) => { event.stopPropagation(); setRipple((on) => !on) }}>Ripple</button>
+          <span data-testid="timeline-duration">{contentEnd.toFixed(1)}s</span>
         </div>
 
         {/* Tick marks */}
@@ -342,13 +357,15 @@ export function Timeline({
             playheadX={playheadX}
             clipJobMap={clipJobMap}
             onClipSelect={onClipSelect}
+            onSeek={onSeek}
             onMouseDown={handleMouseDown}
             onHover={setHoveredClipId}
             onToggleMute={() => onTrackToggleMute(track.id)}
             onClipMenu={(id, x, y) => setMenu({ id, x, y })}
             onLibraryDrop={(raw, x) => {
               const hint = track.id === 't-music' ? 'music' : track.id === 't-voice' ? 'voice' : track.type === 'audio' ? 'voice' : 'video'
-              const startSec = Math.max(0, xToTime(x, zoomLevel, scrollOffset))
+              const rawStart = Math.max(0, xToTime(x, zoomLevel, scrollOffset))
+              const startSec = magnet ? Math.round(rawStart) : rawStart
               void (async () => {
                 let payload = raw
                 if (hint === 'video') {
@@ -408,6 +425,28 @@ export function Timeline({
                 }
                 const rejected = placeDraggedLibraryItem(payload, hint, startSec)
                 if (rejected) toast.error(rejected)
+                else if (ripple) {
+                  const store = usePlaybackStore.getState()
+                  const current = store.recipe
+                  const placed = current?.tracks.flatMap((row) => row.clips).find((clip) => {
+                    const mediaId = (clip.metadata as { mediaId?: string } | undefined)?.mediaId
+                    return Math.abs(clip.startTime - startSec) < 0.05 && mediaId
+                  })
+                  if (current && placed) {
+                    const span = placed.endTime - placed.startTime
+                    store.setRecipe({
+                      ...current,
+                      tracks: current.tracks.map((row) => ({
+                        ...row,
+                        clips: row.clips.map((clip) => (
+                          clip.id !== placed.id && clip.trackId === placed.trackId && clip.startTime >= placed.startTime
+                            ? { ...clip, startTime: clip.startTime + span, endTime: clip.endTime + span }
+                            : clip
+                        )),
+                      })),
+                    })
+                  }
+                }
               })()
             }}
           />
@@ -433,6 +472,7 @@ interface TrackRowProps {
   playheadX: number
   clipJobMap: Map<string, ActiveJob>
   onClipSelect: (id: string | null) => void
+  onSeek: (t: number) => void
   onMouseDown: (e: React.MouseEvent, type: 'clip' | 'trim-start' | 'trim-end', clip: Clip) => void
   onHover: (id: string | null) => void
   onToggleMute: () => void
@@ -450,6 +490,7 @@ function TrackRow({
   playheadX,
   clipJobMap,
   onClipSelect,
+  onSeek,
   onMouseDown,
   onHover,
   onToggleMute,
@@ -495,6 +536,13 @@ function TrackRow({
           const raw = event.dataTransfer.getData('application/x-cinema-media')
           if (!raw) return
           event.preventDefault()
+          noteLibraryDrop()
+          const bounds = event.currentTarget.getBoundingClientRect()
+          onLibraryDrop(raw, event.clientX - bounds.left)
+        }}
+        onPointerUp={(event) => {
+          const raw = consumeLibraryDrag()
+          if (!raw) return
           const bounds = event.currentTarget.getBoundingClientRect()
           onLibraryDrop(raw, event.clientX - bounds.left)
         }}
@@ -526,6 +574,9 @@ function TrackRow({
                 height: Math.max(12, rowHeight - 12),
                 backgroundColor: clipColour,
               }}
+              data-testid="timeline-clip"
+              data-start={clip.startTime}
+              onClick={(event) => { event.stopPropagation(); onClipSelect(clip.id); onSeek(clip.startTime + 0.001) }}
               onMouseDown={(e) => onMouseDown(e, 'clip', clip)}
               onContextMenu={(e) => {
                 e.preventDefault()

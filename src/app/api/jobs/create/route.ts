@@ -272,6 +272,7 @@ export async function POST(request: NextRequest) {
         payload = { ...payload, duration: quote.billedDurationSeconds, requestedDuration: requested }
       }
     } catch (err) {
+      console.warn('[quote]', err instanceof Error ? err.message : err)
       const message = err instanceof MissingPriceError || err instanceof Error ? err.message : 'No price for this model'
       return NextResponse.json({ error: message }, { status: 400 })
     }

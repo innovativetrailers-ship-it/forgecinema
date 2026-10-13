@@ -52,5 +52,5 @@ export async function POST(req: NextRequest) {
     storageKey: key,
     label: parsed.data.label,
   })
-  return NextResponse.json({ item })
+  return NextResponse.json({ item, existed: item.existed })
 }

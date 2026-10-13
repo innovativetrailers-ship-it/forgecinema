@@ -11,6 +11,7 @@ import { UpgradeModal } from '@/components/ui/UpgradeModal'
 import { BrandLogo } from '@/components/brand/BrandLogo'
 import { TopBar } from '@/components/layout/TopBar'
 import { COUNCIL_MODEL_COUNT } from '@/lib/credits/quote'
+import { formatPlanAud, PLAN_DISPLAY_PRICES } from '@/lib/billing/planPrices'
 interface ReleaseApiResponse {
   version: string | null
   available: boolean
@@ -236,7 +237,7 @@ export default function DownloadPage() {
               className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-[#00e5c8] text-black font-bold hover:bg-[#00f0d5] transition"
             >
               <Star className="w-4 h-4" />
-              Upgrade to Ultimate — $99/mo
+              Upgrade to Ultimate — {formatPlanAud(PLAN_DISPLAY_PRICES[3].monthlyAud)}/mo
             </Link>
           </div>
         </div>

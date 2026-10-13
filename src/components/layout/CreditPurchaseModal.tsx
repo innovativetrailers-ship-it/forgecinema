@@ -78,9 +78,9 @@ export function CreditPurchaseModal() {
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <span className="text-white font-semibold">{pack.label}</span>
-                  <span className="ml-2 text-gray-500 text-sm">A${(pack.priceAudCents / 100).toFixed(0)}</span>
+                  <span className="ml-2 text-gray-500 text-sm">${(pack.priceAudCents / 100).toFixed(0)}</span>
                   <span className="ml-1 text-gray-600 text-xs">
-                    (A${((pack.priceAudCents / 100) / pack.credits * 100).toFixed(1)}¢/cr)
+                    (${((pack.priceAudCents / 100) / pack.credits * 100).toFixed(1)}¢/cr)
                   </span>
                 </div>
               </div>

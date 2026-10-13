@@ -39,3 +39,12 @@ Tier-2 residuals:
 VFX-T5 is in the web compositor schema (`Cryptomatte`, `DeepMerge`, `VectorWarp`, plus particles and OFX). The desktop app does not host that graph yet. Web keeps the basic mask and says so.
 
 Desktop ship: electron-builder is the packager (dmg, zip, NSIS, portable, AppImage, deb). Signing and notarization run only when the CI secrets are present. The entitlement token is stored with the OS keychain helper, not as plaintext. A second launch focuses the running app. Updates download and wait for a restart. Crash uploads carry version, OS, and channel, with home directories and project ids redacted.
+
+Run 42 left these on purpose:
+
+- Charge table is not applied. Fal dollar costs are not in the repo, so every margin row is unknown until Neo approves a table.
+- Live billing proof is not run. Trigger: Neo accepts the charge table.
+- R2 CORS is not applied. The token returned AccessDenied. Trigger: Neo pastes the dashboard rule, then runs `node scripts/verify-r2-cors.mjs`.
+- Phone drag from the library is skipped. The drawer covers the video track at iPhone width. Desktop Chrome drops on /ultimate and /advanced.
+- Playback asserts the monitor leaves "Select a clip". It does not assert `currentTime` against a decodable file. The fixture stream is not a real video.
+- Desktop generate-panel account gate is in cinematic-forge-v3 and is not in this web commit. The v3 checkout and the dirty cinema worktree stay uncommitted.

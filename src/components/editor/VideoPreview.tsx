@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { Play, Pause, SkipBack, SkipForward, Maximize2, Loader2 } from 'lucide-react'
-import { clipMediaPath } from '@/lib/media/clipPlayback'
+import { clipMediaPath, playerSrc } from '@/lib/media/clipPlayback'
 import type { Clip, Track } from '@/lib/timeline/schema'
 import { isVideoMediaUrl, canPlaySrc, playMedia, pauseAfterPlay } from '@/lib/timeline/playback'
 import { sampleControl } from '@/lib/timeline/controlLayer'
@@ -47,12 +47,11 @@ function formatTimecode(seconds: number): string {
 
 function playbackSrc(clip: Clip): string {
   const url = clip.sourceUrl.trim()
-  const meta = clip.metadata as { shotPlanId?: string; jobId?: string } | undefined
-  if (url.startsWith('/api/media/') || url.startsWith('/api/jobs/')) return url
-  if (meta?.jobId) return clipMediaPath(meta.jobId)
-  if (meta?.shotPlanId) return clipMediaPath(meta.shotPlanId)
+  const meta = clip.metadata as { shotPlanId?: string; jobId?: string; mediaId?: string } | undefined
+  const mediaId = meta?.mediaId || meta?.jobId || meta?.shotPlanId || null
+  if (mediaId) return playerSrc(url || clipMediaPath(mediaId), mediaId)
+  if (url.startsWith('/api/media/') || url.startsWith('/api/jobs/')) return playerSrc(url)
   if (url.startsWith('/')) return url
-  if (/^https?:\/\//i.test(url) && meta?.shotPlanId) return clipMediaPath(meta.shotPlanId)
   if (/^https?:\/\//i.test(url)) return url
   return ''
 }

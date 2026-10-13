@@ -30,16 +30,26 @@ export default defineConfig({
     // Desktop Chrome (primary)
     {
       name: 'chromium',
+      testIgnore: ['**/auth.spec.ts', '**/api/**', '**/global.setup.ts'],
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'e2e/.auth/user.json',
       },
       dependencies: ['setup'],
     },
+    {
+      name: 'logged-out',
+      testMatch: '**/auth.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: { cookies: [], origins: [] },
+      },
+    },
 
     // Mobile Safari (for responsive checks)
     {
       name: 'mobile-safari',
+      testIgnore: ['**/auth.spec.ts', '**/api/**', '**/global.setup.ts'],
       use: {
         ...devices['iPhone 15'],
         storageState: 'e2e/.auth/user.json',

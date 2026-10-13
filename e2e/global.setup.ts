@@ -1,4 +1,5 @@
 import { test as setup, expect } from '@playwright/test'
+import fs from 'fs'
 import path from 'path'
 
 const AUTH_FILE = path.join(__dirname, '.auth/user.json')
@@ -17,7 +18,9 @@ setup('create authenticated user session', async ({ page, request }) => {
     data: { name: 'Playwright User', email, password, dateOfBirth: '1990-01-01' },
   })
 
-  // 200 = new user created, 409 = already exists (re-run) — both are fine
+  // 200 = new user created, 409 = already exists. 429 means this hour's
+  // registrations are used up; the saved session from the last setup still works.
+  if (regRes.status() === 429 && fs.existsSync(AUTH_FILE)) return
   expect([200, 201, 409]).toContain(regRes.status())
 
   // Now log in via the UI to get a real browser session

@@ -5,7 +5,7 @@ import { usePlaybackStore } from '@/store/playbackStore'
 export type MediaIntent = 'placement' | 'reference'
 
 /** Finished media. Never an entity reference. */
-export async function placeFinishedClip(clip: Pick<GeneratedClip, 'jobId' | 'prompt' | 'model' | 'creditsUsed' | 'duration' | 'quality' | 'aspectRatio'> & { label?: string }): Promise<GeneratedClip['mediaId']> {
+export async function placeFinishedClip(clip: Pick<GeneratedClip, 'jobId' | 'prompt' | 'model' | 'creditsUsed' | 'duration' | 'quality' | 'aspectRatio'> & { label?: string }): Promise<{ id: string; existed: boolean }> {
   const { projectId } = await ensureEditorProject()
   const res = await fetch('/api/studio/library', {
     method: 'POST',
@@ -20,11 +20,15 @@ export async function placeFinishedClip(clip: Pick<GeneratedClip, 'jobId' | 'pro
   })
   const body = await res.json() as {
     item?: { id: string; folderId: string | null; sourceUrl: string; kind: GeneratedClip['libraryKind']; label: string }
+    existed?: boolean
     error?: string
   }
   if (!res.ok || !body.item) {
     throw new Error(body.error || 'Could not add the clip to the library')
   }
+  const library = usePlaybackStore.getState().library
+  const already = body.existed || library.some((row) => row.jobId === clip.jobId || row.mediaId === body.item?.id || row.id === body.item?.id)
+  if (already) return { id: body.item.id, existed: true }
   usePlaybackStore.getState().upsertLibrary({
     id: body.item.id,
     jobId: clip.jobId,
@@ -42,5 +46,5 @@ export async function placeFinishedClip(clip: Pick<GeneratedClip, 'jobId' | 'pro
     mediaId: body.item.id,
     label: body.item.label,
   })
-  return body.item.id
+  return { id: body.item.id, existed: false }
 }

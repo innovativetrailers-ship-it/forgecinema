@@ -8,6 +8,7 @@ import { TopBar } from '@/components/layout/TopBar'
 import { IconRail } from '@/components/layout/IconRail'
 import { LeftPanel } from '@/components/layout/LeftPanel'
 import { useUIStore, type PanelId } from '@/store/ui'
+import { useStudioStore } from '@/store/editor'
 import { splitClipAt } from '@/lib/timeline/editOps'
 import { useProjectAutosave } from '@/hooks/useProjectAutosave'
 
@@ -63,7 +64,7 @@ import { useProjectLoadListener } from '@/hooks/useProjectLoadListener'
 import { clipMediaPath } from '@/lib/media/clipPlayback'
 import type { ShotPlanCard } from '@/lib/studio/shotPlan'
 
-type UltimateTab = 'script' | 'storyboard' | 'director' | 'cgi' | 'continuity' | 'audio' | 'locations'
+type UltimateTab = 'script' | 'storyboard' | 'director' | 'cgi' | 'continuity' | 'audio' | 'locations' | 'layout'
 
 // Panels that map to a UltimateTab in the bespoke film panel
 const FILM_PANEL_IDS = new Set<PanelId>(['script', 'storyboard', 'ai_director', 'continuity', 'audio_mix', 'cgi', 'location'])
@@ -97,7 +98,7 @@ function buildRecipe(projectId: string): TimelineRecipe {
     resolution: { width: 1920, height: 1080 },
     durationSeconds: 120,
     colorSpace: 'rec709',
-    tracks: DEFAULT_TRACKS,
+    tracks: DEFAULT_TRACKS.map((track) => ({ ...track, clips: [...track.clips] })),
   }
 }
 
@@ -218,6 +219,7 @@ export default function UltimatePage() {
 
   useEffect(() => {
     if (!canonicalRecipe || canonicalRecipe === recipe) return
+    if (!canonicalRecipe.tracks?.length && recipe.tracks?.length) return
     setRecipe(canonicalRecipe)
   }, [canonicalRecipe, recipe])
 
@@ -265,11 +267,17 @@ export default function UltimatePage() {
   }, [timelineDuration])
 
   // Sync icon rail / film toolbar → local activeTab
+  const filmToolbarTab = useUIStore((state) => state.filmToolbarTab)
   useEffect(() => {
-    if (!activePanel) return
-    const mapped = PANEL_TO_FILM_TAB[activePanel]
-    if (mapped) setActiveTab(mapped)
-  }, [activePanel])
+    if (activePanel) {
+      const mapped = PANEL_TO_FILM_TAB[activePanel]
+      if (mapped) setActiveTab(mapped)
+      return
+    }
+    if (filmToolbarTab === 'colour' || filmToolbarTab === 'edit' || filmToolbarTab === 'motion' || filmToolbarTab === 'review') {
+      setActiveTab('layout')
+    }
+  }, [activePanel, filmToolbarTab])
 
   const selectedClip = selectedClipId ? allClips.find((c) => c.id === selectedClipId) ?? null : null
 
@@ -660,6 +668,12 @@ export default function UltimatePage() {
                 />
               )}
               {activeTab === 'locations' && <LocationPanel />}
+              {activeTab === 'layout' && (
+                <div className="p-4 text-[12px] text-white/70" data-testid="layout-preset">
+                  <p className="font-medium text-white/90">Layout preset</p>
+                  <p className="mt-2 text-white/50">This tab changes the workspace layout. Clip tools stay on the selected clip.</p>
+                </div>
+              )}
               </Suspense>
             </div>
           )}
@@ -713,7 +727,7 @@ export default function UltimatePage() {
                 scrollOffset={scrollOffset}
                 activeJobs={activeJobs}
                 onSeek={setPlayheadTime}
-                onClipSelect={setSelectedClipId}
+                onClipSelect={(id) => { setSelectedClipId(id); useStudioStore.getState().selectClip(id) }}
                 onClipMove={handleClipMove}
                 onClipTrim={handleClipTrim}
                 onTrackToggleMute={handleTrackToggleMute}

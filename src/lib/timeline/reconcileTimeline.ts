@@ -175,11 +175,19 @@ export function videoTrackCount(recipe: TimelineRecipe | null | undefined): numb
   return recipe?.tracks.find((track) => track.id === VIDEO_TRACK_ID)?.clips.length ?? 0
 }
 
-/** The strip paints whichever recipe actually has t-v1 clips. */
+function definedTrackCount(recipe: TimelineRecipe | null | undefined): number {
+  return recipe?.tracks?.length ?? 0
+}
+
+/** The strip paints whichever recipe actually has t-v1 clips. An empty track list never hides a recipe that still has rows. */
 export function recipeForTimeline(
   storeRecipe: TimelineRecipe | null,
   localRecipe: TimelineRecipe | null,
 ): TimelineRecipe | null {
+  const storeTracks = definedTrackCount(storeRecipe)
+  const localTracks = definedTrackCount(localRecipe)
+  if (storeTracks === 0 && localTracks > 0) return localRecipe
+  if (localTracks === 0 && storeTracks > 0) return storeRecipe
   if (videoTrackCount(storeRecipe) >= videoTrackCount(localRecipe)) return storeRecipe ?? localRecipe
   return localRecipe ?? storeRecipe
 }

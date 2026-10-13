@@ -4,6 +4,20 @@ export function clipMediaPath(clipId: string): string {
   return `/api/media/${clipId}`
 }
 
+/** Same-origin playback. A redirect to object storage needs bucket CORS; this route does not. */
+export function playerStreamPath(id: string): string {
+  return `/api/media/${encodeURIComponent(id)}/stream`
+}
+
+export function playerSrc(sourceUrl: string, mediaId?: string | null): string {
+  const url = sourceUrl.trim()
+  if (mediaId?.trim()) return playerStreamPath(mediaId.trim())
+  const match = url.match(/^\/api\/media\/([^/?]+)/)
+  if (match && match[1] !== 'bins' && !url.includes('/stream')) return playerStreamPath(match[1])
+  if (url.includes('/stream')) return url
+  return url
+}
+
 export function isR2PublicUrl(url: string): boolean {
   const base = process.env.R2_PUBLIC_URL?.replace(/\/$/, '')
   if (base && url.startsWith(base)) return true

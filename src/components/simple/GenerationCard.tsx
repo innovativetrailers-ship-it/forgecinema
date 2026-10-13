@@ -85,7 +85,11 @@ export function GenerationCard({
     }
     setAdding(true)
     try {
-      await placeFinishedClip(clip)
+      const placed = await placeFinishedClip(clip)
+      if (placed.existed) {
+        toast.info('Already in the library')
+        return
+      }
       onAddToTimeline?.(clip)
       toast.success('Added to the library')
     } catch (err) {
@@ -100,6 +104,7 @@ export function GenerationCard({
 
   return (
     <div
+      data-testid="generation-card"
       className={`
         group relative rounded-xl overflow-hidden cursor-pointer
         bg-[#12121a] border transition-all duration-200

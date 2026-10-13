@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Grant a small credit pack to one ordinary test account.
 // Uses grantCredits(), the same writer as a Stripe pack purchase.
+// A later generate quotes with quoteGenerationHold. openHold reserves ceil(quote * 1.2).
 import { randomUUID } from 'node:crypto'
 import { createInterface } from 'node:readline'
 import pg from 'pg'

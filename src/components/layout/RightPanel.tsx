@@ -75,7 +75,7 @@ function PropertiesTab() {
   const clip = recipe?.tracks.flatMap((track) => track.clips).find((row) => row.id === selectedClipId)
   const duration = clip ? Math.max(0, clip.endTime - clip.startTime) : 0
   return (
-    <div className="space-y-0 divide-y divide-[var(--border)]">
+    <div className="space-y-0 divide-y divide-[var(--border)]" data-testid="clip-properties">
       <Section label="Clip Info">
         <Row label="ID" value={selectedClipId?.slice(0, 8) ?? '—'} />
         <Row label="Duration" value={`${duration.toFixed(1)} s`} />

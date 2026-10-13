@@ -1,5 +1,7 @@
 # Live billing test
 
+Do not run this proof until the charge table in the run report is accepted. A generate button shows `quoteGenerationHold`. `/api/generate` then reserves `ceil(quote × 1.2)` and settlement charges the quote, releasing the extra 20%. A failed or cancelled job releases the whole hold. `jobs/create` deducts the quote directly. The verify script checks those numbers when `creditsCharged` is set.
+
 Do this once, as one ordinary test account, after the web and the four workers are on the same release. Generation stays paused until step (c), and goes back to paused in step (h).
 
 Do not grant credits to `innovative.trailers@gmail.com` or to an account with own keys. The grant script refuses both. Do not paste connection strings or keys into the transcript.

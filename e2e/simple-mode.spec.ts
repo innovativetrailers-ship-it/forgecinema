@@ -24,7 +24,7 @@ test.describe('Simple Mode — /simple', () => {
 
   test('credit balance is displayed', async ({ page }) => {
     // Credit badge should show somewhere in the nav or page
-    const creditDisplay = page.locator('[data-credits], text=/⬡|credits/i').first()
+    const creditDisplay = page.locator('[data-credits]').first()
     await expect(creditDisplay).toBeVisible({ timeout: 10_000 })
   })
 
@@ -34,16 +34,17 @@ test.describe('Simple Mode — /simple', () => {
     await imageTab.first().click()
 
     // Image drop zone should appear
-    const dropzone = page.locator('[data-drop-zone], input[type="file"]').first()
-    await expect(dropzone).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText('Drop image here')).toBeVisible({ timeout: 5_000 })
   })
 
   test('tabs are navigable — Audio-to-Video', async ({ page }) => {
     const audioTab = page.getByRole('tab', { name: /audio/i })
       .or(page.locator('button').filter({ hasText: /audio/i }))
     await audioTab.first().click()
-    await expect(page.locator('input[type="file"][accept*="audio"], [data-audio-drop]').first())
-      .toBeVisible({ timeout: 5_000 })
+    await expect(page.getByText('Drop audio file here')).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByRole('button', { name: /Read the track to price these clips/ })).toBeDisabled()
+    await page.locator('button').filter({ hasText: 'Drop & Direct' }).click()
+    await expect(page.getByRole('button', { name: /no credit price yet/i })).toBeDisabled()
   })
 
   test('generate button is disabled without prompt', async ({ page }) => {
@@ -87,7 +88,7 @@ test.describe('Simple Mode — /simple', () => {
     if (await generateBtn.isEnabled()) {
       await generateBtn.click()
       // A result card should appear in the gallery
-      await expect(page.locator('[data-generation-card], .generation-card').first())
+      await expect(page.getByTestId('generation-card').first())
         .toBeVisible({ timeout: 10_000 })
     }
   })
@@ -108,6 +109,6 @@ test.describe('TopNav', () => {
     await page.goto('/simple')
     await page.waitForLoadState('networkidle')
     // Credit indicator in the nav
-    await expect(page.locator('header, nav').locator('text=/\\d+/').first()).toBeVisible({ timeout: 8_000 })
+    await expect(page.locator('[data-credits]').first()).toBeVisible({ timeout: 8_000 })
   })
 })

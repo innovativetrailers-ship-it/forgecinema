@@ -140,7 +140,7 @@ export function PropertiesPanel({ selectedClip, recipe, onOpenRepaint, onClipUpd
   const clipDuration = clip.endTime - clip.startTime
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
+    <div className="flex flex-col h-full overflow-y-auto" data-testid="clip-properties">
       <div className="p-3 border-b border-white/8">
         <p className="text-[11px] font-semibold text-white/40 uppercase tracking-wider">Clip Properties</p>
       </div>

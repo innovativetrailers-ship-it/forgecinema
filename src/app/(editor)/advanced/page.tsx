@@ -55,7 +55,7 @@ function buildDefaultRecipe(projectId: string): TimelineRecipe {
     resolution: { width: 1920, height: 1080 },
     durationSeconds: 60,
     colorSpace: 'rec709',
-    tracks: DEFAULT_TRACKS,
+    tracks: DEFAULT_TRACKS.map((track) => ({ ...track, clips: [...track.clips] })),
   }
 }
 
@@ -145,6 +145,7 @@ export default function AdvancedPage() {
 
   useEffect(() => {
     if (!canonicalRecipe || canonicalRecipe === recipe) return
+    if (!canonicalRecipe.tracks?.length && recipe.tracks?.length) return
     setRecipe(canonicalRecipe)
   }, [canonicalRecipe, recipe])
 

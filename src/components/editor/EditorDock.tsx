@@ -667,6 +667,10 @@ export function EditorDock({
   onRedo: () => void
 }) {
   const apiRef = useRef<DockviewApi | null>(null)
+  useEffect(() => {
+    if (!selectedClipId) return
+    apiRef.current?.getPanel('inspector')?.api.setActive()
+  }, [selectedClipId])
   const [workspace, setWorkspace] = useState<WorkspaceName>('Creator')
   const [locked, setLocked] = useState(true)
   const [preset, setPreset] = useState<KeymapPresetId>('forge')

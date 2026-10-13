@@ -70,7 +70,7 @@ export function CreditPurchaseModal({ open, onOpenChange }: CreditPurchaseModalP
                 <div className="text-sm font-semibold text-foreground">
                   ${pack.priceAud}
                   <span className="text-xs text-muted-foreground font-normal ml-1">
-                    AUD
+                    USD
                   </span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">

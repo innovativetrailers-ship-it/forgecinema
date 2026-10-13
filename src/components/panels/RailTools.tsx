@@ -168,8 +168,16 @@ export function StockPanel() {
   const [query, setQuery] = useState('')
   const [type, setType] = useState<'photo' | 'video'>('video')
   const [rows, setRows] = useState<Array<{ id: string; url: string; thumbUrl: string; author: string; type: string }>>([])
-  const [note, setNote] = useState('Pixabay, Unsplash, and Freesound have no key configured, so they are not searched.')
+  const [note, setNote] = useState('More sources need keys')
+  const [sources, setSources] = useState<string[]>([])
   const [preview, setPreview] = useState<string | null>(null)
+
+  useEffect(() => {
+    void fetch('/api/stock/sources', { credentials: 'include' })
+      .then((res) => res.ok ? res.json() as Promise<{ configured?: string[] }> : null)
+      .then((body) => { if (body?.configured) setSources(body.configured) })
+      .catch((err) => { console.warn('[stock]', err instanceof Error ? err.message : err) })
+  }, [])
 
   async function search() {
     const res = await fetch(`/api/stock?query=${encodeURIComponent(query)}&type=${type}`, { credentials: 'include' })
@@ -196,10 +204,11 @@ export function StockPanel() {
   return (
     <div className="space-y-2 overflow-y-auto p-3 text-[11px]">
       <div className="flex gap-1">
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search Pexels" className="flex-1 rounded border border-[var(--border)] bg-transparent px-2 py-1" />
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={sources.includes('pexels') ? 'Search Pexels' : 'Stock search needs a key'} className="flex-1 rounded border border-[var(--border)] bg-transparent px-2 py-1" />
         <select value={type} onChange={(event) => setType(event.target.value as 'photo' | 'video')} className="bg-transparent"><option value="video">video</option><option value="photo">photo</option></select>
-        <button type="button" className="rounded bg-[var(--teal-bright)] px-2 text-black" onClick={() => void search()}>Search</button>
+        <button type="button" className="rounded bg-[var(--teal-bright)] px-2 text-black" disabled={!sources.includes('pexels')} onClick={() => void search()}>Search</button>
       </div>
+      <p className="text-[10px] text-[var(--text-tertiary)]">{sources.length ? sources.join(', ') : 'No stock source is configured'}. More sources need keys.</p>
       {rows.map((row) => (
         <div key={row.id} className="rounded border border-[var(--border)] p-1">
           <button type="button" onClick={() => setPreview(row.thumbUrl || row.url)}>

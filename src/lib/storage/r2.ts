@@ -70,6 +70,15 @@ export function publicUrlForKey(key: string): string {
   return base ? `${base}/${key}` : key
 }
 
+/** Read an object, honouring a browser Range header. Does not delete anything. */
+export async function readStoredObject(key: string, range: string | null) {
+  return r2.send(new GetObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    Range: range?.trim() ? range : undefined,
+  }))
+}
+
 export async function objectExists(key: string): Promise<boolean> {
   try {
     await r2.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }))

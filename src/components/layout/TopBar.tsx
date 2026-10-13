@@ -296,7 +296,7 @@ export function TopBar() {
                 ? <Loader2 className="w-3 h-3 animate-spin text-[var(--teal-bright)]" />
                 : (isAdmin || unlimited)
                   ? <span className="text-[10px] font-semibold text-[var(--teal-bright)]">DEV</span>
-                  : <span className={`text-[11px] font-semibold tabular-nums ${balance < 50 ? 'text-amber-400' : 'text-[var(--teal-bright)]'}`}>{balance.toLocaleString()}</span>
+                  : <span data-credits={balance} className={`text-[11px] font-semibold tabular-nums ${balance < 50 ? 'text-amber-400' : 'text-[var(--teal-bright)]'}`}>{balance.toLocaleString()}</span>
               }
             </button>
           )}
@@ -372,17 +372,31 @@ export function TopBar() {
 
       {/* ── ROW 2 — Film toolbar (Ultimate only, 34px) ── */}
       {isUltimate && (
-        <div className="flex items-center gap-1 px-3 h-[34px] border-b border-[var(--border)] bg-[var(--bg-elevated)] overflow-x-auto">
-          {WORKSPACE_TABS.map((tab) => (
+        <div
+          className="relative flex items-center gap-1 px-3 h-[34px] border-b border-[var(--border)] bg-[var(--bg-elevated)] overflow-x-auto"
+          role="tablist"
+          aria-label="Ultimate workspaces"
+          style={{ maskImage: 'linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent)' }}
+          onKeyDown={(event) => {
+            if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
+            const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'))
+            const index = tabs.findIndex((tab) => tab === document.activeElement)
+            const next = event.key === 'ArrowRight' ? index + 1 : index - 1
+            tabs[(next + tabs.length) % tabs.length]?.focus()
+          }}
+        >
+          {WORKSPACE_TABS.map((tab) => {
+            const panel = FILM_TAB_TO_PANEL[tab.id]
+            const layoutPreset = !panel
+            return (
             <button
               key={tab.key}
-              title={tab.label}
+              role="tab"
+              title={layoutPreset ? `${tab.label} (layout preset)` : tab.label}
               onClick={() => {
                 setWorkspace(tab.workspace, tab.look)
                 setFilmToolbarTab(tab.id)
-                const panel = FILM_TAB_TO_PANEL[tab.id]
-                if (panel && (tab.workspace === 'Creator' || tab.workspace === 'Director')) setActivePanel(panel)
-                else setActivePanel(null)
+                setActivePanel(panel ?? null)
               }}
               className={cn(
                 'shrink-0 px-2 py-1 rounded text-[11px] font-medium',
@@ -397,9 +411,10 @@ export function TopBar() {
                 tab.divider && 'ml-2 border-l border-[var(--border)] pl-2'
               )}
             >
-              {tab.label}
+              {layoutPreset ? `${tab.label} · layout` : tab.label}
             </button>
-          ))}
+            )
+          })}
           <div className="ml-auto flex items-center gap-0.5">
             {(workspace === 'Editor' || workspace === 'Creator') && EDIT_TOOLS.map((tool) => (
               <button key={tool.id} type="button" title={`${tool.label} (${tool.key})`} onClick={() => activateTool(tool.id)} className="px-1 text-[10px] text-[var(--text-tertiary)]">{tool.label}</button>

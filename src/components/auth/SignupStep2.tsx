@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Check } from 'lucide-react'
+import { planDisplay } from '@cinema/core'
 import { useSignupStore, type SignupPlan } from '@/store/signup'
 
 const PLANS: Array<{
@@ -24,16 +25,16 @@ const PLANS: Array<{
   {
     id: 'pro',
     name: 'Pro',
-    monthlyPrice: 19,
-    yearlyPrice: 190,
+    monthlyPrice: planDisplay('pro').monthlyAud,
+    yearlyPrice: planDisplay('pro').yearlyAud,
     credits: '500 credits/month',
     features: ['Advanced timeline', 'Character vault', '500 exports'],
   },
   {
     id: 'studio',
     name: 'Studio',
-    monthlyPrice: 49,
-    yearlyPrice: 490,
+    monthlyPrice: planDisplay('studio').monthlyAud,
+    yearlyPrice: planDisplay('studio').yearlyAud,
     credits: '2,000 credits/month',
     features: ['Ultimate mode', 'Film exports', 'Review portal'],
     highlighted: true,
@@ -41,8 +42,8 @@ const PLANS: Array<{
   {
     id: 'ultimate',
     name: 'Ultimate',
-    monthlyPrice: 99,
-    yearlyPrice: 990,
+    monthlyPrice: planDisplay('ultimate').monthlyAud,
+    yearlyPrice: planDisplay('ultimate').yearlyAud,
     credits: '6,000 credits/month',
     features: ['All features', 'AI Director', 'DCP export'],
   },

@@ -55,6 +55,12 @@ export function assessBilling({ balance, held, jobs, holds, transactions }) {
         && countType(transactions, job.id, 'release') <= 1
         && countType(transactions, job.id, 'deduction') <= 1
       lines.push(`${settledOnce ? 'PASS' : 'FAIL'} job ${job.id} settled exactly once`)
+      const quote = Number(job.creditsCharged)
+      if (Number.isFinite(quote) && quote > 0 && jobHolds[0]) {
+        const expectedHeld = Math.ceil(quote * 1.2)
+        const numbers = jobHolds[0].amountUsed === quote && jobHolds[0].amountHeld === expectedHeld
+        lines.push(`${numbers ? 'PASS' : 'FAIL'} job ${job.id} charged the quote ${quote} and reserved ${expectedHeld}`)
+      }
     }
     if (job.status === 'FAILED' || job.status === 'CANCELLED') {
       const releasedOnce = jobHolds.length === 1
@@ -103,7 +109,7 @@ async function main() {
       [user.id],
     )
     const jobs = await client.query(
-      'SELECT id, status, type, metadata, "inputPayload", "createdAt" FROM "RenderJob" WHERE "userId" = $1 ORDER BY "createdAt" DESC LIMIT 20',
+      'SELECT id, status, type, metadata, "inputPayload", "creditsCharged", "createdAt" FROM "RenderJob" WHERE "userId" = $1 ORDER BY "createdAt" DESC LIMIT 20',
       [user.id],
     )
 

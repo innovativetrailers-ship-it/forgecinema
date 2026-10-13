@@ -39,7 +39,7 @@ test.describe('Login page', () => {
   })
 
   test('navigates to register page', async ({ page }) => {
-    const registerLink = page.getByRole('link', { name: /register|sign up|create account/i })
+    const registerLink = page.getByRole('link', { name: /create one free|register|sign up/i })
     await registerLink.click()
     await expect(page).toHaveURL('/register')
   })
@@ -79,13 +79,13 @@ test.describe('Registration page', () => {
 test.describe('Protected routes redirect', () => {
   test('redirects unauthenticated user from /simple to /login', async ({ page }) => {
     await page.goto('/simple')
-    await page.waitForURL('/login', { timeout: 10_000 })
-    await expect(page).toHaveURL('/login')
+    await page.waitForURL(/\/login/, { timeout: 10_000 })
+    await expect(page).toHaveURL(/\/login/)
   })
 
   test('redirects unauthenticated user from /advanced to /login', async ({ page }) => {
     await page.goto('/advanced')
-    await page.waitForURL('/login', { timeout: 10_000 })
-    await expect(page).toHaveURL('/login')
+    await page.waitForURL(/\/login/, { timeout: 10_000 })
+    await expect(page).toHaveURL(/\/login/)
   })
 })

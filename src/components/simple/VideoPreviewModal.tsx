@@ -53,7 +53,11 @@ export function VideoPreviewModal({
     }
     setAdding(true)
     try {
-      await placeFinishedClip(clip)
+      const placed = await placeFinishedClip(clip)
+      if (placed.existed) {
+        toast.info('Already in the library')
+        return
+      }
       onAddToTimeline?.(clip)
       toast.success('Added to the library')
       onClose()

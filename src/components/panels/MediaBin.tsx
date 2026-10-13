@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { usePlaybackStore } from '@/store/playbackStore'
 import type { LibraryFolder, LibraryItem, LibraryKind } from '@/lib/library/model'
+import { armLibraryDrag } from '@/lib/library/pointerDrag'
 
 const FILTERS: Array<{ id: 'all' | LibraryKind; label: string }> = [
   { id: 'all', label: 'All' },
@@ -126,7 +127,9 @@ export function MediaBin({ projectId }: { projectId: string }) {
   }
 
   function onDragStart(event: React.DragEvent, item: LibraryItem) {
-    event.dataTransfer.setData('application/x-cinema-media', JSON.stringify(item))
+    const raw = JSON.stringify(item)
+    armLibraryDrag(raw)
+    event.dataTransfer.setData('application/x-cinema-media', raw)
     event.dataTransfer.effectAllowed = 'copy'
   }
 
@@ -175,7 +178,9 @@ export function MediaBin({ projectId }: { projectId: string }) {
         <div key={item.id}>
           <article
             draggable
+            onPointerDown={() => armLibraryDrag(JSON.stringify(item))}
             onDragStart={(event) => onDragStart(event, item)}
+            data-testid="library-media"
             className="rounded border border-white/10 p-2"
           >
             {item.thumbUrl && (

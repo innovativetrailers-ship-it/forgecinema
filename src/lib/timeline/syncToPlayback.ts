@@ -108,10 +108,13 @@ export function appendTimelineClipToPlayback(input: TimelineClipInput): void {
     }
     if (input.mediaId && input.startSec != null) {
       const hit = clips.findIndex((clip) => input.startSec! >= clip.startTime && input.startSec! < clip.endTime)
-      if (hit >= 0) {
-        const shell = clips[hit]
+      const shell = hit >= 0 ? clips[hit] : undefined
+      if (hit >= 0 && shell && !hasPlayableSource(shell)) {
+        const startSec = input.startSec
         clips[hit] = {
           ...shell,
+          startTime: startSec,
+          endTime: startSec + durationSec,
           sourceUrl: input.sourceUrl,
           posterUrl: input.posterUrl ?? shell.posterUrl,
           prompt: input.label ?? shell.prompt,

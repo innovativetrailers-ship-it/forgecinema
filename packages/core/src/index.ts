@@ -1,6 +1,7 @@
 export const CORE_VERSION = '0.0.1'
 
 export { CREDIT_PACKS, creditPackById, creditsForStripePrice, type CreditPack } from './logic/creditPacks'
+export { PLAN_DISPLAY_PRICES, formatPlanAud, planDisplay, type PlanDisplayPrice } from './logic/planPrices'
 
 export type {
   Project,

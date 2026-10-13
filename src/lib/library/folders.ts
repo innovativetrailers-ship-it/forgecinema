@@ -99,7 +99,7 @@ export async function createLibraryAsset(input: {
   shotId?: string | null
   transition?: LibraryItem['transition']
   pendingCopy?: boolean
-}): Promise<LibraryItem> {
+}): Promise<LibraryItem & { existed: boolean }> {
   const folder = input.sceneId
     ? await ensureSceneFolder(input.projectId, input.sceneId, input.sceneName || 'Scene')
     : input.folderId
@@ -123,6 +123,7 @@ export async function createLibraryAsset(input: {
       durationSec: 5,
       contentType: existing.contentType || contentTypeForKey(input.storageKey, input.contentType),
       transition: input.transition,
+      existed: true,
     }
   }
   const id = `lib_${nanoid()}`
@@ -154,6 +155,7 @@ export async function createLibraryAsset(input: {
     durationSec: 5,
     contentType: contentTypeForKey(input.storageKey, input.contentType),
     transition: input.transition,
+    existed: false,
   }
 }
 

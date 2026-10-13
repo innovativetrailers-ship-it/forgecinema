@@ -23,7 +23,24 @@ const client = new S3Client({
   credentials: { accessKeyId, secretAccessKey },
 })
 
-await client.send(new PutBucketCorsCommand({ Bucket: bucket, CORSConfiguration: policy }))
+const dashboardRule = [{
+  AllowedOrigins: ['https://forgecinema.vercel.app', 'https://cinema.ai-forge.co', 'http://localhost:3000'],
+  AllowedMethods: ['GET', 'HEAD'],
+  AllowedHeaders: ['*'],
+  ExposeHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges', 'ETag'],
+  MaxAgeSeconds: 3600,
+}]
+
+try {
+  await client.send(new PutBucketCorsCommand({ Bucket: bucket, CORSConfiguration: policy }))
+} catch (err) {
+  const name = err instanceof Error ? err.name : 'Error'
+  const message = err instanceof Error ? err.message : 'PutBucketCors failed'
+  console.error(`r2-cors failed: ${name}: ${message}`)
+  console.error('Paste this CORS policy in Cloudflare → R2 → bucket → Settings → CORS policy:')
+  console.error(JSON.stringify(dashboardRule))
+  process.exit(1)
+}
 const read = await client.send(new GetBucketCorsCommand({ Bucket: bucket }))
 const rules = read.CORSRules ?? []
 const origins = rules.flatMap((rule) => rule.AllowedOrigins ?? [])

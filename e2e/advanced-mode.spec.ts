@@ -27,7 +27,7 @@ test.describe('Advanced Mode — /advanced', () => {
 
   test('video preview area is present', async ({ page }) => {
     // Preview should show "No content at playhead" or similar
-    const preview = page.locator('text=/No content|playhead/i').first()
+    const preview = page.getByText('Select a clip').first()
     await expect(preview).toBeVisible({ timeout: 5_000 })
   })
 
@@ -94,7 +94,13 @@ test.describe('Ultimate Mode — /ultimate', () => {
   })
 
   test('timeline tracks are present', async ({ page }) => {
-    const trackLabel = page.locator('text=/VIDEO|MUSIC|VOICE/i').first()
-    await expect(trackLabel).toBeVisible({ timeout: 8_000 })
+    const cycle = page.getByTitle('Cycle timeline: full, compact, hidden')
+    const track = page.locator('#track-row-t-v1')
+    await expect(cycle).toBeVisible({ timeout: 20_000 })
+    for (let i = 0; i < 8; i += 1) {
+      if ((await cycle.innerText()).includes('Full') && await track.count() > 0) break
+      await cycle.click()
+    }
+    await expect(track).toBeVisible({ timeout: 8_000 })
   })
 })
