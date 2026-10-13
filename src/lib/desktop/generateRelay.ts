@@ -6,6 +6,7 @@ import { RelayRefused, runMetered } from '@/lib/billing/relayMeter'
 import { allowRate } from '@/lib/http/rateLimit'
 import { resolveEntitlement } from '@/lib/entitlement/resolve'
 import { assertEstimate, MAX_CONCURRENT_HOLDS, SUBMITS_PER_MINUTE, settleWithinHold, withinConcurrent } from '@/lib/billing/relayPolicy'
+import { creditsForRequest, hasFalPrice } from '@cinema/core'
 import { pauseReason, resolveRelayTarget } from '@/lib/desktop/relayTarget'
 import { falWebhookUrl } from '@/lib/webhooks/falSignature'
 
@@ -27,7 +28,11 @@ export async function submitGenerateRelay(
   const paused = pauseReason()
   if (paused) throw new RelayRefused(paused)
   const target = resolveRelayTarget(endpointKey)
-  assertEstimate(target.estimate)
+  const asked = askedSeconds(input)
+  const estimate = target.category === 'video' && hasFalPrice(target.key)
+    ? creditsForRequest(target.key, asked)
+    : target.estimate
+  assertEstimate(estimate)
   if (!allowRate(`relay-submit:${userId}`, SUBMITS_PER_MINUTE, 60_000)) {
     throw new RelayRefused('Too many requests. Wait a moment.')
   }
@@ -56,7 +61,7 @@ export async function submitGenerateRelay(
         endpointKey: target.key,
         endpoint: target.endpoint,
         category: target.category,
-        estimate: target.estimate,
+        estimate,
         source,
       },
     },
@@ -65,8 +70,8 @@ export async function submitGenerateRelay(
     await runMetered({
       balance: user.creditBalance,
       isInternal: ungated,
-      estimate: target.estimate,
-      openHold: async () => { await openHold(userId, job.id, target.estimate) },
+      estimate,
+      openHold: async () => { await openHold(userId, job.id, estimate) },
       settle: async () => {},
       release: async () => { await releaseHold(job.id) },
       run: async () => {
@@ -90,7 +95,13 @@ export async function submitGenerateRelay(
     })
     throw err
   }
-  return { jobId: job.id, estimate: target.estimate }
+  return { jobId: job.id, estimate }
+}
+
+function askedSeconds(input: Record<string, unknown>): number {
+  const raw = input.duration ?? input.duration_seconds ?? input.durationSeconds
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : 5
+  return Number.isFinite(n) && n > 0 ? n : 5
 }
 
 export async function relayJobForUser(userId: string, jobId: string) {

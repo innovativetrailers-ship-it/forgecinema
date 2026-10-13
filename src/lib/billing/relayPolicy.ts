@@ -1,6 +1,6 @@
 /** Pure rules for the paid relay. No database and no provider calls. */
 
-export const MAX_ESTIMATE = 200
+export const MAX_ESTIMATE = 500
 export const MAX_CONCURRENT_HOLDS = 3
 export const SUBMITS_PER_MINUTE = 10
 

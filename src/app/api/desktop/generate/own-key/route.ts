@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { validateDesktopCloudRequest } from '@/lib/desktop/cloudAuth'
+import { isUngatedAccount } from '@/lib/billing/accountAllow'
 
 async function caller(request: NextRequest) {
   const userId = await validateDesktopCloudRequest(request)
   if (typeof userId !== 'string') return userId
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { canUseOwnKeys: true, creditBalance: true },
+    select: { canUseOwnKeys: true, creditBalance: true, isInternal: true, email: true },
   })
   if (!user) return NextResponse.json({ error: 'Account not found.' }, { status: 404 })
   return { userId, user }
@@ -16,7 +17,11 @@ async function caller(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const found = await caller(request)
   if (found instanceof NextResponse) return found
-  return NextResponse.json({ canUseOwnKeys: found.user.canUseOwnKeys === true })
+  return NextResponse.json({
+    canUseOwnKeys: found.user.canUseOwnKeys === true,
+    creditBalance: found.user.creditBalance,
+    ungated: isUngatedAccount(found.user.email, found.user.isInternal),
+  })
 }
 
 export async function POST(request: NextRequest) {

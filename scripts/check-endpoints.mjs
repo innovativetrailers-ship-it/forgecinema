@@ -12,7 +12,7 @@ const scanRoots = [
   join(root, 'cinematic-forge-v3', 'src'),
   join(root, 'packages', 'core', 'src'),
 ]
-const ALLOW_PREFIX = 'packages/core/src/logic/'
+const ALLOW_PREFIXES = ['packages/core/src/logic/', 'packages/core/src/pricing/']
 const ENDPOINT = /(?<!@)fal-ai\/[A-Za-z0-9]/
 
 function walk(dir, out = []) {
@@ -31,7 +31,7 @@ function walk(dir, out = []) {
 }
 
 function violationsIn(rel, text) {
-  if (rel.startsWith(ALLOW_PREFIX)) return []
+  if (ALLOW_PREFIXES.some((prefix) => rel.startsWith(prefix))) return []
   const found = []
   text.split('\n').forEach((line, i) => {
     if (ENDPOINT.test(line)) found.push(`${rel}:${i + 1}  ${line.trim()}`)
@@ -50,7 +50,8 @@ function selfTest() {
       process.exit(1)
     }
     const allowed = violationsIn('packages/core/src/logic/endpointCatalog.ts', "export const id = 'fal-ai/probe-plant'\n")
-    if (allowed.length) {
+    const priced = violationsIn('packages/core/src/pricing/falCosts.ts', "export const id = 'fal-ai/probe-plant'\n")
+    if (allowed.length || priced.length) {
       console.error('check-endpoints: self-test flagged a registry file')
       process.exit(1)
     }
