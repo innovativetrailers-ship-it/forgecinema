@@ -6,6 +6,7 @@ import { Check, Download, Lock, Monitor, Zap } from 'lucide-react'
 import { useUserTier } from '@/hooks/useUserTier'
 import { TIER_DISPLAY_NAMES } from '@/lib/access/tiers'
 import { COUNCIL_MODEL_COUNT } from '@/lib/credits/quote'
+import { PlanClipLines } from '@/components/ui/PlanClipLines'
 import { PLAN_DISPLAY_PRICES, formatPlanAud } from '@/lib/billing/planPrices'
 
 const PLANS = [
@@ -199,6 +200,7 @@ export default function UpgradePage() {
             </div>
           )}
         </div>
+        <PlanClipLines />
       </div>
     </div>
   )

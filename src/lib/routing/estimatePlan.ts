@@ -1,5 +1,5 @@
 import type { OrchestrationResult } from '@/lib/orchestration/types'
-import { MODEL_COSTS } from './engineRegistry'
+import { creditsForRequest, hasFalPrice } from '@cinema/core'
 
 export interface ClipSegment {
   startSeconds: number
@@ -23,12 +23,11 @@ export interface OrchestrationPlan {
 }
 
 function creditFor(model: string, durationSeconds: number): number {
-  const rate = MODEL_COSTS[model]
-  if (!rate) {
+  if (!hasFalPrice(model)) {
     console.warn('[estimate] no credit rate', { model, durationSeconds })
     return 0
   }
-  return Math.ceil((rate / 5) * durationSeconds)
+  return creditsForRequest(model, durationSeconds)
 }
 
 /** Price an orchestrate plan. Does not choose models. */

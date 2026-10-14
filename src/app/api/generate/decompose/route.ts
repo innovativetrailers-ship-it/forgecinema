@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { orchestrate } from '@/lib/orchestration'
 import { nanoid } from 'nanoid'
 import { requireUser } from '@/lib/auth/requireUser'
+import { quoteGenerationHold } from '@/lib/credits/quote'
 
 const schema = z.object({
   prompt:          z.string().min(1),
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
       requirements: [],
       characterIds,
       isHardCut: index === 0,
-      estimatedCredits: Math.max(1, Math.ceil((seg.duration || duration) / 5)),
+      estimatedCredits: quoteGenerationHold({ model: seg.model, durationSeconds: seg.duration || duration }).credits,
     }))
     void locationId
     void forceMultiEngine

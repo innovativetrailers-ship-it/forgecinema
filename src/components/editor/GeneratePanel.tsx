@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Sparkles, Camera, Sun, Sliders } from 'lucide-react'
 import { QUALITY_PILLS, pillQuote, type QualityTier } from '@/components/simple/types'
-import { quoteGenerationHold, creditShortfall } from '@/lib/credits/quote'
+import { quoteGenerationHold, creditShortfall, dearestAffordable } from '@/lib/credits/quote'
+import { CreditBalanceLine } from '@/components/ui/CreditBalanceLine'
 import { MODEL_COUNCIL_DISPLAY } from '@/lib/routing/engineRegistry'
 
 interface Character { id: string; name: string; loraStatus?: string }
@@ -77,7 +78,7 @@ type Tab = 'generate' | 'camera' | 'lighting' | 'effects'
 export function GeneratePanel({ projectId, characters, locations, onJobCreated, creditBalance, unlimited = false }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('generate')
   const [prompt, setPrompt] = useState('')
-  const [model, setModel] = useState('seedance-2.0')
+  const [manualModel, setManualModel] = useState<string | null>(null)
   const [quality, setQuality] = useState('standard')
   const [duration, setDuration] = useState(5)
   const [characterId, setCharacterId] = useState('')
@@ -102,6 +103,19 @@ export function GeneratePanel({ projectId, characters, locations, onJobCreated, 
       return next
     })
   }, [])
+
+  const modelOptions = useMemo(() => MODELS.flatMap((row) => {
+    try {
+      return [{ value: row.value, label: row.label, credits: quoteGenerationHold({ model: row.value, durationSeconds: duration }).credits }]
+    } catch (err) {
+      console.warn('[quote]', row.value, err instanceof Error ? err.message : err)
+      return []
+    }
+  }), [duration])
+  const model = manualModel
+    ?? (unlimited || creditBalance === null
+      ? 'seedance-2.0'
+      : (dearestAffordable(modelOptions, creditBalance)?.value ?? 'seedance-2.0'))
 
   const quote = quoteGenerationHold({ model, tier: quality, durationSeconds: duration })
   const gate = creditShortfall({
@@ -157,7 +171,7 @@ export function GeneratePanel({ projectId, characters, locations, onJobCreated, 
     } finally {
       setIsLoading(false)
     }
-  }, [buildFullPrompt, isLoading, model, duration, characterId, locationId, quality, onJobCreated])
+  }, [buildFullPrompt, isLoading, model, duration, characterId, locationId, quality, onJobCreated, projectId])
 
   const TABS: Array<{ id: Tab; icon: React.ReactNode; label: string }> = [
     { id: 'generate', icon: <Sparkles className="w-3 h-3" />, label: 'Generate' },
@@ -204,7 +218,7 @@ export function GeneratePanel({ projectId, characters, locations, onJobCreated, 
               <p className="text-[10px] text-white/35 mb-1.5 uppercase tracking-wider">Model</p>
               <select
                 value={model}
-                onChange={(e) => setModel(e.target.value)}
+                onChange={(e) => setManualModel(e.target.value)}
                 className="w-full bg-[#12121a] border border-white/10 rounded-lg px-2.5 py-1.5
                   text-xs text-white/70 focus:outline-none focus:border-[#00e5c8]/40"
               >
@@ -220,7 +234,7 @@ export function GeneratePanel({ projectId, characters, locations, onJobCreated, 
                 {QUALITY_PILLS.map((pill) => (
                   <button
                     key={pill.id}
-                    onClick={() => { setQuality(pill.id); setModel(pill.model) }}
+                    onClick={() => { setQuality(pill.id); setManualModel(pill.model) }}
                     className={`py-1.5 px-2 rounded-lg border text-[10px] text-left transition-all ${
                       quality === pill.id
                         ? 'border-[#00e5c8] bg-[#00e5c8]/15 text-[#00e5c8]'
@@ -384,6 +398,13 @@ export function GeneratePanel({ projectId, characters, locations, onJobCreated, 
             <><Sparkles className="w-3.5 h-3.5" />Generate · ⬡ {quote.credits}</>
           )}
         </button>
+        {quote.durationNote && <p className="text-[10px] text-white/50 mt-1">{quote.durationNote}</p>}
+        <CreditBalanceLine
+          balance={creditBalance}
+          cost={quote.credits}
+          unlimited={unlimited}
+          options={modelOptions}
+        />
       </div>
     </div>
   )

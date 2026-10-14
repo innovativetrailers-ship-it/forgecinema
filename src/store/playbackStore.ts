@@ -110,7 +110,10 @@ export const usePlaybackStore = create<PlaybackState>()(
         const idx = state.library.findIndex((row) => row.id === clip.id || (clip.jobId && row.jobId === clip.jobId))
         if (idx >= 0) {
           const library = [...state.library]
-          library[idx] = { ...library[idx], ...clip }
+          const prev = library[idx]
+          const model = !clip.model || clip.model === 'library' ? prev.model : clip.model
+          const creditsUsed = clip.creditsUsed > 0 ? clip.creditsUsed : prev.creditsUsed
+          library[idx] = { ...prev, ...clip, model, creditsUsed }
           return { library }
         }
         return { library: [clip, ...state.library] }

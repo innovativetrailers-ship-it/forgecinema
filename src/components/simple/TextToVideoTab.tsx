@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
-import { useSession } from 'next-auth/react'
 import type { QualityTier, AspectRatio, Duration, GeneratedClip } from './types'
 import { QUALITY_PILLS, DURATION_OPTIONS, ASPECT_RATIOS, ALL_MODELS, pillQuote } from './types'
-import { creditShortfall, quoteGenerationHold } from '@/lib/credits/quote'
+import { creditShortfall, dearestAffordable, quoteGenerationHold } from '@/lib/credits/quote'
+import { CreditBalanceLine } from '@/components/ui/CreditBalanceLine'
 import { nanoid } from 'nanoid'
 
 interface Props {
@@ -17,7 +17,7 @@ interface Props {
 
 export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited = false }: Props) {
   const [prompt, setPrompt] = useState('')
-  const [quality, setQuality] = useState<QualityTier>('standard')
+  const [manualQuality, setManualQuality] = useState<QualityTier | null>(null)
   const [duration, setDuration] = useState<Duration>(5)
   const [customDuration, setCustomDuration] = useState(8)
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('16:9')
@@ -25,8 +25,16 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited
   const [modelOverride, setModelOverride] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const selectedPill = QUALITY_PILLS.find((p) => p.id === quality)!
   const actualDuration = duration === 'custom' ? customDuration : duration
+  const tierOptions = useMemo(() => QUALITY_PILLS.map((pill) => ({
+    id: pill.id,
+    label: pill.label,
+    credits: pillQuote(pill.id, actualDuration).credits,
+  })), [actualDuration])
+  const quality: QualityTier = manualQuality
+    ?? (unlimited || creditBalance === null
+      ? 'standard'
+      : (dearestAffordable(tierOptions, creditBalance)?.id ?? 'draft'))
   const quote = modelOverride
     ? quoteGenerationHold({ model: modelOverride, tier: quality, durationSeconds: actualDuration })
     : pillQuote(quality, actualDuration)
@@ -162,7 +170,7 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited
           {QUALITY_PILLS.map((pill) => (
             <button
               key={pill.id}
-              onClick={() => setQuality(pill.id)}
+              onClick={() => setManualQuality(pill.id)}
               disabled={!unlimited && creditBalance !== null && pillQuote(pill.id, actualDuration).credits > creditBalance}
               className={`
                 group px-3 py-2.5 rounded-xl border text-left transition-all
@@ -299,6 +307,13 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited
           </>
         )}
       </button>
+
+      <CreditBalanceLine
+        balance={creditBalance}
+        cost={quote.credits}
+        unlimited={unlimited}
+        options={tierOptions}
+      />
 
       {quote.durationNote && (
         <p className="text-xs text-center text-white/50">{quote.durationNote}</p>

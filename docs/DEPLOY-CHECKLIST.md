@@ -2,6 +2,8 @@
 
 Do this in order. Do not skip the snapshot. Do not apply migrations to production until the throwaway checks in this document have been repeated against a copy of the production snapshot.
 
+The Vercel build runs `npx prisma generate && npm run build`. It does not migrate. Two builds that both run `migrate deploy` against the pooled Neon host time out on the advisory lock (Prisma P1002). Migrations run once, from one machine, with `node scripts/migrate-prod.mjs`. That script uses `DIRECT_URL` when it is set, otherwise it strips `-pooler` from `DATABASE_URL`. It refuses a pooled host and refuses when another migrate holds the lock. It never runs `migrate reset` or `db push`. If `migrate status` says the schema is up to date, skip the snapshot. If it lists pending migrations, take the snapshot in section 1 first.
+
 ## 1. Snapshot the database
 
 Take a Neon snapshot of the production branch before any migration. Keep the snapshot id. The rollback is to restore that snapshot, not to run a down migration.
@@ -66,7 +68,7 @@ Railway, on `worker-render`, `worker-training`, `worker-export`, and `worker-das
 
 ## 4. Apply migrations, then deploy web and workers together
 
-1. `npx prisma migrate deploy` against the production `DATABASE_URL` after the snapshot.
+1. `node scripts/migrate-prod.mjs --status`, then `node scripts/migrate-prod.mjs` after the snapshot when status lists pending migrations. Do not run migrate inside the Vercel build.
 2. Deploy the web app and the four workers in the same window. A new column the web writes and a worker does not know about, or the reverse, is a broken release.
 3. Do not start a second consumer on `render`, `training`, `export`, or `das`.
 

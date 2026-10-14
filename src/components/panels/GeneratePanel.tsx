@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEditorStore } from '@/store/editor'
 import { useCredits } from '@/hooks/useCredits'
@@ -10,7 +10,8 @@ import { usePlaybackStore } from '@/store/playbackStore'
 import { useEditorRecipeView } from '@/lib/timeline/to-editor-recipe'
 import { ensureEditorProject } from '@/lib/projects/loadProject'
 import { toast } from 'sonner'
-import { creditShortfall, quoteGenerationHold } from '@/lib/credits/quote'
+import { creditShortfall, dearestAffordable, quoteGenerationHold } from '@/lib/credits/quote'
+import { CreditBalanceLine } from '@/components/ui/CreditBalanceLine'
 
 interface CameraControl {
   panDirection:  number
@@ -49,11 +50,11 @@ const DURATIONS = [3, 5, 8, 10, 15]
 
 export function GeneratePanel() {
   const [prompt, setPrompt]                     = useState('')
-  const [tier, setTier]                         = useState<Tier>('standard')
+  const [manualTier, setManualTier]             = useState<Tier | null>(null)
   const [duration, setDuration]                 = useState(5)
   const [aspectRatio, setAspectRatio]           = useState('16:9')
   const [selectedCharacterId, setSelectedChar]  = useState<string | null>(null)
-  const [selectedLocationId, setSelectedLoc]    = useState<string | null>(null)
+  const [selectedLocationId]                    = useState<string | null>(null)
   const [isGenerating, setIsGenerating]         = useState(false)
   const [progress, setProgress]                 = useState<number | null>(null)
   const [camera, setCamera]                     = useState<CameraControl>(DEFAULT_CAMERA)
@@ -62,6 +63,15 @@ export function GeneratePanel() {
   const addClipToTrack = useEditorStore((s) => s.addClipToTrack)
   const timeline = useEditorRecipeView()
   const { balance, isLoading: creditsLoading, unlimited } = useCredits()
+  const tierOptions = useMemo(() => (['draft', 'standard', 'cinematic', 'film'] as Tier[]).map((id) => ({
+    id,
+    label: TIER_CONFIG[id].label,
+    credits: quoteGenerationHold({ tier: id, durationSeconds: duration }).credits,
+  })), [duration])
+  const tier: Tier = manualTier
+    ?? (unlimited || creditsLoading || balance == null
+      ? 'standard'
+      : (dearestAffordable(tierOptions, balance)?.id ?? 'draft'))
   const quote = quoteGenerationHold({ tier, durationSeconds: duration })
   const gate = creditShortfall({
     balance: creditsLoading ? null : balance,
@@ -222,7 +232,7 @@ export function GeneratePanel() {
           {(Object.entries(TIER_CONFIG) as [Tier, typeof TIER_CONFIG[Tier]][]).map(([key, cfg]) => (
             <button
               key={key}
-              onClick={() => setTier(key)}
+              onClick={() => setManualTier(key)}
               className={`px-2 py-1.5 rounded text-[11px] font-medium border transition ${
                 tier === key
                   ? 'border-[#00e5c8] bg-[#00e5c8]/10 text-[#00e5c8]'
@@ -386,6 +396,12 @@ export function GeneratePanel() {
         >
           {isGenerating ? 'Generating...' : 'Generate'}
         </button>
+        <CreditBalanceLine
+          balance={creditsLoading ? null : balance}
+          cost={quote.credits}
+          unlimited={unlimited}
+          options={tierOptions}
+        />
       </div>
     </div>
   )

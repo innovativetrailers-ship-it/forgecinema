@@ -182,11 +182,9 @@ export async function orchestrateGeneration(
   progress('preflight', 'fal.ai account ready', 3)
 
   // Premise, patient zero, and breakdown run in the core host. This tail renders.
-  let premise: PremiseLock
   let patientZero: PatientZeroAssets
   let shotsWithKeyframes: StructuredShot[]
   if (prepared) {
-    premise = prepared.premise
     patientZero = prepared.patientZero
     shotsWithKeyframes = prepared.shots
   } else {
@@ -195,7 +193,6 @@ export async function orchestrateGeneration(
     const locked = stored ?? await extractPremiseLock(script)
     if (input.projectId && !stored) await savePremiseLock(input.projectId, locked)
     const built = await collectPrepared(input, locked)
-    premise = built.premise
     patientZero = built.patientZero
     shotsWithKeyframes = built.shots
   }
@@ -553,9 +550,9 @@ async function collectPrepared(input: OrchestrationInput, premise: PremiseLock):
           if (input.jobId) await (await import('./checkpoints')).saveWizardRefs(input.jobId, patientZero)
           holdFor(input.wizard, 'references')
         }
+        let framed: StructuredShot[] = withUrls
         if (gateOpen(input.wizard, 'keyframes')) {
           progress('storyboard', 'Generating storyboard keyframes...', 25)
-          let framed: StructuredShot[] = withUrls
           try {
             framed = await generateStoryboard(withUrls, patientZero, {
               jobId: input.jobId,
@@ -568,7 +565,7 @@ async function collectPrepared(input: OrchestrationInput, premise: PremiseLock):
           }
           holdFor(input.wizard, 'keyframes')
         }
-        return { premise, patientZero, shots: withUrls, scoreCue, delegations: new Map() }
+        return { premise, patientZero, shots: framed, scoreCue, delegations: new Map() }
       }
     }
   }
@@ -754,11 +751,24 @@ function createFilmHost(bag: FilmBag): OrchestrateHost & { loadProject: () => Pr
       }
       if (bag.input.skipInterpret) {
         const { orchestrateDirectedShots } = await import('./directedRun')
-        bag.result = await orchestrateDirectedShots({
+        const directed = {
           ...bag.input,
           directedShots: (bag.input.directedShots ?? delegated) as StructuredShot[],
           predelegated: delegations,
-        })
+        }
+        if (bag.input.direct) {
+          const { chargeDirectRun } = await import('@/lib/credits/directCharge')
+          bag.result = await chargeDirectRun(
+            bag.input.userId,
+            delegated.map((shot) => ({
+              model: shot.delegation.model,
+              durationSeconds: shot.duration ?? bag.input.totalDuration,
+            })),
+            () => orchestrateDirectedShots(directed),
+          )
+        } else {
+          bag.result = await orchestrateDirectedShots(directed)
+        }
         return
       }
       if (!bag.prepared) throw new Error('[orchestrate] interpret did not prepare shots')

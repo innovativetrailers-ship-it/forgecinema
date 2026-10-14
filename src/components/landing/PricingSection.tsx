@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Check } from 'lucide-react'
 import { PLAN_DISPLAY_PRICES, formatPlanAud } from '@/lib/billing/planPrices'
+import { PlanClipLines } from '@/components/ui/PlanClipLines'
 
 const PLANS = PLAN_DISPLAY_PRICES.map((plan) => ({
   name: plan.name,
@@ -107,6 +108,7 @@ export function PricingSection() {
             )
           })}
         </div>
+        <PlanClipLines />
       </div>
     </section>
   )

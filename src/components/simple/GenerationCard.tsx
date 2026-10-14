@@ -167,11 +167,13 @@ export function GenerationCard({
           className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-medium text-white"
           style={{ backgroundColor: modelColour }}
         >
-          {clip.model.replace(/_/g, ' ').toUpperCase()}
-          {clip.mediaId ? ' · Library' : ''}
+          <span data-testid="result-model">
+            {clip.model && clip.model !== 'library' ? clip.model.replace(/_/g, ' ').toUpperCase() : 'Model'}
+          </span>
+          {clip.mediaId ? <span data-testid="result-library"> · Library</span> : null}
         </div>
 
-        <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 text-[10px] text-[#00e5c8] font-medium">
+        <div data-testid="result-credits" className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 text-[10px] text-[#00e5c8] font-medium">
           ⬡ {clip.creditsUsed}
         </div>
       </div>

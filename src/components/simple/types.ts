@@ -43,7 +43,7 @@ export const ASPECT_RATIOS: Array<{ value: AspectRatio; label: string; icon: str
 export const ALL_MODELS = [
   { group: 'Draft', models: ['ltx-2.3-fast', 'wan-2.7'] },
   { group: 'Performance', models: ['seedance-2.0', 'kling-3.0'] },
-  { group: 'Cinema', models: ['gemini-omni', 'runway-gen4', 'veo-3.1', 'grok-imagine-video'] },
+  { group: 'Cinema', models: ['gemini-omni', 'veo-3.1', 'grok-imagine-video'] },
 ]
 
 export interface GeneratedClip {

@@ -2,31 +2,19 @@
 // Instant cost + render-time estimate — zero API calls.
 // Used by the Vercel route to stay well under its 30s maxDuration.
 
-import { MODEL_COSTS } from '@/lib/routing/engineRegistry'
+import { creditsForRequest, hasFalPrice } from '@cinema/core'
 
 /**
  * Estimate credit cost WITHOUT calling Claude.
- * Uses the average rate across the selected model pool, weighted conservatively.
- * The worker reconciles the exact cost after real shot breakdown and refunds any difference.
+ * Holds the dearest selected model's quote. The worker settles the shots it actually submits.
  */
 export function fastEstimateCost(
   selectedModels: string[],
   duration:       number
 ): number {
-  if (selectedModels.length === 0) return Math.ceil((2 / 5) * duration)
-
-  const avgRate = selectedModels.reduce(
-    (sum, m) => sum + (MODEL_COSTS[m] ?? 10), 0
-  ) / selectedModels.length
-
-  const videoCost      = Math.ceil((avgRate / 5) * duration)
-  const patientZeroCost = 10  // reference image generation buffer
-
-  // Storyboard keyframes (~2cr each, Nano Banana Pro) — one per estimated shot
-  const estimatedShots  = Math.max(1, Math.ceil(duration / 6))
-  const storyboardCost  = estimatedShots * 2
-
-  return videoCost + storyboardCost + patientZeroCost
+  const priced = selectedModels.filter((model) => hasFalPrice(model))
+  if (priced.length === 0) return 0
+  return Math.max(...priced.map((model) => creditsForRequest(model, duration)))
 }
 
 /**

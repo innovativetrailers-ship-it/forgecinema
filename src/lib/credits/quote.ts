@@ -73,9 +73,11 @@ export function quoteGenerationHold(args: {
   const requested = args.durationSeconds
   const billed = billedDuration(model, requested)
   const credits = creditsForRequest(model, requested)
-  const durationNote = billed === requested
-    ? null
-    : `${model} cannot render ${requested}s. This request is billed and delivered as ${billed}s.`
+  const durationNote = model === 'hailuo-02'
+    ? 'fixed 6 s'
+    : billed === requested
+      ? null
+      : `${model} cannot render ${requested}s. This request is billed and delivered as ${billed}s.`
   return {
     model,
     credits,
@@ -98,4 +100,42 @@ export function creditShortfall(args: {
   if (args.loading || args.balance === null) return { short: false, generateDisabled: true }
   const short = args.balance < args.credits
   return { short, generateDisabled: short }
+}
+
+export function dearestAffordable<T extends { credits: number }>(rows: readonly T[], balance: number): T | undefined {
+  return [...rows].sort((a, b) => b.credits - a.credits).find((row) => row.credits <= balance)
+}
+
+export function cheapestAffordable<T extends { credits: number }>(rows: readonly T[], balance: number): T | undefined {
+  return [...rows].sort((a, b) => a.credits - b.credits).find((row) => row.credits <= balance)
+}
+
+const CLIP_ROWS = [
+  ['Quick Draft', 'ltx-2.3-fast'],
+  ['Standard', 'seedance-2.0'],
+  ['Cinematic', 'kling-3.0'],
+  ['Film Grade', 'veo-3.1'],
+] as const
+
+export const CLIP_GRANT_SIZES = [50, 500, 2000, 6000] as const
+
+export function clipsAtGrant(model: string, grant: number): number {
+  const one = creditsForRequest(model, 5)
+  if (one <= 0) return 0
+  return Math.floor(grant / one)
+}
+
+/** Sum of the quotes for the models a direct run actually assigned. */
+export function directChargeCredits(shots: Array<{ model: string; durationSeconds: number }>): number {
+  return shots.reduce((sum, shot) => {
+    return sum + quoteGenerationHold({ model: shot.model, durationSeconds: shot.durationSeconds }).credits
+  }, 0)
+}
+
+/** Clip counts for the named tiers, computed from the fal cost file. */
+export function planClipCopy(): string[] {
+  return CLIP_ROWS.map(([label, model]) => {
+    const counts = CLIP_GRANT_SIZES.map((grant) => `${clipsAtGrant(model, grant)} clips from ${grant} credits`).join('; ')
+    return `${label}: ${counts}`
+  })
 }

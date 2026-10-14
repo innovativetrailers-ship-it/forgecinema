@@ -1,4 +1,5 @@
 import { falEndpoint } from '@cinema/core/endpoints'
+import { creditsForRequest, hasFalPrice } from '@cinema/core'
 import { EventEmitter } from 'events'
 import { refuseSilentModelSwap } from '@/lib/orchestration/costGuard'
 import { Shot, ShotList, ModelId, OutcomeTier, SceneCategory, SwarmResult } from './types'
@@ -112,14 +113,6 @@ const STUDIO_DOWNGRADE: Partial<Record<ModelId, ModelId>> = {
   skyreels_v1:   'seedance_2_0',
 }
 
-// ── Credits per 5 seconds ────────────────────────────────────
-const CREDITS: Record<ModelId, number> = {
-  ltx_2_3: 1, wan_2_2: 2, mochi_1: 2, pixverse: 4,
-  hunyuan_1_5: 4, pika_2_2: 5, minimax_hailuo: 5,
-  skyreels_v1: 7, seedance_2_0: 7, kling_3_0: 9,
-  runway_gen4_5: 9, veo_3_1: 18,
-}
-
 export class SwarmRouter extends EventEmitter {
   private limiter = createLimiter(8)
 
@@ -156,7 +149,8 @@ export class SwarmRouter extends EventEmitter {
     const enhanced = await Promise.all(parsed.shots.map(async shot => {
       const model = this.routeShot(shot, params.tier)
       const prompt = await this.enhancePrompt(shot, model)
-      const cost = Math.ceil((CREDITS[model] * shot.duration_seconds) / 5)
+      const cost = hasFalPrice(model) ? creditsForRequest(model, shot.duration_seconds) : 0
+      if (!hasFalPrice(model)) console.warn('[swarm] no fal price', model)
       return { ...shot, assigned_model: model, prompt_enhanced: prompt, estimated_cost_credits: cost }
     }))
 
@@ -292,7 +286,7 @@ export class SwarmRouter extends EventEmitter {
     try {
       url = await this.callModel(model, prompt, shot)
     } catch (err) {
-      console.warn("[caught] src/lib/swarm/SwarmRouter.ts:288", err instanceof Error ? { name: err.name, message: err.message } : err)
+      console.warn("[caught] src/lib/swarm/SwarmRouter.ts:288", projectId, err instanceof Error ? { name: err.name, message: err.message } : err)
 
       const fallback = this.routeShot(shot, 'Studio')
       url = await this.callModel(fallback, prompt, shot)
@@ -308,7 +302,8 @@ export class SwarmRouter extends EventEmitter {
     }
 
     const proxy = await this.makeProxy(url)
-    const credits = Math.ceil((CREDITS[model] * shot.duration_seconds) / 5)
+    const credits = hasFalPrice(model) ? creditsForRequest(model, shot.duration_seconds) : 0
+    if (!hasFalPrice(model)) console.warn('[swarm] no fal price', model)
 
     await db.apiUsageLog.create({
       data: {
@@ -469,7 +464,7 @@ export class SwarmRouter extends EventEmitter {
         })
         await redis.publish(channelKey(`swarm:${projectId}`), JSON.stringify({
           event: 'repaint_done',
-          shot_id: r.shot_id,
+          shot_id: shot.shot_id,
           repaired_url: repaired,
         }))
       })

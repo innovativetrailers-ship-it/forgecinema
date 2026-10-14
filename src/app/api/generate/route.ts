@@ -50,7 +50,7 @@ export async function POST(req: Request) {
   }
 
   const rawPrompt = (body.prompt ?? body.script)?.trim()
-  let duration       = body.duration ?? 10
+  const duration       = body.duration ?? 10
   const requestedModels = body.selectedModels
   const mode           = body.mode ?? 'simple'
   const generationMode = (body.generationMode === 'production' ? 'production' : 'draft') as 'draft' | 'production'
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
     ...MODEL_COUNCIL_DISPLAY.map((m) => m.id),
     ...Object.keys(MODEL_COSTS),
   ])
-  let selectedModels = (requestedModels ?? []).filter((id) => validModelIds.has(id))
+  const selectedModels = (requestedModels ?? []).filter((id) => validModelIds.has(id))
 
   if (mode === 'director' && requestedModels?.length && selectedModels.length === 0) {
     return Response.json({
@@ -113,12 +113,12 @@ export async function POST(req: Request) {
     | { name: string; behavioralPrompt: string; wardrobeSummary: string; appearanceSummary: string }
     | undefined
 
-  let creditCost = mode === 'director'
+  const creditCost = mode === 'director'
     ? fastEstimateCost(selectedModels, duration)
     : quoteGenerationHold({ tier, durationSeconds: duration }).credits
 
   if (creditCost === 0) {
-    creditCost = Math.max(5, Math.ceil((duration / 5) * 6))
+    return Response.json({ error: 'No price for this model' }, { status: 400 })
   }
 
   const access = await checkAccess(

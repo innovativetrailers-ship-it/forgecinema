@@ -1,0 +1,1030 @@
+{
+  "errors": 285,
+  "warnings": 293,
+  "files": {
+    "packages/core/dist/fal/guardedSubmit.js": {
+      "errors": 3,
+      "warnings": 0
+    },
+    "packages/core/dist/index.js": {
+      "errors": 69,
+      "warnings": 0
+    },
+    "packages/core/dist/llm/anthropicTransport.js": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "packages/core/dist/llm/falRouter.js": {
+      "errors": 3,
+      "warnings": 0
+    },
+    "packages/core/dist/llm/models.js": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "packages/core/dist/llm/routing.js": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/delegate.js": {
+      "errors": 7,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/elevenlabs.js": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/familyDuration.js": {
+      "errors": 5,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/grok.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/hailuo.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/happyhorse.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/imageModels.js": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/importRights.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/ingest.js": {
+      "errors": 2,
+      "warnings": 1
+    },
+    "packages/core/dist/logic/integrity.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/kling.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/learn.js": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/localIsolation.js": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/localModels.js": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/ltx.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/modePipeline.js": {
+      "errors": 4,
+      "warnings": 1
+    },
+    "packages/core/dist/logic/modelKnowledge.js": {
+      "errors": 19,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/omni.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/orchestrate.js": {
+      "errors": 4,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/payload.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/pika.js": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/pixverse.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/playbook.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/premiseLock.js": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/productionWorkflow.js": {
+      "errors": 3,
+      "warnings": 1
+    },
+    "packages/core/dist/logic/resolveModel.js": {
+      "errors": 13,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/runway.js": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/seedance.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/toolControls.js": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/toolStage.js": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "packages/core/dist/logic/trainedAsset.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/trainerRegistry.js": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/trainingStudio.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/veo.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/wan.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/logic/wan30.js": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "packages/core/dist/pricing/falCosts.js": {
+      "errors": 3,
+      "warnings": 0
+    },
+    "packages/core/endpoints.js": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "packages/core/src/logic/ingest.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "packages/core/src/logic/modePipeline.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "packages/core/src/logic/productionWorkflow.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "packages/core/src/logic/toolStage.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "scripts/process-brand-logo.mjs": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "scripts/validate-model-knowledge.mjs": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/__tests__/fal.test.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/(editor)/advanced/page.tsx": {
+      "errors": 0,
+      "warnings": 11
+    },
+    "src/app/(editor)/simple/page.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/(editor)/ultimate/page.tsx": {
+      "errors": 0,
+      "warnings": 5
+    },
+    "src/app/(legal)/terms/page.tsx": {
+      "errors": 4,
+      "warnings": 0
+    },
+    "src/app/api/audio/stems/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/audio/synthesise/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/auth/activate/route.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/app/api/avatar/create/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/clips/ai-edit/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/color/cdl/route.ts": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/app/api/color/lut/route.ts": {
+      "errors": 1,
+      "warnings": 2
+    },
+    "src/app/api/desktop/link/approve/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/film/[id]/produce/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/highlights/extract/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/jobs/create/route.ts": {
+      "errors": 3,
+      "warnings": 0
+    },
+    "src/app/api/payments/portal/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/storyboard/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/studio/assets/t2i/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/studio/compositor/render/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/studio/director/angles/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/studio/director/bundle/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/studio/director/keyframe/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/studio/director/run/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/studio/director/variation/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/studio/location/aerial/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/studio/looks/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/studio/production/auto-gen/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/studio/production/resolve/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/studio/timeline/edit/route.ts": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/app/api/timeline/offline-proxy/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/api/translate/video/route.ts": {
+      "errors": 1,
+      "warnings": 1
+    },
+    "src/app/api/upscale/clip/route.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/app/api/vfx/motion-brush/route.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/apple-icon.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/download/page.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/app/icon.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/app/location/aerial/page.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/app/review/[token]/page.tsx": {
+      "errors": 1,
+      "warnings": 1
+    },
+    "src/components/audio/ADRRecorder.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/components/audio/ParametricEQ.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/auth/PaymentOptions.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/auth/SignupFlow.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/avatar/AvatarCreator.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/avatar/AvatarGallery.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/avatar/TalkingPhotoPanel.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/branch/BranchingPlayer.tsx": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/components/editor/ActivityFeed.tsx": {
+      "errors": 1,
+      "warnings": 1
+    },
+    "src/components/editor/ClipCommentsPanel.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/components/editor/ClipLockOverlay.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/components/editor/EditorDock.tsx": {
+      "errors": 4,
+      "warnings": 14
+    },
+    "src/components/editor/ExtensionManager.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/components/editor/GradePreviewBar.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/editor/MotionBrush.tsx": {
+      "errors": 1,
+      "warnings": 1
+    },
+    "src/components/editor/NleDepthBar.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/components/editor/PresenceBar.tsx": {
+      "errors": 1,
+      "warnings": 1
+    },
+    "src/components/editor/Preview.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/components/editor/PropertiesPanel.tsx": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/components/editor/RepaintModal.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/editor/RoughCutDialog.tsx": {
+      "errors": 4,
+      "warnings": 1
+    },
+    "src/components/editor/ShoppableTagPanel.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/editor/Timeline.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/editor/TranscriptEditor.tsx": {
+      "errors": 2,
+      "warnings": 3
+    },
+    "src/components/editor/VaultPanel.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/editor/VideoPreview.tsx": {
+      "errors": 0,
+      "warnings": 6
+    },
+    "src/components/editor/VoiceDialoguePanel.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/components/layout/AppShell.tsx": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/components/layout/CreditPurchaseModal.tsx": {
+      "errors": 1,
+      "warnings": 1
+    },
+    "src/components/layout/IconRail.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/layout/RightPanel.tsx": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/components/panels/AIDirectorPanel.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/panels/AvatarCreator.tsx": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/components/panels/AvatarGallery.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/panels/CharacterCastPanel.tsx": {
+      "errors": 1,
+      "warnings": 1
+    },
+    "src/components/panels/EmotionLatticePanel.tsx": {
+      "errors": 2,
+      "warnings": 1
+    },
+    "src/components/panels/GreenScreenPanel.tsx": {
+      "errors": 1,
+      "warnings": 1
+    },
+    "src/components/panels/LibraryPanel.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/panels/LocationPanel.tsx": {
+      "errors": 1,
+      "warnings": 1
+    },
+    "src/components/panels/MediaBin.tsx": {
+      "errors": 1,
+      "warnings": 2
+    },
+    "src/components/panels/MoGRTPanel.tsx": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/components/panels/RailTools.tsx": {
+      "errors": 1,
+      "warnings": 1
+    },
+    "src/components/panels/SFXLibraryPanel.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/components/panels/TalkingPhotoPanel.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/panels/TranscriptPanel.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/components/playback/InteractivePlayer.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/components/simple/AudioToVideoTab.tsx": {
+      "errors": 1,
+      "warnings": 2
+    },
+    "src/components/simple/AutoSocialTab.tsx": {
+      "errors": 2,
+      "warnings": 4
+    },
+    "src/components/simple/ImageToVideoTab.tsx": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/components/simple/ResultsGallery.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/simple/VideoPreviewModal.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/components/studio/NodeCompositor.tsx": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "src/components/swarm/SwarmProgressPanel.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/components/training/AssetPrompt.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/components/training/TrainingStudioPanel.tsx": {
+      "errors": 6,
+      "warnings": 2
+    },
+    "src/components/ui/CreditPurchaseModal.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/ultimate/AIDirectorPanel.tsx": {
+      "errors": 0,
+      "warnings": 3
+    },
+    "src/components/ultimate/AudioMixingBoard.tsx": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/components/ultimate/AwaitingDirectionCard.tsx": {
+      "errors": 1,
+      "warnings": 5
+    },
+    "src/components/ultimate/ContinuityChecker.tsx": {
+      "errors": 0,
+      "warnings": 5
+    },
+    "src/components/ultimate/DirectorWizardStep.tsx": {
+      "errors": 1,
+      "warnings": 2
+    },
+    "src/components/ultimate/ScriptEditor.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/ultimate/ShotPlanPanel.tsx": {
+      "errors": 1,
+      "warnings": 3
+    },
+    "src/components/ultimate/StoryboardViewer.tsx": {
+      "errors": 2,
+      "warnings": 1
+    },
+    "src/components/vault/CharacterOnboarding.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/components/vault/ForgeCastPanel.tsx": {
+      "errors": 1,
+      "warnings": 1
+    },
+    "src/components/vfx/ParticleSystem.tsx": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/components/watch/ShoppablePlayer.tsx": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/analysis/ReferenceVideoAnalyser.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/audio/FillerRemover.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/audio/Overdub.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/audio/ProToolsExport.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/audio/SilenceRemover.ts": {
+      "errors": 0,
+      "warnings": 3
+    },
+    "src/lib/audio/SpeakerSeparator.ts": {
+      "errors": 0,
+      "warnings": 3
+    },
+    "src/lib/audio/StudioSound.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/audio/TranscriptSync.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/audio/daw/index.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/audio/dialoguePipeline.ts": {
+      "errors": 1,
+      "warnings": 1
+    },
+    "src/lib/auth.config.ts": {
+      "errors": 3,
+      "warnings": 1
+    },
+    "src/lib/auth.ts": {
+      "errors": 10,
+      "warnings": 1
+    },
+    "src/lib/avatar/AvatarEngine.ts": {
+      "errors": 1,
+      "warnings": 1
+    },
+    "src/lib/brain/model2.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/brand/BrandKitApply.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/casting/Recaster.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/character/anime.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/character/apparel.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/character/appearanceBake.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/character/fccManager.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/character/mocap.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/character/roto.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/cognition/learnOutcomes.ts": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/lib/cognition/memory/procedural.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/cognition/shotRatings.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/compositor/executor.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/compositor/vfx.ts": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/lib/credits.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/credits/grant.ts": {
+      "errors": 2,
+      "warnings": 0
+    },
+    "src/lib/diagnostics/inspectQuality.ts": {
+      "errors": 0,
+      "warnings": 14
+    },
+    "src/lib/fal/client.ts": {
+      "errors": 0,
+      "warnings": 3
+    },
+    "src/lib/fal/falQueue.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/fal/hailuoEndpoints.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/fal/hunyuanEndpoints.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/fal/pixverseEndpoints.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/fal/videoPayloadAdapters.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/film/FilmDirector.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/greenscreen/GreenScreenEngine.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/intelligence/analyser.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/intelligence/schedule.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/intelligence/update-watcher.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/jobs/jobEventStream.ts": {
+      "errors": 3,
+      "warnings": 0
+    },
+    "src/lib/jobs/processAudioTrackJob.ts": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/lib/jobs/processOrchestrateJob.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/jobs/processSceneGenerateJob.ts": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/lib/media/BinManager.ts": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/lib/models/animatediff.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/models/hailuo.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/models/happyhorse.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/models/hunyuan.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/models/index.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/models/kling.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/models/luma.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/models/minimax.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/models/pika.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/models/pixverse.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/models/seedance.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/models/sora.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/models/svd.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/orchestration/boundaryQA.ts": {
+      "errors": 0,
+      "warnings": 3
+    },
+    "src/lib/orchestration/bridgedGeneration.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/orchestration/chainBuilder.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/orchestration/chainGeneration.ts": {
+      "errors": 1,
+      "warnings": 2
+    },
+    "src/lib/orchestration/opticalFlow.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/orchestration/premiseLock.ts": {
+      "errors": 0,
+      "warnings": 3
+    },
+    "src/lib/orchestration/qualityGate.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/performance/ActTwo.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/providers/grok.ts": {
+      "errors": 0,
+      "warnings": 3
+    },
+    "src/lib/providers/replicate.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/providers/runway.ts": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/lib/queue/workers/export.worker.ts": {
+      "errors": 0,
+      "warnings": 3
+    },
+    "src/lib/queue/workers/render.worker.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/routing/SceneDecomposer.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/series/SeriesManager.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/social/Publisher.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/storage/das.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/studio/shotPlan.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/swarm/AudioSwarm.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/swarm/GrowthEngineCapture.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/swarm/LongFormOrchestrator.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/swarm/SeamlessBlender.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/swarm/timeline-edit.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/timeline/AutoReframe.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/timeline/ClipExtend.ts": {
+      "errors": 3,
+      "warnings": 0
+    },
+    "src/lib/timeline/MorphCut.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/timeline/OpticalFlow.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/timeline/renderer.ts": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "src/lib/timeline/retime.ts": {
+      "errors": 2,
+      "warnings": 1
+    },
+    "src/lib/timeline/tracker.ts": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/lib/upload/sniff.ts": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "src/lib/upscale/clip.ts": {
+      "errors": 1,
+      "warnings": 1
+    },
+    "src/lib/upscale/face-enhance.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/upscale/image.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/lib/vfx/DiffusionPhysics.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/store/jobs.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "src/workers/das-pull.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "tests/stubs/prismaClient.ts": {
+      "errors": 0,
+      "warnings": 1
+    },
+    "tests/unit/run-38-auth.test.ts": {
+      "errors": 1,
+      "warnings": 0
+    },
+    "tests/unit/timeline.test.ts": {
+      "errors": 0,
+      "warnings": 1
+    }
+  }
+}

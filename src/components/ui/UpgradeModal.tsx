@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { X, Zap, Monitor } from 'lucide-react'
 import { PLAN_DISPLAY_PRICES, formatPlanAud } from '@/lib/billing/planPrices'
 import { COUNCIL_MODEL_COUNT } from '@/lib/credits/quote'
+import { PlanClipLines } from '@/components/ui/PlanClipLines'
 
 const PLAN_DETAILS: Record<string, {
   label: string; price: string; credits: string; highlights: string[]
@@ -130,6 +131,8 @@ export function UpgradeModal() {
           >
             Upgrade now →
           </button>
+
+          <PlanClipLines />
 
           <a
             href="/upgrade"

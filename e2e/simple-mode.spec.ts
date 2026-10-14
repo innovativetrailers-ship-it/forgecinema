@@ -95,6 +95,36 @@ test.describe('Simple Mode — /simple', () => {
   })
 })
 
+test('a library clip keeps the model name and the credits spent', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('cinema-playback-state', JSON.stringify({
+      state: {
+        library: [{
+          id: 'clip-library-1',
+          jobId: 'job-library-1',
+          prompt: 'A library shot',
+          model: 'ltx-2.3-fast',
+          quality: 'draft',
+          creditsUsed: 33,
+          duration: 5,
+          aspectRatio: '16:9',
+          status: 'complete',
+          createdAt: '2026-10-14T00:00:00.000Z',
+          mediaId: 'media-1',
+          videoUrl: '/api/media/media-1',
+        }],
+      },
+      version: 0,
+    }))
+  })
+  await page.goto('/simple')
+  const card = page.getByTestId('generation-card').first()
+  await expect(card).toBeVisible({ timeout: 10_000 })
+  await expect(card.getByTestId('result-model')).toHaveText('LTX-2.3-FAST')
+  await expect(card.getByTestId('result-credits')).toContainText('33')
+  await expect(card.getByTestId('result-library')).toHaveText('· Library')
+})
+
 test.describe('TopNav', () => {
   test('is visible on all editor pages', async ({ page }) => {
     for (const path of ['/simple', '/advanced', '/ultimate']) {
