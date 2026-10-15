@@ -1,4 +1,8 @@
 # MANIFEST — every document, its run, its status (the "nothing is lost" index)
+## Run 53 (2026-10-16): Grok 4.7 smoke is `docs/grok-4.7-smoke-2026-10-16.md`. The id was not changed. Missing routed ids throw. Pause and prices unchanged.
+
+## Run 52 (2026-10-16) on branch run-43-pricing: expert briefs and the video registry in `@cinema/core`. Verification report `docs/model-verification-2026-10-16.md`. No routed id changes, no prices changed, pause unchanged. Desktop pin not moved.
+
 ## Run 51 (2026-10-15) on branch run-43-pricing: program monitor fills its panel, the phone feature request sits in the more menu, and one quality card matches the Generate price. Branch pushed. Production alias updated. No generation. Pause and prices unchanged. Signed-in picture sizes are the local playwright run; the host redirects logged-out editor routes to login.
 
 ## Run 50 (2026-10-15) on branch run-43-pricing: web responsive layout and a collapsible side panel. Production alias updated. No generation. Pause and prices unchanged. Signed-in viewport proof is the local playwright run; the host redirects logged-out editor routes to login.

@@ -1,3 +1,15 @@
+# BUG REGISTER — Run 53 grok route (2026-10-16)
+
+| ID | Status | What landed |
+|---|---|---|
+| R53-GROK | smoke failed, id unchanged | One capped call to `x-ai/grok-4.7` returned finish reason stop and did not match the director schema. `DARK_CREATIVE` stays `x-ai/grok-4`. The verification cache marks that id missing, and the router throws `ModelUnavailableError` with "This style is temporarily unavailable" instead of calling another model. `scripts/verify-models.ts` still exits 1. |
+
+# BUG REGISTER — Run 52 expert briefs (2026-10-16)
+
+| ID | Status | What landed |
+|---|---|---|
+| R52-EXPERTS | code + unit tests, model list checked | Seven role briefs, client-side validation with one repair, family adapters, and a video registry live in `@cinema/core`. Prompts in the swarm and the brain compose those briefs. `x-ai/grok-4` is missing from the OpenRouter model list. The id was not changed. `docs/model-verification-2026-10-16.md` is the proposal. |
+
 # BUG REGISTER — Run 51 monitor size (2026-10-15)
 
 | ID | Status | What landed |

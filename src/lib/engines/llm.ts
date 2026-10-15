@@ -1,4 +1,8 @@
-import { BRAIN_ROUTES, llmModelForTask, llmModelForTier, type BrainTask, type LlmTier } from '@cinema/core'
+import { BRAIN_ROUTES, ModelUnavailableError, assertModelAvailable, llmModelForTask, llmModelForTier, type BrainTask, type LlmTier } from '@cinema/core'
+
+export function publicStyleError(err: unknown): string | null {
+  return err instanceof ModelUnavailableError ? err.message : null
+}
 import { claudeCall, claudeText, llmCall } from '@/lib/llm/anthropicClient'
 
 export type LLMModel =
@@ -54,9 +58,16 @@ export async function callLLM(params: {
 
   const task = ROUTER_TASK[params.model]
   if (!task) throw new Error(`Unknown LLM: ${params.model}`)
-  const openrouterModel = params.model === 'xai-grok'
-    ? BRAIN_ROUTES.character.fallbacks[0]
-    : llmModelForTask(task).model
+  let openrouterModel: string
+  try {
+    openrouterModel = params.model === 'xai-grok'
+      ? BRAIN_ROUTES.character.fallbacks[0]
+      : llmModelForTask(task).model
+    if (params.model === 'xai-grok') assertModelAvailable(task, openrouterModel)
+  } catch (err) {
+    if (publicStyleError(err)) throw err
+    throw err
+  }
 
   const result = await llmCall({
     model: openrouterModel,
