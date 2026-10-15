@@ -2,7 +2,7 @@
 
 | ID | Status | What landed |
 |---|---|---|
-| R50-LAYOUT | code + local playwright | The feature request sat on the Generate control, and Ultimate/Advanced/Simple clipped controls with no way to reach them. The request docks bottom-right. The side panel closes with the edge chevron, the panel X, and `[`, and the choice is saved. Under 1500px the top bar keeps Export Film and puts the rest in a more menu. Under 700px Ultimate and Advanced ask for a wider screen and link to Simple. Simple fits a phone width. `e2e/responsive-layout.spec.ts` covers the six viewports. Live check is the production deploy. |
+| R50-LAYOUT | code + local playwright, production deployed | The feature request sat on the Generate control, and Ultimate/Advanced/Simple clipped controls with no way to reach them. The request docks bottom-right. The side panel closes with the edge chevron, the panel X, and `[`, and the choice is saved. Under 1500px the top bar keeps Export Film and puts the rest in a more menu. Under 700px Ultimate and Advanced ask for a wider screen and link to Simple. Simple fits a phone width. `e2e/responsive-layout.spec.ts` passed signed-in on localhost for all six viewports. Production `https://forgecinema.vercel.app` is this deploy. A logged-out visit to `/ultimate` redirects to `/login`, so the signed-in probe was not repeated on the host. |
 
 # BUG REGISTER — status after FIX WAVE 3 (2026-10-04)
 

@@ -1,5 +1,5 @@
 # MANIFEST — every document, its run, its status (the "nothing is lost" index)
-## Run 50 (2026-10-15) on branch run-43-pricing: web responsive layout and a collapsible side panel. No generation. Pause and prices unchanged.
+## Run 50 (2026-10-15) on branch run-43-pricing: web responsive layout and a collapsible side panel. Production alias updated. No generation. Pause and prices unchanged. Signed-in viewport proof is the local playwright run; the host redirects logged-out editor routes to login.
 
 ## Complete inventory of the final-fixes doc set (2026-09-30). If a file exists it is listed here with a
 ## status. FEED = give to Cursor; DONE = closed/struck; REF = reference (don't feed). Cross-check against
