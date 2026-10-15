@@ -1,5 +1,5 @@
 # MANIFEST — every document, its run, its status (the "nothing is lost" index)
-## Run 51 (2026-10-15) on branch run-43-pricing: program monitor fills its panel, the phone feature request sits in the more menu, and one quality card matches the Generate price. No generation. Pause and prices unchanged.
+## Run 51 (2026-10-15) on branch run-43-pricing: program monitor fills its panel, the phone feature request sits in the more menu, and one quality card matches the Generate price. Branch pushed. Production alias updated. No generation. Pause and prices unchanged. Signed-in picture sizes are the local playwright run; the host redirects logged-out editor routes to login.
 
 ## Run 50 (2026-10-15) on branch run-43-pricing: web responsive layout and a collapsible side panel. Production alias updated. No generation. Pause and prices unchanged. Signed-in viewport proof is the local playwright run; the host redirects logged-out editor routes to login.
 

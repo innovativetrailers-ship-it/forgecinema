@@ -1,5 +1,5 @@
 # RUN INDEX — feed these to Cursor, one file per run, in this order
-## Run 51 (2026-10-15): program picture fills the monitor, phone feature request moves into the more menu, one quality card matches the Generate price. Branch run-43-pricing pushed. Local signed-in playwright green.
+## Run 51 (2026-10-15): program picture fills the monitor, phone feature request moves into the more menu, one quality card matches the Generate price. Branch run-43-pricing pushed. Local signed-in playwright green. Production alias updated. Logged-out `/ultimate` and `/simple` redirect to login, so the signed-in probe was not repeated on the host.
 
 ## Run 50 (2026-10-15): responsive web layout, collapsible side panel, feature request moved off Generate. Local signed-in playwright green. Production alias updated. Logged-out `/ultimate` redirects to login, so the signed-in probe was not repeated on the host.
 
