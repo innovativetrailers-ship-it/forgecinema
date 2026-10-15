@@ -1,0 +1,23 @@
+[
+  {
+    "name": "prop hand matches",
+    "output": { "shot_id": "S03-02", "pass": true, "violations": [] }
+  },
+  {
+    "name": "screen direction holds",
+    "output": { "shot_id": "S04-02", "pass": true, "violations": [] }
+  },
+  {
+    "name": "edge lantern changes hands",
+    "output": {
+      "shot_id": "S03-03",
+      "pass": false,
+      "violations": [{
+        "type": "prop",
+        "expected": "oil lantern in right hand",
+        "found": "lantern in left hand",
+        "severity": "major"
+      }]
+    }
+  }
+]

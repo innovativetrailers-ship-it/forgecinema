@@ -1,0 +1,28 @@
+[
+  {
+    "name": "one grade reused",
+    "output": {
+      "scene_id": "S03",
+      "grade": "teal shadows, amber highlights, low saturation, soft contrast",
+      "shot_adjustments": []
+    }
+  },
+  {
+    "name": "day interior",
+    "output": {
+      "scene_id": "S04",
+      "grade": "neutral daylight, soft contrast, slight warm skin",
+      "shot_adjustments": []
+    }
+  },
+  {
+    "name": "edge one shot breaks the grade",
+    "output": {
+      "scene_id": "S03",
+      "grade": "teal shadows, amber highlights, low saturation, soft contrast",
+      "shot_adjustments": [
+        { "shot_id": "S03-04", "grade": "same grade, lamp practical blown one stop for the flare" }
+      ]
+    }
+  }
+]

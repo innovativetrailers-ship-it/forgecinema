@@ -1,0 +1,29 @@
+[
+  {
+    "name": "j cut into the line",
+    "output": {
+      "timeline": [{ "shot_id": "S03-02", "in_s": 0, "out_s": 6, "transition": "cut", "audio_lead_s": 0.4 }],
+      "total_s": 6,
+      "pace_curve": "slow then a hold",
+      "flagged_cuts": []
+    }
+  },
+  {
+    "name": "reaction hold",
+    "output": {
+      "timeline": [{ "shot_id": "S04-02", "in_s": 1, "out_s": 4, "transition": "cut", "audio_lead_s": 0 }],
+      "total_s": 3,
+      "pace_curve": "hold the reaction",
+      "flagged_cuts": []
+    }
+  },
+  {
+    "name": "edge hold longer than the clip",
+    "output": {
+      "timeline": [{ "shot_id": "S03-02", "in_s": 0, "out_s": 8, "transition": "cut", "audio_lead_s": 0 }],
+      "total_s": 8,
+      "pace_curve": "the model only supplies 8 seconds, so the hold stops at 8",
+      "flagged_cuts": [{ "between": ["S03-02", "S03-03"], "rule_broken": "requested 12s hold from an 8s clip", "fix": "cut at 8s" }]
+    }
+  }
+]

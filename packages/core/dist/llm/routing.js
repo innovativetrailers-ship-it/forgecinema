@@ -5,10 +5,17 @@
  * Verified router family 2026-09-28: openrouter/router, /vision, /openai/v1/chat/completions.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.OPEN_WEIGHT_MODEL_IDS = exports.OPEN_WEIGHT_ROUTE_PIN = exports.BRAIN_ROUTES = exports.MAX_QUALITY_BREAKDOWN_MODEL = exports.CREATIVE_TIER_MODEL = void 0;
+exports.ModelUnavailableError = exports.OPEN_WEIGHT_MODEL_IDS = exports.OPEN_WEIGHT_ROUTE_PIN = exports.BRAIN_ROUTES = exports.MAX_QUALITY_BREAKDOWN_MODEL = exports.CREATIVE_TIER_MODEL = void 0;
 exports.approvedRouteFor = approvedRouteFor;
 exports.applyApprovedRoute = applyApprovedRoute;
 exports.llmModelForTask = llmModelForTask;
+exports.routedModelIds = routedModelIds;
+exports.logExpertBrief = logExpertBrief;
+exports.applyVerificationCache = applyVerificationCache;
+exports.resetVerificationCache = resetVerificationCache;
+exports.assertModelAvailable = assertModelAvailable;
+const node_fs_1 = require("node:fs");
+const node_path_1 = require("node:path");
 const trainerRegistry_1 = require("../logic/trainerRegistry");
 /**
  * Creative tier. Live on OpenRouter 2026-09-29: anthropic/claude-sonnet-5.
@@ -99,6 +106,7 @@ function llmModelForTask(task, opts) {
         if (choice.substituted) {
             console.log('[brain_route_substituted]', JSON.stringify(choice));
         }
+        assertModelAvailable(task, choice.model);
         return choice;
     }
     if (opts?.tone === 'dark' && (task === 'script' || task === 'character')) {
@@ -109,6 +117,7 @@ function llmModelForTask(task, opts) {
             reason: 'tone-dark',
         };
         console.log('[brain_route_substituted]', JSON.stringify(choice));
+        assertModelAvailable(task, choice.model);
         return choice;
     }
     if (opts?.tone === 'polished' && task === 'script' && !route.primary.startsWith('anthropic/')) {
@@ -119,8 +128,74 @@ function llmModelForTask(task, opts) {
             reason: 'tone-polished',
         };
         console.log('[brain_route_substituted]', JSON.stringify(choice));
+        assertModelAvailable(task, choice.model);
         return choice;
     }
+    assertModelAvailable(task, route.primary);
     return { model: route.primary, task, substituted: false, reason: 'primary' };
+}
+/** Every id this table can send. Verification reads this. It does not change the table. */
+function routedModelIds() {
+    const ids = new Set();
+    for (const route of Object.values(exports.BRAIN_ROUTES)) {
+        ids.add(route.primary);
+        for (const fallback of route.fallbacks)
+            ids.add(fallback);
+    }
+    return [...ids];
+}
+/** Logged on every expert-brief call. The version is the brief's BRIEF_VERSION. */
+function logExpertBrief(role, version) {
+    console.log('[expert_brief]', JSON.stringify({ role, version }));
+}
+const STYLE_UNAVAILABLE = 'This style is temporarily unavailable';
+class ModelUnavailableError extends Error {
+    role;
+    modelId;
+    reason;
+    constructor(role, modelId, reason) {
+        super(STYLE_UNAVAILABLE);
+        this.name = 'ModelUnavailableError';
+        this.role = role;
+        this.modelId = modelId;
+        this.reason = reason;
+    }
+}
+exports.ModelUnavailableError = ModelUnavailableError;
+let cacheOverride = null;
+let cacheLoaded = null;
+/** Test and startup hook. Replaces the on-disk verification cache. */
+function applyVerificationCache(missing) {
+    cacheOverride = new Set(missing);
+}
+function resetVerificationCache() {
+    cacheOverride = null;
+    cacheLoaded = null;
+}
+function missingFromCache() {
+    if (cacheOverride)
+        return cacheOverride;
+    if (cacheLoaded)
+        return cacheLoaded;
+    cacheLoaded = new Set();
+    try {
+        const raw = (0, node_fs_1.readFileSync)((0, node_path_1.resolve)(process.cwd(), 'docs/model-route-cache.json'), 'utf8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.missing)) {
+            cacheLoaded = new Set(parsed.missing.filter((id) => typeof id === 'string'));
+        }
+    }
+    catch (err) {
+        console.warn('[model_unavailable]', err instanceof Error ? err.message : err);
+    }
+    return cacheLoaded;
+}
+/** Throws when the verification cache marks this id missing. Does not pick another model. */
+function assertModelAvailable(role, modelId) {
+    if (!missingFromCache().has(modelId))
+        return;
+    const reason = 'missing from the verification cache';
+    console.error('[model_unavailable]', JSON.stringify({ role, modelId, reason }));
+    throw new ModelUnavailableError(role, modelId, reason);
 }
 //# sourceMappingURL=routing.js.map

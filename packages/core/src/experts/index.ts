@@ -1,0 +1,40 @@
+export { BRIEF_VERSION as DIRECTOR_BRIEF_VERSION, directorBrief } from './roles/director'
+export { BRIEF_VERSION as CINEMATOGRAPHER_BRIEF_VERSION, cinematographerBrief } from './roles/cinematographer'
+export { BRIEF_VERSION as COLOURIST_BRIEF_VERSION, colouristBrief } from './roles/colourist'
+export { BRIEF_VERSION as EDITOR_BRIEF_VERSION, editorBrief } from './roles/editor'
+export { BRIEF_VERSION as SOUND_BRIEF_VERSION, soundBrief } from './roles/sound'
+export { BRIEF_VERSION as CONTINUITY_BRIEF_VERSION, continuityBrief } from './roles/continuity'
+export { BRIEF_VERSION as QA_BRIEF_VERSION, qaBrief } from './roles/qa'
+export {
+  EXPERT_ROLES,
+  ROLE_BRIEFS,
+  ExpertOutputError,
+  validateRoleOutput,
+  acceptRoleOutput,
+  composeRolePrompt,
+} from './validate'
+export type { ExpertRole } from './validate'
+export { shotSpecSchema, SHOT_SPEC_JSON_SCHEMA } from './shotSpec'
+export type { ShotSpec } from './shotSpec'
+export { qaOutputSchema, validateQaOutput, QA_JSON_SCHEMA } from './qaSchema'
+export type { QaOutput } from './qaSchema'
+export { claudePixelsToForge, geminiBoxToForge, gptBoxToForge, BoxConversionError } from './boxes'
+export type { ForgeBox } from './boxes'
+export { buildClaudeRequest, parseClaudeStop } from './adapters/claude'
+export { buildGeminiRequest, formatGeminiTimestamp } from './adapters/gemini'
+export { buildGptRequest } from './adapters/gpt'
+export { buildGrokRequest } from './adapters/grok'
+export { openRouterEnvelope } from './adapters/openrouter'
+export {
+  VIDEO_EXPERT_REGISTRY,
+  findVideoRegistry,
+  expertSeedForKnowledge,
+  unverifiedRegistryFields,
+  registryKey,
+} from './video/registry'
+export type { VideoRegistryEntry } from './video/registry'
+export { compileShot, ModelCompileError } from './video/compile'
+export { reportModelVerification } from './video/verify'
+export type { CompiledShot } from './video/compile'
+export { EVAL_CASES, KEEPER_SHOT } from './eval/cases'
+export { liveEvalPlan, LIVE_EVAL_COST } from './eval/livePlan'

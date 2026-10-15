@@ -1,0 +1,59 @@
+[
+  {
+    "name": "push-in on the keeper",
+    "output": {
+      "risk": "A fast orbit would drift the face. This shot uses one slow push-in.",
+      "shot": {
+        "shot_id": "S03-02",
+        "duration_s": 6,
+        "subject": "weathered lighthouse keeper, grey beard, yellow oilskin",
+        "action": "climbs the spiral stairs, stops, looks up at the lamp",
+        "setting": "inside lighthouse tower, night, storm outside",
+        "camera": { "size": "medium", "angle": "low", "lens_mm": 35, "move": "slow push-in", "pace": "slow" },
+        "lighting": "single warm practical from above, cold blue spill from windows, rim light on shoulders",
+        "audio": { "dialogue": [{ "speaker": "KEEPER", "voice": "gravelly, low", "line": "She's still burning." }], "sfx": ["boots on iron steps"], "ambience": "storm, distant waves", "music": false },
+        "references": [{ "id": "img_keeper_01", "role": "character identity" }],
+        "continuity": { "carries_from": "S03-01", "screen_direction": "left-to-right", "props": ["oil lantern in right hand"] },
+        "avoid": ["text on screen", "extra people"]
+      }
+    }
+  },
+  {
+    "name": "static wide",
+    "output": {
+      "risk": "A locked wide can feel empty if the subject is small. Hold the lamp in the upper third.",
+      "shot": {
+        "shot_id": "S03-01",
+        "duration_s": 6,
+        "subject": "lighthouse tower",
+        "action": "the lamp flares once",
+        "setting": "coast at night",
+        "camera": { "size": "extreme wide", "angle": "eye level", "lens_mm": 24, "move": "static", "pace": "slow" },
+        "lighting": "moon as the only source, practical lamp in the lantern room",
+        "audio": { "dialogue": [], "sfx": ["wind"], "ambience": "surf", "music": false },
+        "references": [],
+        "continuity": { "carries_from": null, "screen_direction": "left-to-right", "props": [] },
+        "avoid": ["text on screen"]
+      }
+    }
+  },
+  {
+    "name": "edge contradictory move refused",
+    "output": {
+      "risk": "The request said static and orbit. One move is kept: static.",
+      "shot": {
+        "shot_id": "S09-01",
+        "duration_s": 4,
+        "subject": "child at a window",
+        "action": "watches rain",
+        "setting": "bedroom",
+        "camera": { "size": "close-up", "angle": "eye level", "lens_mm": 50, "move": "static", "pace": "slow" },
+        "lighting": "window as the key, no second move",
+        "audio": { "dialogue": [], "sfx": ["rain"], "ambience": "room", "music": false },
+        "references": [],
+        "continuity": { "carries_from": null, "screen_direction": "left-to-right", "props": [] },
+        "avoid": ["extra people"]
+      }
+    }
+  }
+]

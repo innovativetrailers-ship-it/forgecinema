@@ -1,0 +1,76 @@
+[
+  {
+    "name": "lighthouse climb",
+    "output": {
+      "scene_id": "S03",
+      "intent": "The keeper realises the lamp is still lit.",
+      "coverage_notes": "Establish the tower, then the climb, then the look up.",
+      "shots": [
+        {
+          "shot_id": "S03-01",
+          "duration_s": 6,
+          "subject": "lighthouse tower",
+          "action": "rain hits the glass and the lamp glows",
+          "setting": "coast at night, storm",
+          "audio": { "dialogue": [], "sfx": ["rain on glass"], "ambience": "storm", "music": false },
+          "references": [],
+          "continuity": { "carries_from": null, "screen_direction": "left-to-right", "props": [] },
+          "avoid": ["text on screen"]
+        }
+      ]
+    }
+  },
+  {
+    "name": "two-hander",
+    "output": {
+      "scene_id": "S04",
+      "intent": "She refuses the offer without raising her voice.",
+      "coverage_notes": "Master, then her close-up on the last word.",
+      "shots": [
+        {
+          "shot_id": "S04-01",
+          "duration_s": 5,
+          "subject": "two people at a kitchen table",
+          "action": "he slides a key across the table and she leaves it there",
+          "setting": "small kitchen, morning",
+          "audio": { "dialogue": [], "sfx": ["key on wood"], "ambience": "room tone", "music": false },
+          "references": [],
+          "continuity": { "carries_from": null, "screen_direction": "left-to-right", "props": ["brass key"] },
+          "avoid": ["extra people"]
+        }
+      ]
+    }
+  },
+  {
+    "name": "edge two actions split",
+    "output": {
+      "scene_id": "S05",
+      "intent": "The request was run and then answer the phone. Those are two shots.",
+      "coverage_notes": "Do not put both actions in one five-second clip.",
+      "shots": [
+        {
+          "shot_id": "S05-01",
+          "duration_s": 5,
+          "subject": "courier",
+          "action": "sprints across the wet street",
+          "setting": "city crossing",
+          "audio": { "dialogue": [], "sfx": ["footsteps"], "ambience": "traffic", "music": false },
+          "references": [],
+          "continuity": { "carries_from": null, "screen_direction": "left-to-right", "props": ["satchel"] },
+          "avoid": ["text on screen"]
+        },
+        {
+          "shot_id": "S05-02",
+          "duration_s": 4,
+          "subject": "courier",
+          "action": "stops and answers the phone",
+          "setting": "city crossing",
+          "audio": { "dialogue": [{ "speaker": "COURIER", "voice": "breathless", "line": "I'm here." }], "sfx": [], "ambience": "traffic", "music": false },
+          "references": [{ "id": "img_courier", "role": "character identity" }],
+          "continuity": { "carries_from": "S05-01", "screen_direction": "left-to-right", "props": ["satchel", "phone"] },
+          "avoid": ["text on screen"]
+        }
+      ]
+    }
+  }
+]

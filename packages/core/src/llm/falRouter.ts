@@ -1,6 +1,7 @@
 import { generationPausedFromEnv, requireCallerSource } from '../adapters/chokepoints'
 import { openRouterModelId } from '../logic/openRouterChat'
 import { assertLlmBudget, recordLlmCall } from './runLedger'
+import { assertModelAvailable, logExpertBrief } from './routing'
 
 export class MissingFalRouterKeyError extends Error {
   constructor() {
@@ -19,6 +20,7 @@ export interface FalRouterChatResult {
   model: string
   inputTokens: number
   outputTokens: number
+  finishReason: string | null
 }
 
 export interface FalRouterChatInput {
@@ -63,15 +65,17 @@ function imageUrlsOf(messages: FalRouterMessage[]): string[] {
   return urls
 }
 
-function chatText(data: unknown): { content: string; inputTokens: number; outputTokens: number } {
+function chatText(data: unknown): { content: string; inputTokens: number; outputTokens: number; finishReason: string | null } {
   if (!data || typeof data !== 'object') throw new Error('FAL router returned no text')
   const rec = data as {
     output?: unknown
-    choices?: Array<{ message?: { content?: string | null } }>
+    choices?: Array<{ finish_reason?: string | null; native_finish_reason?: string | null; message?: { content?: string | null } }>
     usage?: { prompt_tokens?: number; completion_tokens?: number }
+    stop_reason?: string
     error?: { message?: string } | string
   }
-  const fromChoice = rec.choices?.[0]?.message?.content
+  const choice = rec.choices?.[0]
+  const fromChoice = choice?.message?.content
   const fromOutput = typeof rec.output === 'string' ? rec.output : ''
   const content = (fromChoice ?? fromOutput).trim()
   if (!content) {
@@ -82,6 +86,7 @@ function chatText(data: unknown): { content: string; inputTokens: number; output
     content,
     inputTokens: rec.usage?.prompt_tokens ?? 0,
     outputTokens: rec.usage?.completion_tokens ?? 0,
+    finishReason: choice?.finish_reason ?? choice?.native_finish_reason ?? rec.stop_reason ?? null,
   }
 }
 
@@ -100,8 +105,9 @@ export async function postFalRouterChat(
     paused.name = 'GenerationPausedError'
     throw paused
   }
-  const key = falRouterKey(input.falKey)
   const model = openRouterModelId(input.model)
+  assertModelAvailable(source, model)
+  const key = falRouterKey(input.falKey)
   const images = imageUrlsOf(input.messages)
   const system = input.messages.find((message) => message.role === 'system')
   const systemPrompt = system ? textOfContent(system.content) : ''
@@ -110,6 +116,9 @@ export async function postFalRouterChat(
     .map((message) => textOfContent(message.content))
     .filter(Boolean)
     .join('\n\n')
+
+  const marked = systemPrompt.match(/^\[expert ([a-z]+) ([^\]]+)\]/)
+  if (marked) logExpertBrief(marked[1], marked[2])
 
   const vision = images.length > 0
   const body = vision
@@ -127,6 +136,7 @@ export async function postFalRouterChat(
         messages: input.messages,
         ...(input.temperature !== undefined ? { temperature: input.temperature } : {}),
         ...(input.webSearch ? { enable_web_search: true } : {}),
+        require_parameters: true,
         ...(input.responseFormat === 'json_object' ? { response_format: { type: 'json_object' } } : {}),
       }
 

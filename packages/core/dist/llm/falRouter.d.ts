@@ -16,6 +16,7 @@ export interface FalRouterChatResult {
     model: string;
     inputTokens: number;
     outputTokens: number;
+    finishReason: string | null;
 }
 export interface FalRouterChatInput {
     model: string;

@@ -59,6 +59,7 @@ const happyhorse_1 = require("./happyhorse");
 const ltx_1 = require("./ltx");
 const hailuo_1 = require("./hailuo");
 const omni_1 = require("./omni");
+const registry_2 = require("../experts/video/registry");
 const EXPOSURE_ID = { 'hailuo-02': 'hailuo', 'gemini-omni-flash': 'gemini-omni' };
 const emptyLearned = () => {
     const learned = {};
@@ -263,6 +264,7 @@ function buildEntry(id, mode, row) {
         embedding: embedNeed([...strengths, ...bestFor, id]),
         loraCapable: false,
         loraEndpoints: [],
+        parameterSeed: (0, registry_2.expertSeedForKnowledge)(id),
     };
 }
 function seedStore() {

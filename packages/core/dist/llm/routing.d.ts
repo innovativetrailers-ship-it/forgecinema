@@ -36,3 +36,18 @@ export declare function llmModelForTask(task: BrainTask, opts?: {
     tone?: BrainTone;
     budget?: BrainBudget;
 }): BrainModelChoice;
+/** Every id this table can send. Verification reads this. It does not change the table. */
+export declare function routedModelIds(): string[];
+/** Logged on every expert-brief call. The version is the brief's BRIEF_VERSION. */
+export declare function logExpertBrief(role: string, version: string): void;
+export declare class ModelUnavailableError extends Error {
+    readonly role: string;
+    readonly modelId: string;
+    readonly reason: string;
+    constructor(role: string, modelId: string, reason: string);
+}
+/** Test and startup hook. Replaces the on-disk verification cache. */
+export declare function applyVerificationCache(missing: readonly string[]): void;
+export declare function resetVerificationCache(): void;
+/** Throws when the verification cache marks this id missing. Does not pick another model. */
+export declare function assertModelAvailable(role: string, modelId: string): void;

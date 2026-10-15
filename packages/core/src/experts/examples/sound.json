@@ -1,0 +1,39 @@
+[
+  {
+    "name": "quoted line",
+    "output": {
+      "shot_id": "S03-02",
+      "native_audio": true,
+      "sound_plan": null,
+      "audio": {
+        "dialogue": [{ "speaker": "KEEPER", "voice": "gravelly, low", "line": "She's still burning." }],
+        "sfx": ["boots on iron steps"],
+        "ambience": "storm, distant waves",
+        "music": false
+      }
+    }
+  },
+  {
+    "name": "no dialogue",
+    "output": {
+      "shot_id": "S03-01",
+      "native_audio": true,
+      "sound_plan": null,
+      "audio": { "dialogue": [], "sfx": ["wind"], "ambience": "surf", "music": false }
+    }
+  },
+  {
+    "name": "edge model has no native audio",
+    "output": {
+      "shot_id": "S08-01",
+      "native_audio": false,
+      "sound_plan": "Lay the line and the room tone in the sound edit. Do not ask the picture model for audio.",
+      "audio": {
+        "dialogue": [{ "speaker": "KEEPER", "voice": "gravelly, low", "line": "She's still burning." }],
+        "sfx": [],
+        "ambience": "storm",
+        "music": false
+      }
+    }
+  }
+]

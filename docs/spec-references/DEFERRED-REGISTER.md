@@ -1,5 +1,9 @@
 # Deferred register
 
+Run 52: the desktop app still loads `@cinema/core` from its pin archive, so the expert briefs are in the shared package and on the web build, and they are not in the pinned desktop snapshot. Trigger: the next desktop core pin. Do not pin from this run.
+
+
+
 Wave 1 closed Section A (honesty), Section B subtitle translation, clip delete, and MultiCam, Section N D4 (alignment into lip-sync and per-shot SFX), and Section L (Simple interpreted message). Those rows are gone.
 
 Wave 2 closed register H (MP-13 chained continuity).

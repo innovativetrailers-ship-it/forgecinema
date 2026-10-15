@@ -76,6 +76,17 @@ export interface ModelKnowledgeEntry {
     /** Verified /lora inference ids. Empty on council models — LoRA ids are not auto-pooled. */
     loraCapable: boolean;
     loraEndpoints: string[];
+    /**
+     * Layer 1 seed from the expert video registry.
+     * maxDuration on this entry stays with the live mode model when that model has a duration spec.
+     */
+    parameterSeed: {
+        registryId: string;
+        maxDuration: number | null;
+        negative: 'field' | 'prose' | 'never';
+        sourceTier: 'T1' | 'T2' | 'T3' | 'U';
+        status: 'live' | 'unverified' | 'retired';
+    } | null;
 }
 export interface ModelNeed {
     purpose: ShotPurpose;

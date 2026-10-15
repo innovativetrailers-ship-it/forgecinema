@@ -4,6 +4,9 @@
  * Verified router family 2026-09-28: openrouter/router, /vision, /openai/v1/chat/completions.
  */
 
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
 import { OPEN_WEIGHT_BASES } from '../logic/trainerRegistry'
 
 export type BrainTask =
@@ -129,6 +132,7 @@ export function llmModelForTask(
     if (choice.substituted) {
       console.log('[brain_route_substituted]', JSON.stringify(choice))
     }
+    assertModelAvailable(task, choice.model)
     return choice
   }
   if (opts?.tone === 'dark' && (task === 'script' || task === 'character')) {
@@ -139,6 +143,7 @@ export function llmModelForTask(
       reason: 'tone-dark',
     }
     console.log('[brain_route_substituted]', JSON.stringify(choice))
+    assertModelAvailable(task, choice.model)
     return choice
   }
   if (opts?.tone === 'polished' && task === 'script' && !route.primary.startsWith('anthropic/')) {
@@ -149,7 +154,77 @@ export function llmModelForTask(
       reason: 'tone-polished',
     }
     console.log('[brain_route_substituted]', JSON.stringify(choice))
+    assertModelAvailable(task, choice.model)
     return choice
   }
+  assertModelAvailable(task, route.primary)
   return { model: route.primary, task, substituted: false, reason: 'primary' }
+}
+
+/** Every id this table can send. Verification reads this. It does not change the table. */
+export function routedModelIds(): string[] {
+  const ids = new Set<string>()
+  for (const route of Object.values(BRAIN_ROUTES)) {
+    ids.add(route.primary)
+    for (const fallback of route.fallbacks) ids.add(fallback)
+  }
+  return [...ids]
+}
+
+/** Logged on every expert-brief call. The version is the brief's BRIEF_VERSION. */
+export function logExpertBrief(role: string, version: string): void {
+  console.log('[expert_brief]', JSON.stringify({ role, version }))
+}
+
+const STYLE_UNAVAILABLE = 'This style is temporarily unavailable'
+
+export class ModelUnavailableError extends Error {
+  readonly role: string
+  readonly modelId: string
+  readonly reason: string
+
+  constructor(role: string, modelId: string, reason: string) {
+    super(STYLE_UNAVAILABLE)
+    this.name = 'ModelUnavailableError'
+    this.role = role
+    this.modelId = modelId
+    this.reason = reason
+  }
+}
+
+let cacheOverride: Set<string> | null = null
+let cacheLoaded: Set<string> | null = null
+
+/** Test and startup hook. Replaces the on-disk verification cache. */
+export function applyVerificationCache(missing: readonly string[]): void {
+  cacheOverride = new Set(missing)
+}
+
+export function resetVerificationCache(): void {
+  cacheOverride = null
+  cacheLoaded = null
+}
+
+function missingFromCache(): Set<string> {
+  if (cacheOverride) return cacheOverride
+  if (cacheLoaded) return cacheLoaded
+  cacheLoaded = new Set()
+  try {
+    const raw = readFileSync(resolve(process.cwd(), 'docs/model-route-cache.json'), 'utf8')
+    const parsed = JSON.parse(raw) as { missing?: unknown }
+    if (Array.isArray(parsed.missing)) {
+      cacheLoaded = new Set(parsed.missing.filter((id): id is string => typeof id === 'string'))
+    }
+  } catch (err) {
+    console.warn('[model_unavailable]', err instanceof Error ? err.message : err)
+  }
+  return cacheLoaded
+}
+
+/** Throws when the verification cache marks this id missing. Does not pick another model. */
+export function assertModelAvailable(role: string, modelId: string): void {
+  if (!missingFromCache().has(modelId)) return
+  const reason = 'missing from the verification cache'
+  console.error('[model_unavailable]', JSON.stringify({ role, modelId, reason }))
+  throw new ModelUnavailableError(role, modelId, reason)
 }

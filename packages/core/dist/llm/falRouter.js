@@ -5,6 +5,7 @@ exports.postFalRouterChat = postFalRouterChat;
 const chokepoints_1 = require("../adapters/chokepoints");
 const openRouterChat_1 = require("../logic/openRouterChat");
 const runLedger_1 = require("./runLedger");
+const routing_1 = require("./routing");
 class MissingFalRouterKeyError extends Error {
     constructor() {
         super('FAL_KEY is not set — cannot reach the language router.');
@@ -44,7 +45,8 @@ function chatText(data) {
     if (!data || typeof data !== 'object')
         throw new Error('FAL router returned no text');
     const rec = data;
-    const fromChoice = rec.choices?.[0]?.message?.content;
+    const choice = rec.choices?.[0];
+    const fromChoice = choice?.message?.content;
     const fromOutput = typeof rec.output === 'string' ? rec.output : '';
     const content = (fromChoice ?? fromOutput).trim();
     if (!content) {
@@ -55,6 +57,7 @@ function chatText(data) {
         content,
         inputTokens: rec.usage?.prompt_tokens ?? 0,
         outputTokens: rec.usage?.completion_tokens ?? 0,
+        finishReason: choice?.finish_reason ?? choice?.native_finish_reason ?? rec.stop_reason ?? null,
     };
 }
 /**
@@ -69,8 +72,9 @@ async function postFalRouterChat(input, fetchImpl = fetch) {
         paused.name = 'GenerationPausedError';
         throw paused;
     }
-    const key = falRouterKey(input.falKey);
     const model = (0, openRouterChat_1.openRouterModelId)(input.model);
+    (0, routing_1.assertModelAvailable)(source, model);
+    const key = falRouterKey(input.falKey);
     const images = imageUrlsOf(input.messages);
     const system = input.messages.find((message) => message.role === 'system');
     const systemPrompt = system ? textOfContent(system.content) : '';
@@ -79,6 +83,9 @@ async function postFalRouterChat(input, fetchImpl = fetch) {
         .map((message) => textOfContent(message.content))
         .filter(Boolean)
         .join('\n\n');
+    const marked = systemPrompt.match(/^\[expert ([a-z]+) ([^\]]+)\]/);
+    if (marked)
+        (0, routing_1.logExpertBrief)(marked[1], marked[2]);
     const vision = images.length > 0;
     const body = vision
         ? {
@@ -95,6 +102,7 @@ async function postFalRouterChat(input, fetchImpl = fetch) {
             messages: input.messages,
             ...(input.temperature !== undefined ? { temperature: input.temperature } : {}),
             ...(input.webSearch ? { enable_web_search: true } : {}),
+            require_parameters: true,
             ...(input.responseFormat === 'json_object' ? { response_format: { type: 'json_object' } } : {}),
         };
     const started = Date.now();

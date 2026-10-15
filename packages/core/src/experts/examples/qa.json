@@ -1,0 +1,66 @@
+[
+  {
+    "name": "confirmed extra finger",
+    "output": {
+      "quality_score": 2,
+      "description_match": 4,
+      "physics_accuracy": 4,
+      "character_accuracy": 2,
+      "defects": [{
+        "category": "hand_artifact",
+        "evidence": "left hand has six fingers in Frame 05",
+        "frames": ["05"],
+        "t_start": 2,
+        "t_end": 2.5,
+        "present": true,
+        "confirmed": true,
+        "severity": "major",
+        "region": { "x": 0.41, "y": 0.52, "w": 0.12, "h": 0.15 }
+      }],
+      "issues_found": ["extra finger"],
+      "needs_repaint": true,
+      "repaint_regions": [{
+        "description": "left hand",
+        "x": 0.41, "y": 0.52, "width": 0.12, "height": 0.15,
+        "start_time": 2, "end_time": 2.5,
+        "repair_prompt": "five fingers on the left hand",
+        "suggested_repair_model": ""
+      }],
+      "accept": false
+    }
+  },
+  {
+    "name": "clean accept",
+    "output": {
+      "quality_score": 5,
+      "description_match": 5,
+      "physics_accuracy": 4,
+      "character_accuracy": 5,
+      "defects": [],
+      "issues_found": [],
+      "needs_repaint": false,
+      "repaint_regions": [],
+      "accept": true
+    }
+  },
+  {
+    "name": "edge unconfirmed defect",
+    "output": {
+      "quality_score": 3,
+      "description_match": 3,
+      "physics_accuracy": 3,
+      "character_accuracy": 3,
+      "defects": [{
+        "category": "camera_drift",
+        "evidence": "the move feels faster than asked",
+        "present": true,
+        "confirmed": true,
+        "severity": "minor"
+      }],
+      "issues_found": ["camera drift, no frame cited"],
+      "needs_repaint": true,
+      "repaint_regions": [],
+      "accept": false
+    }
+  }
+]
