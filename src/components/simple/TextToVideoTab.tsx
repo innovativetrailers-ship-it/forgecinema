@@ -166,7 +166,7 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited
       {/* Quality pills */}
       <div>
         <p className="text-xs text-white/40 uppercase tracking-wider mb-2.5 font-medium">Quality</p>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {QUALITY_PILLS.map((pill) => (
             <button
               key={pill.id}

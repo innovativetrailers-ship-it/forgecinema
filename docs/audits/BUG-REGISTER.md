@@ -1,3 +1,9 @@
+# BUG REGISTER — Run 50 layout (2026-10-15)
+
+| ID | Status | What landed |
+|---|---|---|
+| R50-LAYOUT | code + local playwright | The feature request sat on the Generate control, and Ultimate/Advanced/Simple clipped controls with no way to reach them. The request docks bottom-right. The side panel closes with the edge chevron, the panel X, and `[`, and the choice is saved. Under 1500px the top bar keeps Export Film and puts the rest in a more menu. Under 700px Ultimate and Advanced ask for a wider screen and link to Simple. Simple fits a phone width. `e2e/responsive-layout.spec.ts` covers the six viewports. Live check is the production deploy. |
+
 # BUG REGISTER — status after FIX WAVE 3 (2026-10-04)
 
 Wave 3 closed the 2026-10-04 audit residuals. Job counts now: CANCELLED 90 (tagged historical residue, not re-queued), NEEDS_ATTENTION 8, FAILED 7, COMPLETE 2, PROCESSING 0. Plates link to Asset kind `location`. `VaultLocation` is empty by design. Legacy `needs_action` / `resolved` asset states are rewritten to `unresolved` / `imported` / `generated`. Internal accounts stay balance 0 and are excluded from the ledger rewrite. The 90 cancelled jobs are the pre-fix double-worker residue.

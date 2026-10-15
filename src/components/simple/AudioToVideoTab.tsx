@@ -245,7 +245,7 @@ export function AudioToVideoTab({ onGenerated, creditBalance }: Props) {
       {/* Style presets */}
       <div>
         <p className="text-xs text-white/40 uppercase tracking-wider mb-2.5 font-medium">Visual Style</p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {STYLE_PRESETS.map((s) => (
             <button
               key={s.id}

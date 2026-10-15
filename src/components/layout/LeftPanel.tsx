@@ -13,6 +13,7 @@ import { TrainingStudioPanel } from '@/components/training/TrainingStudioPanel'
 import { TranslatePanel } from '@/components/panels/TranslatePanel'
 import { ComingPanel, TransitionsPanel, AudioStudioPanel, VfxPanel, CgiPanel, StockPanel, BrandKitPanel, AvatarPanel, HighlightPanel } from '@/components/panels/RailTools'
 import { X } from 'lucide-react'
+import { useSidePanel } from '@/components/layout/useSidePanel'
 
 const PANEL_MAP: Partial<Record<PanelId, React.ReactNode>> = {
   generate:    <GeneratePanel />,
@@ -42,7 +43,8 @@ const PANEL_MAP: Partial<Record<PanelId, React.ReactNode>> = {
 }
 
 export function LeftPanel() {
-  const { activePanel, setActivePanel } = useUIStore()
+  const { activePanel } = useUIStore()
+  const setOpen = useSidePanel((s) => s.setOpen)
 
   if (!activePanel) return null
 
@@ -64,13 +66,14 @@ export function LeftPanel() {
   }
 
   return (
-    <aside className={`${activePanel === 'training' || activePanel === 'vfx' ? 'w-[520px]' : 'w-[260px]'} shrink-0 flex flex-col bg-[var(--bg-elevated)] border-r border-[var(--border)] overflow-hidden`}>
+    <aside className={`${activePanel === 'training' || activePanel === 'vfx' ? 'w-[520px]' : 'w-[260px]'} min-w-0 shrink-0 flex flex-col bg-[var(--bg-elevated)] border-r border-[var(--border)] overflow-hidden`}>
       <div className="flex items-center justify-between px-3 h-8 border-b border-[var(--border)] shrink-0">
         <span className="panel-label">{PANEL_LABELS[activePanel]}</span>
         <button
-          onClick={() => setActivePanel(null)}
+          onClick={() => setOpen(false)}
           className="text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
           title="Close panel"
+          aria-label="Close panel"
         >
           <X size={12} />
         </button>

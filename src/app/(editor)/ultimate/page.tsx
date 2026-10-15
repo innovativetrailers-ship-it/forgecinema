@@ -6,6 +6,9 @@ import { nanoid } from 'nanoid'
 import { TopBar } from '@/components/layout/TopBar'
 import { IconRail } from '@/components/layout/IconRail'
 import { LeftPanel } from '@/components/layout/LeftPanel'
+import { SideColumn } from '@/components/layout/SideColumn'
+import { NarrowEditorNotice } from '@/components/layout/NarrowEditorNotice'
+import { useViewportWidth } from '@/components/layout/useSidePanel'
 import { useUIStore, type PanelId } from '@/store/ui'
 import { useStudioStore } from '@/store/editor'
 import { splitClipAt } from '@/lib/timeline/editOps'
@@ -579,23 +582,26 @@ export default function UltimatePage() {
   }
 
   const selectedClipForCGI = selectedClip
+  const viewportWidth = useViewportWidth()
 
   return (
-    <div className="flex flex-col h-screen bg-[var(--bg-base)] text-[var(--text-primary)] overflow-hidden">
+    <div className="flex flex-col h-screen min-w-0 bg-[var(--bg-base)] text-[var(--text-primary)] overflow-hidden">
       <TopBar />
 
-      {/* Body: IconRail | left panel | centre | right panel */}
-      <div className="flex flex-1 w-full overflow-hidden">
+      {viewportWidth !== null && viewportWidth < 700 ? (
+        <NarrowEditorNotice mode="Ultimate" />
+      ) : (
+      <div className="flex min-h-0 w-full min-w-0 flex-1 overflow-x-auto overflow-y-hidden">
         <IconRail />
 
-        {/* Film-grade left panel — or icon-rail panel when a non-film panel is active */}
+        <SideColumn>
         {activePanel && !FILM_PANEL_IDS.has(activePanel) ? (
           <LeftPanel />
         ) : null}
 
         <div
-          className={`flex flex-col border-r border-[var(--border)] transition-all duration-200 flex-shrink-0 bg-[var(--bg-elevated)]
-            ${activePanel && !FILM_PANEL_IDS.has(activePanel) ? 'w-0 overflow-hidden' : 'w-[360px]'}`}
+          className={`flex min-w-0 flex-col border-r border-[var(--border)] flex-shrink-0 overflow-hidden bg-[var(--bg-elevated)]
+            ${activePanel && !FILM_PANEL_IDS.has(activePanel) ? 'w-0' : 'w-[360px]'}`}
         >
           {/* Panel content. The top bar chooses the workspace. */}
           {(
@@ -684,8 +690,9 @@ export default function UltimatePage() {
             </div>
           )}
         </div>
+        </SideColumn>
 
-        <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div data-program-monitor className="relative z-10 flex min-w-[40vw] flex-1 flex-col overflow-hidden">
           <EditorDock
             userId={session?.user?.email ?? null}
             recipe={timelineRecipe}
@@ -743,6 +750,7 @@ export default function UltimatePage() {
           />
         </div>
       </div>
+      )}
 
       {/* RepaintModal */}
       {repaintClip && (

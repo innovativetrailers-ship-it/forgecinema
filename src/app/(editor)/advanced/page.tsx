@@ -8,6 +8,9 @@ import { TopBar } from '@/components/layout/TopBar'
 import { IconRail } from '@/components/layout/IconRail'
 import { LeftPanel } from '@/components/layout/LeftPanel'
 import { RightPanel } from '@/components/layout/RightPanel'
+import { SideColumn } from '@/components/layout/SideColumn'
+import { NarrowEditorNotice } from '@/components/layout/NarrowEditorNotice'
+import { useViewportWidth } from '@/components/layout/useSidePanel'
 import { InteractivePlayer } from '@/components/playback/InteractivePlayer'
 import { Timeline } from '@/components/editor/Timeline'
 import { ImportClipButton } from '@/components/editor/ImportClipButton'
@@ -411,17 +414,24 @@ export default function AdvancedPage() {
  setIsExporting(false) }
   }
 
+  const viewportWidth = useViewportWidth()
+  const inspectorBeside = viewportWidth !== null && viewportWidth >= 1100
+
   return (
-    <div className="flex flex-col h-screen bg-[var(--bg-base)] text-[var(--text-primary)] overflow-hidden">
+    <div className="flex flex-col h-screen min-w-0 bg-[var(--bg-base)] text-[var(--text-primary)] overflow-hidden">
       <TopBar />
 
-      {/* Main body */}
-      <div className="flex flex-1 overflow-hidden">
+      {viewportWidth !== null && viewportWidth < 700 ? (
+        <NarrowEditorNotice mode="Advanced" />
+      ) : (
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden">
         <IconRail />
-        <LeftPanel />
+        <SideColumn>
+          <LeftPanel />
+        </SideColumn>
 
         {/* Centre: preview + timeline */}
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div data-program-monitor className="flex min-w-[40vw] flex-1 flex-col overflow-hidden">
           <InteractivePlayer
             clips={allClips}
             tracks={timelineRecipe.tracks}
@@ -457,10 +467,19 @@ export default function AdvancedPage() {
               onScrollChange={setScrollOffset}
             />
           </ErrorBoundary>
+          {!inspectorBeside && (
+            <details className="shrink-0 border-t border-[var(--border)] bg-[var(--bg-elevated)]">
+              <summary className="cursor-pointer px-3 py-2 text-[11px] text-[var(--text-secondary)]">Inspector</summary>
+              <div className="h-64 overflow-auto">
+                <RightPanel fill />
+              </div>
+            </details>
+          )}
         </div>
 
-        <RightPanel />
+        {inspectorBeside && <RightPanel />}
       </div>
+      )}
 
       {repaintClip && (
         <RepaintModal

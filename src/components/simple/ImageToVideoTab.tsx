@@ -193,7 +193,7 @@ export function ImageToVideoTab({ onGenerated, creditBalance, unlimited = false 
       </div>
 
       {/* Quality */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {QUALITY_PILLS.map((pill) => (
           <button
             key={pill.id}

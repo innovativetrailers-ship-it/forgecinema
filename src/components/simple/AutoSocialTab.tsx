@@ -213,7 +213,7 @@ export function AutoSocialTab({ onRecipeReady }: Props) {
           {/* Platform */}
           <div>
             <p className="text-xs text-white/40 uppercase tracking-wider mb-2.5 font-medium">Target Platform</p>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {PLATFORM_OPTIONS.map((p) => (
                 <button
                   key={p.id}

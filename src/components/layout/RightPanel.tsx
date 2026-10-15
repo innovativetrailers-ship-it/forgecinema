@@ -27,15 +27,15 @@ export function RightPanel({ initialTab, fill = false }: { initialTab?: RightTab
   const { selectedClipId } = useStudioStore()
 
   return (
-    <aside className={fill ? 'flex h-full min-h-0 w-full flex-col bg-[var(--bg-elevated)]' : 'w-[220px] shrink-0 flex flex-col bg-[var(--bg-elevated)] border-l border-[var(--border)]'}>
+    <aside className={fill ? 'flex h-full min-h-0 w-full min-w-0 flex-col bg-[var(--bg-elevated)]' : 'w-[220px] min-w-0 shrink-0 overflow-hidden flex flex-col bg-[var(--bg-elevated)] border-l border-[var(--border)]'}>
       {/* Tab bar */}
-      <div className="flex border-b border-[var(--border)] shrink-0">
+      <div className="flex overflow-x-auto border-b border-[var(--border)] shrink-0">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
             className={cn(
-              'flex-1 py-1.5 text-[9px] font-semibold uppercase tracking-wide transition-all',
+              'shrink-0 px-2 py-1.5 text-[9px] font-semibold uppercase tracking-wide transition-all',
               activeTab === t.id
                 ? 'text-[var(--teal-bright)] border-b-2 border-[var(--teal-bright)] bg-[var(--teal-glow)]'
                 : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'

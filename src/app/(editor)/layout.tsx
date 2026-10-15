@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { KeyboardHandler } from '@/components/layout/KeyboardHandler'
+import { SidePanelPersistence } from '@/components/layout/useSidePanel'
 import { CreditPurchaseModal } from '@/components/layout/CreditPurchaseModal'
 import { ContextMenu } from '@/components/ui/ContextMenu'
 import { CollabOverlay } from '@/components/editor/CollabOverlay'
@@ -21,6 +22,7 @@ export default function EditorLayout({ children }: { children: ReactNode }) {
       <ContextMenu />
       {/* Global keyboard handler — no UI rendered */}
       <KeyboardHandler />
+      <SidePanelPersistence />
       {/* Real-time presence indicators + conflict notifications */}
       <CollabOverlay />
     </div>

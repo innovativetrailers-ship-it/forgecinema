@@ -372,7 +372,7 @@ export function GeneratePanel() {
       )}
 
       {/* Credits + Generate */}
-      <div className="mt-auto pt-2 border-t border-[#1a1f2e]">
+      <div className="sticky bottom-0 z-10 mt-auto border-t border-[#1a1f2e] bg-[var(--bg-elevated)] pt-2">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

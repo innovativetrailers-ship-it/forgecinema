@@ -185,3 +185,18 @@
   max-height: none;
   object-fit: contain;
 }
+
+.dv-groupview,
+.dv-tabs-and-actions-container {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dv-tabs-container {
+  min-width: 0;
+  overflow-x: auto !important;
+}
+
+details:not([open]) > *:not(summary) {
+  display: none;
+}

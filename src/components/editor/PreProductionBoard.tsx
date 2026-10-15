@@ -14,6 +14,7 @@ export function PreProductionBoard({ projectId }: { projectId: string }) {
   const [owned, setOwned] = useState(false)
   const [consent, setConsent] = useState(false)
   const [variantLabel, setVariantLabel] = useState<Record<string, string>>({})
+  const [expanded, setExpanded] = useState(false)
 
   const load = useCallback(async () => {
     if (!projectId) return
@@ -163,13 +164,17 @@ export function PreProductionBoard({ projectId }: { projectId: string }) {
   ]
 
   return (
-    <section className="border-t border-white/10 p-3 text-xs text-white/80">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="text-sm text-white">Pre-production</h2>
+    <section className="shrink-0 border-t border-white/10 text-xs text-white/80">
+      <div className="flex items-center justify-between gap-2 px-3 py-2">
+        <button type="button" className="text-sm text-white" aria-expanded={expanded} onClick={() => setExpanded((open) => !open)}>
+          Pre-production
+        </button>
         <button type="button" className="rounded bg-white/10 px-2 py-1" onClick={() => void skipToDirector()}>
           Skip to Director
         </button>
       </div>
+      {expanded && (
+      <div className="max-h-48 overflow-auto px-3 pb-3">
       <textarea
         className="mb-2 h-20 w-full rounded bg-black/40 p-2"
         placeholder="Paste a production plan, a screenplay, or a loose idea"
@@ -253,6 +258,8 @@ export function PreProductionBoard({ projectId }: { projectId: string }) {
       </label>
       {estimate && <p className="mt-2">{estimate}</p>}
       {status && <p className="mt-2">{status}</p>}
+      </div>
+      )}
     </section>
   )
 }

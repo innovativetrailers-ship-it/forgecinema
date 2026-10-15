@@ -18,7 +18,9 @@ export function mediaIdFromPlaybackUrl(url: string): string | null {
   if (api && api[1] !== 'bins') return decodeURIComponent(api[1])
   if (!OUR_BUCKET.test(url)) return null
   let path = url
-  try { path = new URL(url).pathname } catch { /* already a path */ }
+  try { path = new URL(url).pathname } catch (err) {
+    console.warn('[clip-playback]', err instanceof Error ? err.message : err)
+  }
   const file = path.split('/').filter(Boolean).pop() ?? ''
   const bare = decodeURIComponent(file).replace(/\.(mp4|webm|mov|m4v)$/i, '')
   return bare || null

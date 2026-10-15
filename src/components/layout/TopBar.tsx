@@ -23,8 +23,10 @@ import {
   Hexagon, LogOut, Settings, CreditCard, Loader2, Share2,
   Download, Undo2, Redo2, ZoomIn, ZoomOut, Maximize2,
   MousePointer2, Scissors, Paintbrush, Wind, Type,
-  Save, AlertCircle, Monitor, Lock,
+  Save, AlertCircle, Monitor, Lock, MoreHorizontal,
 } from 'lucide-react'
+import { ScrollStrip } from '@/components/layout/ScrollStrip'
+import { useViewportWidth } from '@/components/layout/useSidePanel'
 
 // Forge Extreme (V3 desktop) — always links to /download (page handles tier gating).
 function ForgeExtremeButton() {
@@ -217,6 +219,9 @@ export function TopBar() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
+  const viewportWidth = useViewportWidth()
+  const phone = viewportWidth !== null && viewportWidth < 700
+  const crowded = viewportWidth !== null && viewportWidth < 1500
   const user = session?.user
   const initials = user?.name
     ? user.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -225,21 +230,39 @@ export function TopBar() {
   return (
     <>
       {/* ── ROW 1 — Brand + Mode + Account (42px) ── */}
-      <div className="flex items-center gap-3 px-3 h-[42px] border-b border-[var(--border)] bg-[var(--bg-elevated)]">
+      <div className="flex min-w-0 items-center gap-2 px-3 h-[42px] border-b border-[var(--border)] bg-[var(--bg-elevated)]">
         {/* Logo + project name */}
         <div className="flex items-center gap-2 shrink-0">
-          <BrandLogo href="/simple" size={28} wordmark="CINÉMA" />
-          <span className="text-[var(--text-tertiary)]">·</span>
-          <input
-            value={projectName}
-            onChange={(e) => setProjectName(e.target.value)}
-            className="text-xs text-[var(--text-secondary)] bg-transparent border-none outline-none hover:text-[var(--text-primary)] focus:text-[var(--text-primary)] min-w-0 w-36"
-          />
+          <BrandLogo href="/simple" size={28} wordmark="CINÉMA" showWordmark={!phone} />
+          {!phone && <span className="text-[var(--text-tertiary)]">·</span>}
+          {!phone && (
+            <input
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              className="text-xs text-[var(--text-secondary)] bg-transparent border-none outline-none hover:text-[var(--text-primary)] focus:text-[var(--text-primary)] min-w-0 w-36"
+            />
+          )}
         </div>
 
         {/* Mode switcher + tier */}
-        <nav className="flex items-center gap-0.5 flex-1 justify-center">
-          {APP_NAV.map((m) => {
+        <nav className="flex min-w-0 flex-1 items-center gap-0.5 justify-center">
+          {phone ? (
+            <select
+              aria-label="Mode"
+              value={APP_NAV.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))?.href ?? '/simple'}
+              onChange={(event) => {
+                const href = event.target.value
+                const next = APP_NAV.find((item) => item.href === href)
+                if (next?.mode) setMode(next.mode)
+                router.push(href)
+              }}
+              className="max-w-[9rem] rounded-md border border-[var(--border)] bg-transparent px-2 py-1 text-xs text-[var(--text-primary)]"
+            >
+              {APP_NAV.map((item) => (
+                <option key={item.href} value={item.href}>{item.label}</option>
+              ))}
+            </select>
+          ) : APP_NAV.map((m) => {
             const active = m.mode ? mode === m.mode : pathname.startsWith(m.href)
             return (
               <Link
@@ -247,7 +270,7 @@ export function TopBar() {
                 href={m.href}
                 onClick={() => { if (m.mode) setMode(m.mode) }}
                 className={cn(
-                  'relative px-4 py-1 rounded-md text-xs font-medium transition-all',
+                  'relative shrink-0 px-3 py-1 rounded-md text-xs font-medium transition-all',
                   active
                     ? 'text-[var(--teal-bright)] bg-[var(--teal-glow)] border border-[var(--teal-border)]'
                     : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
@@ -258,7 +281,7 @@ export function TopBar() {
             )
           })}
 
-          {isAdvancedOrUltimate && (
+          {isAdvancedOrUltimate && !crowded && (
             <div className="flex items-center gap-0.5 ml-3 pl-3 border-l border-[var(--border)]">
               {TIERS.map((t) => (
                 <button
@@ -284,9 +307,9 @@ export function TopBar() {
 
         {/* Right — jobs + credits + share + export + avatar */}
         <div className="flex items-center gap-2 shrink-0">
-          <JobProgressBadge />
+          {!crowded && <JobProgressBadge />}
 
-          {status === 'authenticated' && (
+          {status === 'authenticated' && !crowded && (
             <button
               onClick={() => setPurchaseOpen(true)}
               className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[var(--teal-glow)] border border-[var(--teal-border)] hover:bg-[rgba(0,229,200,0.18)] transition-colors"
@@ -301,24 +324,52 @@ export function TopBar() {
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => useUIStore.getState().openModal('reviewPortal')}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
-          >
-            <Share2 size={12} />
-            Share
-          </button>
+          {!crowded && (
+            <button
+              type="button"
+              onClick={() => useUIStore.getState().openModal('reviewPortal')}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
+            >
+              <Share2 size={12} />
+              Share
+            </button>
+          )}
 
           <button
             onClick={() => useUIStore.getState().openModal('export')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold bg-[var(--teal-bright)] text-[#03080e] hover:bg-[#00f0d5] transition-colors"
+            className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-semibold bg-[var(--teal-bright)] text-[#03080e] hover:bg-[#00f0d5] transition-colors"
           >
             <Download size={12} />
             Export Film
           </button>
 
-          <ForgeExtremeButton />
+          {!crowded && <ForgeExtremeButton />}
+
+          {crowded && (
+            <DropdownMenu>
+              <DropdownMenuTrigger aria-label="More" className="grid h-7 w-7 place-items-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">
+                <MoreHorizontal size={16} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-[var(--bg-elevated)] border-[var(--border)]">
+                {isAdvancedOrUltimate && TIERS.map((t) => (
+                  <DropdownMenuItem key={t.value} onClick={() => setTier(t.value)} className="text-[12px] cursor-pointer">
+                    {t.label}
+                  </DropdownMenuItem>
+                ))}
+                {status === 'authenticated' && (
+                  <DropdownMenuItem onClick={() => setPurchaseOpen(true)} className="text-[12px] cursor-pointer">
+                    {(isAdmin || unlimited) ? 'DEV' : `${balance.toLocaleString()} credits`}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => useUIStore.getState().openModal('reviewPortal')} className="gap-2 text-[12px] cursor-pointer">
+                  <Share2 className="w-3.5 h-3.5" /> Share
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/download')} className="gap-2 text-[12px] cursor-pointer">
+                  <Download className="w-3.5 h-3.5" /> Download
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {status === 'authenticated' && user ? (
             <DropdownMenu>
@@ -373,10 +424,9 @@ export function TopBar() {
       {/* ── ROW 2 — Film toolbar (Ultimate only, 34px) ── */}
       {isUltimate && (
         <div
-          className="relative flex items-center gap-1 px-3 h-[34px] border-b border-[var(--border)] bg-[var(--bg-elevated)] overflow-x-auto"
+          className="relative flex min-w-0 items-center gap-1 px-1 h-[34px] border-b border-[var(--border)] bg-[var(--bg-elevated)]"
           role="tablist"
           aria-label="Ultimate workspaces"
-          style={{ maskImage: 'linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent)' }}
           onKeyDown={(event) => {
             if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
             const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'))
@@ -385,6 +435,7 @@ export function TopBar() {
             tabs[(next + tabs.length) % tabs.length]?.focus()
           }}
         >
+          <ScrollStrip label="workspaces">
           {WORKSPACE_TABS.map((tab) => {
             const panel = FILM_TAB_TO_PANEL[tab.id]
             const layoutPreset = !panel
@@ -415,19 +466,18 @@ export function TopBar() {
             </button>
             )
           })}
-          <div className="ml-auto flex items-center gap-0.5">
-            {(workspace === 'Editor' || workspace === 'Creator') && EDIT_TOOLS.map((tool) => (
-              <button key={tool.id} type="button" title={`${tool.label} (${tool.key})`} onClick={() => activateTool(tool.id)} className="px-1 text-[10px] text-[var(--text-tertiary)]">{tool.label}</button>
-            ))}
-          </div>
+          {(workspace === 'Editor' || workspace === 'Creator') && EDIT_TOOLS.map((tool) => (
+            <button key={tool.id} type="button" title={`${tool.label} (${tool.key})`} onClick={() => activateTool(tool.id)} className="shrink-0 px-1 text-[10px] text-[var(--text-tertiary)]">{tool.label}</button>
+          ))}
+          </ScrollStrip>
         </div>
       )}
 
       {/* Edit tools sit on the film row in Ultimate. This row is only the advanced editor. */}
       {isAdvancedOrUltimate && !isUltimate && (
-        <div className="flex items-center gap-1 px-3 h-[30px] border-b border-[var(--border)] bg-[var(--bg-elevated)]">
-          {/* Edit tools */}
-          <div className="flex items-center gap-0.5">
+        <div className="flex min-w-0 items-center gap-1 px-1 h-[30px] border-b border-[var(--border)] bg-[var(--bg-elevated)]">
+          <ScrollStrip label="edit tools">
+          <div className="flex shrink-0 items-center gap-0.5">
           {(workspace === 'Editor' || workspace === 'Creator') && EDIT_TOOLS.map((tool) => (
                 <button
                   key={tool.id}
@@ -473,7 +523,7 @@ export function TopBar() {
           <div className="w-px h-4 bg-[var(--border)] mx-1.5" />
 
           {/* Auto-save indicator */}
-          <div className="flex items-center gap-1 ml-auto">
+          <div className="flex shrink-0 items-center gap-1">
             {autoSaveStatus === 'saving' && <Loader2 size={10} className="animate-spin text-[var(--text-tertiary)]" />}
             {autoSaveStatus === 'saved' && <Save size={10} className="text-[var(--success)]" />}
             {autoSaveStatus === 'unsaved' && <AlertCircle size={10} className="text-[var(--warning)]" />}
@@ -481,6 +531,7 @@ export function TopBar() {
               {autoSaveStatus === 'saving' ? 'Saving…' : autoSaveStatus === 'saved' ? 'Saved' : 'Unsaved'}
             </span>
           </div>
+          </ScrollStrip>
         </div>
       )}
 

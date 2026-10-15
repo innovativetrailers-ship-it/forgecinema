@@ -1,4 +1,6 @@
 # MANIFEST — every document, its run, its status (the "nothing is lost" index)
+## Run 50 (2026-10-15) on branch run-43-pricing: web responsive layout and a collapsible side panel. No generation. Pause and prices unchanged.
+
 ## Complete inventory of the final-fixes doc set (2026-09-30). If a file exists it is listed here with a
 ## status. FEED = give to Cursor; DONE = closed/struck; REF = reference (don't feed). Cross-check against
 ## RUN-INDEX-cursor.md (the feed order) + DEFERRED-REGISTER.md (what's not built) + HANDOVER.md (resume).

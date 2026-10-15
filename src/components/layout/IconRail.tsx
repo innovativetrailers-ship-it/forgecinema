@@ -5,8 +5,9 @@ import type { WorkspaceName } from '@/lib/editor/foundation'
 import { cn } from '@/lib/utils'
 import {
   Wand2, Library, Image, Palette, Settings, Boxes,
-  UserRound, Clapperboard, Languages, Blend, Box, AudioLines, Sparkles,
+  UserRound, Clapperboard, Languages, Blend, Box, AudioLines, Sparkles, ChevronRight,
 } from 'lucide-react'
+import { useSidePanel } from '@/components/layout/useSidePanel'
 
 type RailItem = { id: PanelId; icon: React.ReactNode; label: string; dividerBefore?: boolean }
 
@@ -41,6 +42,8 @@ const BOTTOM_ITEMS: RailItem[] = [
 
 export function IconRail() {
   const { activePanel, togglePanel, setWorkspace, setActivePanel } = useUIStore()
+  const panelOpen = useSidePanel((s) => s.open)
+  const setPanelOpen = useSidePanel((s) => s.setOpen)
   const workspaceFor: Partial<Record<PanelId, WorkspaceName>> = {
     vfx: 'Compositor',
     audio: 'Audio',
@@ -73,6 +76,19 @@ export function IconRail() {
           <RailButton item={item} active={activePanel === item.id} onToggle={() => togglePanel(item.id)} />
         </div>
       ))}
+
+      {!panelOpen && (
+        <button
+          type="button"
+          title="Open panel"
+          aria-label="Open panel"
+          data-panel-toggle="open"
+          onClick={() => setPanelOpen(true)}
+          className="mt-1 grid h-8 w-8 place-items-center rounded text-white/70 hover:bg-white/10"
+        >
+          <ChevronRight size={14} />
+        </button>
+      )}
 
       <div className="flex-1" />
       <div className="mx-auto my-1 w-5 h-px bg-[var(--border)]" />

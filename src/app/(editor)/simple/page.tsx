@@ -181,19 +181,19 @@ export default function SimplePage() {
   }, [removeClip])
 
   return (
-    <div className="flex flex-col h-screen bg-[var(--bg-base)] text-[var(--text-primary)] overflow-hidden">
+    <div className="flex h-screen min-w-0 flex-col bg-[var(--bg-base)] text-[var(--text-primary)]">
       <TopBar />
-      <div className="flex-1 overflow-y-auto">
-      <div className="max-w-7xl mx-auto px-4 pt-6 pb-24">
+      <div className="min-w-0 flex-1 overflow-auto">
+      <div className="mx-auto max-w-7xl px-4 pt-6 pb-24">
         {/* Page header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">Studio</h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">Create AI-powered video from any source</p>
         </div>
 
-        <div className="flex gap-8">
+        <div className="flex flex-col gap-8 lg:flex-row">
           {/* Left panel — creation */}
-          <div className="w-[440px] flex-shrink-0">
+          <div className="w-full max-w-[440px] shrink-0">
             <div className="bg-[var(--bg-elevated)] rounded-2xl border border-[var(--border)] overflow-hidden">
               {/* Tabs */}
               <div className="flex border-b border-[var(--border)]">

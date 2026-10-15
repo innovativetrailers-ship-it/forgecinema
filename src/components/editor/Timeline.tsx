@@ -294,7 +294,7 @@ export function Timeline({
   return (
     <div
       ref={timelineRef}
-      className="flex h-full min-h-0 flex-col overflow-hidden bg-[#0c0c14] select-none"
+      className="flex h-full min-h-0 flex-col overflow-x-auto overflow-y-hidden bg-[#0c0c14] select-none"
     >
       {/* Ruler. Height controls sit in the label column, not on a second bar. */}
       <div
