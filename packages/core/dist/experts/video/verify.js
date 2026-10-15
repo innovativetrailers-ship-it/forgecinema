@@ -9,8 +9,8 @@ const SUCCESSORS = [
         note: 'Research names gemini-3.6-flash and gemini-3.8-flash as successors of gemini-3.5-flash. Routed id unchanged.',
     },
     {
-        routed: 'x-ai/grok-4',
-        note: 'Research names x-ai/grok-4.7. Routed id unchanged.',
+        routed: 'x-ai/grok-4.7',
+        note: 'Live dark-creative id. Dated alias x-ai/grok-4.7-20260916. The id is on the OpenRouter list (T1). Adapter style stays T2. x-ai/grok-4 is not on the list.',
     },
     {
         routed: 'openai/gpt-6-astra',
@@ -32,7 +32,7 @@ function reportModelVerification(input) {
     const lines = [
         '# Model verification 2026-10-16',
         '',
-        'No routed model id was changed. This report is a proposal for Neo.',
+        'DARK_CREATIVE is x-ai/grok-4.7. Other routed ids are unchanged. Gemini, GPT, and Haiku successor notes stay proposals.',
         '',
         '## Language routes',
         '',
@@ -80,6 +80,12 @@ function reportModelVerification(input) {
     for (const field of (0, registry_1.unverifiedRegistryFields)()) {
         lines.push(`- ${field.id} ${field.field} (${field.source_tier})`);
     }
+    lines.push('', '## Token caps', '');
+    lines.push('- x-ai/grok-4.7 lists max_tokens, reasoning, and reasoning_effort. Reasoning is mandatory. The lowest effort is low and the default is high. postFalRouterChat forwards max_tokens. The first smoke sent 400 and was billed 1158 completion tokens with finish reason stop. The low-effort re-smoke was billed 977 and 806 completion tokens, still above 400, and the usage payload did not report a separate reasoning count. The cost estimate adds 577 completion tokens, the larger low-effort overrun.');
+    lines.push('- anthropic/claude-sonnet-5 lists max_tokens and max_completion_tokens. Reasoning defaults on at high and can be low. Anthropic requires max_tokens above the reasoning budget, and a reasoning.max_tokens budget is at least 1024.');
+    lines.push('- anthropic/claude-opus-5.5 lists the same token fields. Reasoning is mandatory, default high, lowest low.');
+    lines.push('- google/gemini-3.5-flash-lite lists max_tokens. Reasoning is mandatory. The lowest effort is minimal, and that is the default. A reasoning.max_tokens value is mapped to a thinking level, not a hard token cap.');
+    lines.push('- openai/gpt-6-luna and openai/gpt-6-sol list max_tokens. Reasoning defaults on. none is allowed. openai/gpt-6-astra reasoning is mandatory and its lowest effort is low.');
     lines.push('', '## Proposed diff', '');
     if (!missing.length && !deprecated.length) {
         lines.push('None. Routed ids stay as they are.', '');

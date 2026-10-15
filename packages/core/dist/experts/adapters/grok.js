@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildGrokRequest = buildGrokRequest;
 const routing_1 = require("../../llm/routing");
+const contract_1 = require("../contract");
 const openrouter_1 = require("./openrouter");
 const validate_1 = require("../validate");
 const DEFAULT_LIMITS = {
@@ -23,6 +24,7 @@ function buildGrokRequest(role, input) {
         `Content limits: ${limits.contentLimits}`,
         brief.scope,
         brief.craft,
+        (0, contract_1.renderRoleContract)(role),
     ].join('\n');
     if (/edgy|not afraid to offend/i.test(system)) {
         throw new Error('Grok brief must not use a blanket shock line');
@@ -30,11 +32,12 @@ function buildGrokRequest(role, input) {
     const schema = brief.outputSchema;
     return {
         source_tier: 'T2',
+        reasoning_effort: 'low',
         messages: [
             { role: 'system', content: system },
             { role: 'user', content: input.text },
         ],
-        response_format: { type: 'json_schema', json_schema: { name: 'expert_output', schema } },
+        response_format: { type: 'json_schema', json_schema: { name: 'expert_output', strict: true, schema } },
         openrouter: (0, openrouter_1.openRouterEnvelope)(schema),
     };
 }

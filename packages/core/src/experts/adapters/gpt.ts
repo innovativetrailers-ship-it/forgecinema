@@ -1,4 +1,5 @@
 import { logExpertBrief } from '../../llm/routing'
+import { renderRoleContract } from '../contract'
 import { openRouterEnvelope } from './openrouter'
 import { BoxConversionError } from '../boxes'
 import { ROLE_BRIEFS, type ExpertRole } from '../validate'
@@ -25,7 +26,7 @@ export function buildGptRequest(
   const effort = input.effort ?? 'low'
   const request: GptExpertRequest = {
     messages: [
-      { role: 'system', content: `${brief.identity}\n${brief.scope}\n${brief.craft}` },
+      { role: 'system', content: `${brief.identity}\n${brief.scope}\n${brief.craft}\n${renderRoleContract(role)}` },
       { role: 'user', content: input.text },
     ],
     reasoning_effort: effort,

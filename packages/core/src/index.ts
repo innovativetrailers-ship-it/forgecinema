@@ -885,6 +885,10 @@ export {
   formatGeminiTimestamp,
   buildGptRequest,
   buildGrokRequest,
+  CONTRACT_INSTRUCTION,
+  GROK_REASONING_ALLOWANCE,
+  expertRepairMessage,
+  renderRoleContract,
   openRouterEnvelope,
   VIDEO_EXPERT_REGISTRY,
   unverifiedRegistryFields,
@@ -896,4 +900,4 @@ export {
   reportModelVerification,
 } from './experts'
 export type { ExpertRole, ShotSpec, QaOutput, CompiledShot as ExpertCompiledShot } from './experts'
-export { logExpertBrief, routedModelIds, ModelUnavailableError, applyVerificationCache, resetVerificationCache, assertModelAvailable } from './llm/routing'
+export { logExpertBrief, routedModelIds, DARK_CREATIVE_ALIAS, ModelUnavailableError, applyVerificationCache, resetVerificationCache, assertModelAvailable } from './llm/routing'

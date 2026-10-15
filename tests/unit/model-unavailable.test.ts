@@ -12,7 +12,7 @@ describe('missing routed id', () => {
   })
 
   test('throws a typed error, logs the id, and does not call the provider', async () => {
-    applyVerificationCache(['x-ai/grok-4'])
+    applyVerificationCache(['x-ai/grok-4.7'])
     const errors: string[] = []
     const spy = jest.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
       errors.push(args.map((item) => String(item)).join(' '))
@@ -26,11 +26,11 @@ describe('missing routed id', () => {
       const typed = err as ModelUnavailableError
       expect(typed.message).toBe('This style is temporarily unavailable')
       expect(typed.role).toBe('script')
-      expect(typed.modelId).toBe('x-ai/grok-4')
+      expect(typed.modelId).toBe('x-ai/grok-4.7')
       expect(typed.reason).toContain('missing')
     }
     await expect(postFalRouterChat({
-      model: 'x-ai/grok-4',
+      model: 'x-ai/grok-4.7',
       messages: [{ role: 'user', content: 'A dark stair.' }],
       source: 'model-unavailable-test',
       falKey: 'test-key',
@@ -38,7 +38,7 @@ describe('missing routed id', () => {
     }, fetchImpl)).rejects.toThrow('This style is temporarily unavailable')
     expect(fetchImpl).not.toHaveBeenCalled()
     expect(errors.some((line) => line.includes('[model_unavailable]'))).toBe(true)
-    expect(errors.join('\n')).toContain('x-ai/grok-4')
+    expect(errors.join('\n')).toContain('x-ai/grok-4.7')
     spy.mockRestore()
   })
 })

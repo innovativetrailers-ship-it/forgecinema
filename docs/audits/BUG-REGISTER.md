@@ -1,3 +1,9 @@
+# BUG REGISTER — Run 54 grok schema (2026-10-16)
+
+| ID | Status | What landed |
+|---|---|---|
+| R54-GROK | live | The adapter now sends the director schema and one example. Two Grok 4.7 calls validated. `DARK_CREATIVE` is `x-ai/grok-4.7`. Reasoning stays outside `max_tokens`; the estimate adds 577 tokens. |
+
 # BUG REGISTER — Run 53 grok route (2026-10-16)
 
 | ID | Status | What landed |

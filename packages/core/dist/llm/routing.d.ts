@@ -26,6 +26,8 @@ export declare const OPEN_WEIGHT_MODEL_IDS: readonly ["wan-2.2", "fal-ai/wan/v2.
 export declare function approvedRouteFor(task: BrainTask): string | undefined;
 /** Human approval only. Refuses an open-weight id. */
 export declare function applyApprovedRoute(task: BrainTask, model: string): void;
+/** Dated alias on the OpenRouter list. Presence of the id is T1. The adapter row stays T2. */
+export declare const DARK_CREATIVE_ALIAS = "x-ai/grok-4.7-20260916";
 export interface BrainModelChoice {
     model: string;
     task: BrainTask;

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildClaudeRequest = buildClaudeRequest;
 exports.parseClaudeStop = parseClaudeStop;
 const routing_1 = require("../../llm/routing");
+const contract_1 = require("../contract");
 const openrouter_1 = require("./openrouter");
 const validate_1 = require("../validate");
 const NO_SAMPLING = ['temperature', 'top_p', 'top_k'];
@@ -29,6 +30,7 @@ function buildClaudeRequest(role, input) {
         `<craft>${brief.craft}</craft>`,
         `<failures>${brief.failureModes}</failures>`,
         '<output>Return JSON for the schema. Ask for evidence. Do not add a field named reasoning.</output>',
+        (0, contract_1.renderRoleContract)(role),
     ].join('\n');
     const request = {
         system,

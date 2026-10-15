@@ -1,4 +1,6 @@
 # MANIFEST — every document, its run, its status (the "nothing is lost" index)
+## Run 54 (2026-10-16): Grok 4.7 smoke passed after the schema was sent. `docs/grok-4.7-smoke-2026-10-16.md`. Dark-creative id is `x-ai/grok-4.7`, alias `x-ai/grok-4.7-20260916`.
+
 ## Run 53 (2026-10-16): Grok 4.7 smoke is `docs/grok-4.7-smoke-2026-10-16.md`. The id was not changed. Missing routed ids throw. Pause and prices unchanged.
 
 ## Run 52 (2026-10-16) on branch run-43-pricing: expert briefs and the video registry in `@cinema/core`. Verification report `docs/model-verification-2026-10-16.md`. No routed id changes, no prices changed, pause unchanged. Desktop pin not moved.

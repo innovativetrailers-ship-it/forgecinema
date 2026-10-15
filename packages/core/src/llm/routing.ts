@@ -45,7 +45,7 @@ export const BRAIN_ROUTES: Record<BrainTask, BrainRoute> = {
   },
   script: {
     primary: CREATIVE_TIER_MODEL,
-    fallbacks: ['x-ai/grok-4', 'openai/gpt-6-sol'],
+    fallbacks: ['x-ai/grok-4.7', 'openai/gpt-6-sol'],
   },
   scene: {
     primary: 'google/gemini-3.5-flash-lite',
@@ -103,7 +103,9 @@ export function applyApprovedRoute(task: BrainTask, model: string): void {
 }
 
 const CHEAP_TIER = 'google/gemini-3.5-flash-lite'
-const DARK_CREATIVE = 'x-ai/grok-4'
+const DARK_CREATIVE = 'x-ai/grok-4.7'
+/** Dated alias on the OpenRouter list. Presence of the id is T1. The adapter row stays T2. */
+export const DARK_CREATIVE_ALIAS = 'x-ai/grok-4.7-20260916'
 const POLISHED_CREATIVE = CREATIVE_TIER_MODEL
 
 export interface BrainModelChoice {

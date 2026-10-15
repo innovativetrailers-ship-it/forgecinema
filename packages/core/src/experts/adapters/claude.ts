@@ -1,4 +1,5 @@
 import { logExpertBrief } from '../../llm/routing'
+import { renderRoleContract } from '../contract'
 import { openRouterEnvelope } from './openrouter'
 import { ROLE_BRIEFS, type ExpertRole } from '../validate'
 
@@ -50,6 +51,7 @@ export function buildClaudeRequest(
     `<craft>${brief.craft}</craft>`,
     `<failures>${brief.failureModes}</failures>`,
     '<output>Return JSON for the schema. Ask for evidence. Do not add a field named reasoning.</output>',
+    renderRoleContract(role),
   ].join('\n')
   const request: ClaudeExpertRequest = {
     system,

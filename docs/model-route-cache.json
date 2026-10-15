@@ -1,7 +1,5 @@
 {
   "checkedAt": "2026-10-16",
-  "missing": [
-    "x-ai/grok-4"
-  ],
+  "missing": [],
   "deprecated": []
 }

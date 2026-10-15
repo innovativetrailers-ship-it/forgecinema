@@ -11,11 +11,21 @@ export interface FalRouterMessage {
         };
     }>;
 }
+export interface FalJsonSchemaFormat {
+    type: 'json_schema';
+    json_schema: {
+        name: string;
+        strict?: boolean;
+        schema: unknown;
+    };
+}
+export type FalReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 export interface FalRouterChatResult {
     content: string;
     model: string;
     inputTokens: number;
     outputTokens: number;
+    reasoningTokens: number | null;
     finishReason: string | null;
 }
 export interface FalRouterChatInput {
@@ -29,8 +39,10 @@ export interface FalRouterChatInput {
     ignorePause?: boolean;
     falKey?: string;
     timeoutMs?: number;
-    /** OpenAI JSON mode. The router schema accepts any Chat Completions field. */
-    responseFormat?: 'json_object';
+    /** OpenAI JSON mode, or a strict schema when the model lists structured outputs. */
+    responseFormat?: 'json_object' | FalJsonSchemaFormat;
+    /** Lowest effort the model allows when reasoning is billed outside max_tokens. */
+    reasoningEffort?: FalReasoningEffort;
 }
 /**
  * One LLM egress. Message-shaped calls use the OpenAI-compatible router.

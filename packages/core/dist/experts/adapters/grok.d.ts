@@ -11,10 +11,12 @@ export interface GrokExpertRequest {
         role: 'system' | 'user';
         content: string;
     }>;
+    reasoning_effort: 'low';
     response_format: {
         type: 'json_schema';
         json_schema: {
             name: string;
+            strict?: boolean;
             schema: unknown;
         };
     };

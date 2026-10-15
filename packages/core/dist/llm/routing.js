@@ -5,7 +5,7 @@
  * Verified router family 2026-09-28: openrouter/router, /vision, /openai/v1/chat/completions.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ModelUnavailableError = exports.OPEN_WEIGHT_MODEL_IDS = exports.OPEN_WEIGHT_ROUTE_PIN = exports.BRAIN_ROUTES = exports.MAX_QUALITY_BREAKDOWN_MODEL = exports.CREATIVE_TIER_MODEL = void 0;
+exports.ModelUnavailableError = exports.DARK_CREATIVE_ALIAS = exports.OPEN_WEIGHT_MODEL_IDS = exports.OPEN_WEIGHT_ROUTE_PIN = exports.BRAIN_ROUTES = exports.MAX_QUALITY_BREAKDOWN_MODEL = exports.CREATIVE_TIER_MODEL = void 0;
 exports.approvedRouteFor = approvedRouteFor;
 exports.applyApprovedRoute = applyApprovedRoute;
 exports.llmModelForTask = llmModelForTask;
@@ -34,7 +34,7 @@ exports.BRAIN_ROUTES = {
     },
     script: {
         primary: exports.CREATIVE_TIER_MODEL,
-        fallbacks: ['x-ai/grok-4', 'openai/gpt-6-sol'],
+        fallbacks: ['x-ai/grok-4.7', 'openai/gpt-6-sol'],
     },
     scene: {
         primary: 'google/gemini-3.5-flash-lite',
@@ -88,7 +88,9 @@ function applyApprovedRoute(task, model) {
     console.log('[routing_approved]', JSON.stringify({ task, model: next }));
 }
 const CHEAP_TIER = 'google/gemini-3.5-flash-lite';
-const DARK_CREATIVE = 'x-ai/grok-4';
+const DARK_CREATIVE = 'x-ai/grok-4.7';
+/** Dated alias on the OpenRouter list. Presence of the id is T1. The adapter row stays T2. */
+exports.DARK_CREATIVE_ALIAS = 'x-ai/grok-4.7-20260916';
 const POLISHED_CREATIVE = exports.CREATIVE_TIER_MODEL;
 function llmModelForTask(task, opts) {
     const route = exports.BRAIN_ROUTES[task];

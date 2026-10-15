@@ -24,6 +24,7 @@ export { buildClaudeRequest, parseClaudeStop } from './adapters/claude'
 export { buildGeminiRequest, formatGeminiTimestamp } from './adapters/gemini'
 export { buildGptRequest } from './adapters/gpt'
 export { buildGrokRequest } from './adapters/grok'
+export { CONTRACT_INSTRUCTION, GROK_REASONING_ALLOWANCE, expertRepairMessage, renderRoleContract, requiredTopLevelKeys, roleExample } from './contract'
 export { openRouterEnvelope } from './adapters/openrouter'
 export {
   VIDEO_EXPERT_REGISTRY,

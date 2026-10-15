@@ -1,6 +1,6 @@
 # Model verification 2026-10-16
 
-No routed model id was changed. This report is a proposal for Neo.
+DARK_CREATIVE is x-ai/grok-4.7. Other routed ids are unchanged. Gemini, GPT, and Haiku successor notes stay proposals.
 
 ## Language routes
 
@@ -9,13 +9,13 @@ No routed model id was changed. This report is a proposal for Neo.
 - present anthropic/claude-opus-5.5
 - present openai/gpt-6-astra
 - present anthropic/claude-sonnet-5
-- MISSING x-ai/grok-4
+- present x-ai/grok-4.7
 - present openai/gpt-6-sol
 
 ## Newer successors (report only)
 
 - google/gemini-3.5-flash-lite: Research names gemini-3.6-flash and gemini-3.8-flash as successors of gemini-3.5-flash. Routed id unchanged.
-- x-ai/grok-4: Research names x-ai/grok-4.7. Routed id unchanged.
+- x-ai/grok-4.7: Live dark-creative id. Dated alias x-ai/grok-4.7-20260916. The id is on the OpenRouter list (T1). Adapter style stays T2. x-ai/grok-4 is not on the list.
 - openai/gpt-6-astra: Research names openai/gpt-6.1-sol as the newer GPT-6. Routed id unchanged.
 - openai/gpt-6-sol: Research names openai/gpt-6.1-sol. Routed id unchanged.
 - openai/gpt-6-luna: Research names openai/gpt-6.1-sol. Routed id unchanged.
@@ -75,8 +75,14 @@ No routed model id was changed. This report is a proposal for Neo.
 - runway-gen4.5@fal row (U)
 - runway-gen4.5@fal parameters (U)
 
+## Token caps
+
+- x-ai/grok-4.7 lists max_tokens, reasoning, and reasoning_effort. Reasoning is mandatory. The lowest effort is low and the default is high. postFalRouterChat forwards max_tokens. The first smoke sent 400 and was billed 1158 completion tokens with finish reason stop. The low-effort re-smoke was billed 977 and 806 completion tokens, still above 400, and the usage payload did not report a separate reasoning count. The cost estimate adds 577 completion tokens, the larger low-effort overrun.
+- anthropic/claude-sonnet-5 lists max_tokens and max_completion_tokens. Reasoning defaults on at high and can be low. Anthropic requires max_tokens above the reasoning budget, and a reasoning.max_tokens budget is at least 1024.
+- anthropic/claude-opus-5.5 lists the same token fields. Reasoning is mandatory, default high, lowest low.
+- google/gemini-3.5-flash-lite lists max_tokens. Reasoning is mandatory. The lowest effort is minimal, and that is the default. A reasoning.max_tokens value is mapped to a thinking level, not a hard token cap.
+- openai/gpt-6-luna and openai/gpt-6-sol list max_tokens. Reasoning defaults on. none is allowed. openai/gpt-6-astra reasoning is mandatory and its lowest effort is low.
+
 ## Proposed diff
 
-Not applied. Neo decides.
-
-- x-ai/grok-4 is missing from the model list. Research names x-ai/grok-4.7.
+None. Routed ids stay as they are.

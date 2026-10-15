@@ -15,11 +15,19 @@ export interface FalRouterMessage {
   content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>
 }
 
+export interface FalJsonSchemaFormat {
+  type: 'json_schema'
+  json_schema: { name: string; strict?: boolean; schema: unknown }
+}
+
+export type FalReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+
 export interface FalRouterChatResult {
   content: string
   model: string
   inputTokens: number
   outputTokens: number
+  reasoningTokens: number | null
   finishReason: string | null
 }
 
@@ -34,8 +42,10 @@ export interface FalRouterChatInput {
   ignorePause?: boolean
   falKey?: string
   timeoutMs?: number
-  /** OpenAI JSON mode. The router schema accepts any Chat Completions field. */
-  responseFormat?: 'json_object'
+  /** OpenAI JSON mode, or a strict schema when the model lists structured outputs. */
+  responseFormat?: 'json_object' | FalJsonSchemaFormat
+  /** Lowest effort the model allows when reasoning is billed outside max_tokens. */
+  reasoningEffort?: FalReasoningEffort
 }
 
 function falRouterKey(explicit?: string): string {
@@ -65,12 +75,17 @@ function imageUrlsOf(messages: FalRouterMessage[]): string[] {
   return urls
 }
 
-function chatText(data: unknown): { content: string; inputTokens: number; outputTokens: number; finishReason: string | null } {
+function chatText(data: unknown): { content: string; inputTokens: number; outputTokens: number; reasoningTokens: number | null; finishReason: string | null } {
   if (!data || typeof data !== 'object') throw new Error('FAL router returned no text')
   const rec = data as {
     output?: unknown
     choices?: Array<{ finish_reason?: string | null; native_finish_reason?: string | null; message?: { content?: string | null } }>
-    usage?: { prompt_tokens?: number; completion_tokens?: number }
+    usage?: {
+      prompt_tokens?: number
+      completion_tokens?: number
+      reasoning_tokens?: number
+      completion_tokens_details?: { reasoning_tokens?: number }
+    }
     stop_reason?: string
     error?: { message?: string } | string
   }
@@ -86,8 +101,15 @@ function chatText(data: unknown): { content: string; inputTokens: number; output
     content,
     inputTokens: rec.usage?.prompt_tokens ?? 0,
     outputTokens: rec.usage?.completion_tokens ?? 0,
+    reasoningTokens: rec.usage?.completion_tokens_details?.reasoning_tokens ?? rec.usage?.reasoning_tokens ?? null,
     finishReason: choice?.finish_reason ?? choice?.native_finish_reason ?? rec.stop_reason ?? null,
   }
+}
+
+function responseFormatBody(format: FalRouterChatInput['responseFormat']): Record<string, unknown> {
+  if (!format) return {}
+  if (format === 'json_object') return { response_format: { type: 'json_object' } }
+  return { response_format: format }
 }
 
 /**
@@ -137,7 +159,8 @@ export async function postFalRouterChat(
         ...(input.temperature !== undefined ? { temperature: input.temperature } : {}),
         ...(input.webSearch ? { enable_web_search: true } : {}),
         require_parameters: true,
-        ...(input.responseFormat === 'json_object' ? { response_format: { type: 'json_object' } } : {}),
+        ...(input.reasoningEffort ? { reasoning_effort: input.reasoningEffort } : {}),
+        ...responseFormatBody(input.responseFormat),
       }
 
   const started = Date.now()
@@ -164,11 +187,13 @@ export async function postFalRouterChat(
         ?? (data as { detail?: string }).detail
       : undefined
     const message = err || `FAL router request failed (${response.status}): ${raw.slice(0, 500)}`
-    if (
-      input.responseFormat === 'json_object'
-      && (response.status === 400 || response.status === 422)
-      && /response_format|json_object|structured/i.test(message)
-    ) {
+    const rejectedFormat = (response.status === 400 || response.status === 422)
+      && /response_format|json_object|json_schema|structured/i.test(message)
+    if (rejectedFormat && input.responseFormat && input.responseFormat !== 'json_object') {
+      console.warn('[llm_json_mode] provider rejected the schema; sending the same prompt as JSON object mode', message.slice(0, 240))
+      return postFalRouterChat({ ...input, responseFormat: 'json_object' }, fetchImpl)
+    }
+    if (rejectedFormat && input.responseFormat === 'json_object') {
       console.warn('[llm_json_mode] provider rejected JSON mode; sending the same prompt as text', message.slice(0, 240))
       return postFalRouterChat({ ...input, responseFormat: undefined }, fetchImpl)
     }

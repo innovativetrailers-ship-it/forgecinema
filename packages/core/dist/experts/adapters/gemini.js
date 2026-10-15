@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildGeminiRequest = buildGeminiRequest;
 exports.formatGeminiTimestamp = mmss;
 const routing_1 = require("../../llm/routing");
+const contract_1 = require("../contract");
 const openrouter_1 = require("./openrouter");
 const validate_1 = require("../validate");
 function mmss(seconds) {
@@ -23,6 +24,7 @@ function buildGeminiRequest(role, input) {
         input.text,
         marks ? `Confirm these timestamps: ${marks}. Prefer the labelled frame ids.` : '',
         'Boxes, if you return them, use box_2d as [ymin, xmin, ymax, xmax] from 0 to 1000.',
+        (0, contract_1.renderRoleContract)(role),
     ].filter(Boolean).join('\n\n');
     return {
         contents: [{

@@ -1,4 +1,5 @@
 import { logExpertBrief } from '../../llm/routing'
+import { renderRoleContract } from '../contract'
 import { openRouterEnvelope } from './openrouter'
 import { ROLE_BRIEFS, type ExpertRole } from '../validate'
 
@@ -36,6 +37,7 @@ export function buildGeminiRequest(
     input.text,
     marks ? `Confirm these timestamps: ${marks}. Prefer the labelled frame ids.` : '',
     'Boxes, if you return them, use box_2d as [ymin, xmin, ymax, xmax] from 0 to 1000.',
+    renderRoleContract(role),
   ].filter(Boolean).join('\n\n')
   return {
     contents: [{

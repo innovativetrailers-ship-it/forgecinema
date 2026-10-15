@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildGptRequest = buildGptRequest;
 const routing_1 = require("../../llm/routing");
+const contract_1 = require("../contract");
 const openrouter_1 = require("./openrouter");
 const boxes_1 = require("../boxes");
 const validate_1 = require("../validate");
@@ -14,7 +15,7 @@ function buildGptRequest(role, input) {
     const effort = input.effort ?? 'low';
     const request = {
         messages: [
-            { role: 'system', content: `${brief.identity}\n${brief.scope}\n${brief.craft}` },
+            { role: 'system', content: `${brief.identity}\n${brief.scope}\n${brief.craft}\n${(0, contract_1.renderRoleContract)(role)}` },
             { role: 'user', content: input.text },
         ],
         reasoning_effort: effort,

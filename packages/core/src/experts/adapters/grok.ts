@@ -1,4 +1,5 @@
 import { logExpertBrief } from '../../llm/routing'
+import { renderRoleContract } from '../contract'
 import { openRouterEnvelope } from './openrouter'
 import { ROLE_BRIEFS, type ExpertRole } from '../validate'
 
@@ -12,7 +13,8 @@ export interface GrokLimits {
 export interface GrokExpertRequest {
   source_tier: 'T2'
   messages: Array<{ role: 'system' | 'user'; content: string }>
-  response_format: { type: 'json_schema'; json_schema: { name: string; schema: unknown } }
+  reasoning_effort: 'low'
+  response_format: { type: 'json_schema'; json_schema: { name: string; strict?: boolean; schema: unknown } }
   openrouter: Record<string, unknown>
 }
 
@@ -39,6 +41,7 @@ export function buildGrokRequest(
     `Content limits: ${limits.contentLimits}`,
     brief.scope,
     brief.craft,
+    renderRoleContract(role),
   ].join('\n')
   if (/edgy|not afraid to offend/i.test(system)) {
     throw new Error('Grok brief must not use a blanket shock line')
@@ -46,11 +49,12 @@ export function buildGrokRequest(
   const schema = brief.outputSchema
   return {
     source_tier: 'T2',
+    reasoning_effort: 'low',
     messages: [
       { role: 'system', content: system },
       { role: 'user', content: input.text },
     ],
-    response_format: { type: 'json_schema', json_schema: { name: 'expert_output', schema } },
+    response_format: { type: 'json_schema', json_schema: { name: 'expert_output', strict: true, schema } },
     openrouter: openRouterEnvelope(schema),
   }
 }
