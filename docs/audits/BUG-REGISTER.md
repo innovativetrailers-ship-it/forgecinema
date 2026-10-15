@@ -1,3 +1,9 @@
+# BUG REGISTER — Run 51 monitor size (2026-10-15)
+
+| ID | Status | What landed |
+|---|---|---|
+| R51-MONITOR | code + local playwright | The program picture stayed about 252×142 because the well sized to leftover height and the video box followed the letterbox. The well now fills the monitor (`object-contain`), scopes and clip controls collapse, and the dock keeps the monitor at least 45% of the editor height with a draggable divider. On localhost the picture measured 817×232 with the panel open and 1036×232 closed at 1280, and 1354×586 open and 1572×586 closed at 1920. On a phone the feature request leaves the page and lives in the more menu. Exactly one quality card is selected, and that card's price is the Generate price. Focus rings show for keyboard focus only. `e2e/responsive-layout.spec.ts` covers the picture growth, the uncovered Generate control, and the single selected card. |
+
 # BUG REGISTER — Run 50 layout (2026-10-15)
 
 | ID | Status | What landed |

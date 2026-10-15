@@ -1,12 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { cleanText } from '@/lib/features/request'
+import { useViewportWidth } from '@/components/layout/useSidePanel'
 
 const KINDS = ['feature', 'tool', 'bug', 'other'] as const
 
 export function FeatureRequestButton() {
   const [open, setOpen] = useState(false)
+  const width = useViewportWidth()
+  const phone = width !== null && width < 700
+  useEffect(() => {
+    const openRequest = () => setOpen(true)
+    window.addEventListener('cinema-feature-request', openRequest)
+    return () => window.removeEventListener('cinema-feature-request', openRequest)
+  }, [])
   const [kind, setKind] = useState<(typeof KINDS)[number]>('feature')
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
@@ -47,13 +55,15 @@ export function FeatureRequestButton() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => { setRoute(window.location.pathname); setOpen(true) }}
-        className="fixed z-40 rounded-full bg-white/10 px-3 py-1.5 text-[11px] text-white/80 bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))]"
-      >
-        Request a feature
-      </button>
+      {!phone && (
+        <button
+          type="button"
+          onClick={() => { setRoute(window.location.pathname); setOpen(true) }}
+          className="fixed z-40 rounded-full bg-white/10 px-3 py-1.5 text-[11px] text-white/80 bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))]"
+        >
+          Request a feature
+        </button>
+      )}
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-start bg-black/40 p-4" onClick={() => setOpen(false)}>
           <form

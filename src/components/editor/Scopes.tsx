@@ -132,7 +132,7 @@ export function Scopes({ videoRef, mode = 'waveform' }: Props) {
   }, [videoRef, activeMode])
 
   return (
-    <div className="flex h-full min-h-[160px] flex-col gap-1">
+    <div className="flex h-full min-h-0 flex-col gap-1">
       <div className="flex gap-1 px-1">
         {(['waveform', 'parade', 'vectorscope', 'histogram'] as ScopeMode[]).map(m => (
           <button
@@ -150,7 +150,7 @@ export function Scopes({ videoRef, mode = 'waveform' }: Props) {
         ref={canvasRef}
         width={320}
         height={180}
-        className="h-full min-h-[140px] w-full rounded border border-[#1a1f2e] bg-[#0d1117]"
+        className="h-full min-h-0 w-full rounded border border-[#1a1f2e] bg-[#0d1117]"
       />
     </div>
   )

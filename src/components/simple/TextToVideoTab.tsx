@@ -172,11 +172,14 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited
               key={pill.id}
               onClick={() => setManualQuality(pill.id)}
               disabled={!unlimited && creditBalance !== null && pillQuote(pill.id, actualDuration).credits > creditBalance}
+              aria-pressed={quality === pill.id}
+              data-selected={quality === pill.id ? 'true' : 'false'}
+              data-quality-credits={pillQuote(pill.id, actualDuration).credits}
               className={`
-                group px-3 py-2.5 rounded-xl border text-left transition-all
+                group px-3 py-2.5 rounded-xl border text-left transition-all outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00e5c8]
                 ${quality === pill.id
                   ? 'border-[#00e5c8] bg-[#00e5c8]/15 shadow-sm shadow-[#00e5c8]/15'
-                  : 'border-white/8 bg-white/3 hover:border-white/20 hover:bg-white/5'}
+                  : 'border-white/15 bg-white/3 hover:border-white/20 hover:bg-white/5'}
                 disabled:opacity-30 disabled:cursor-not-allowed
               `}
             >
@@ -184,7 +187,7 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited
                 {pill.label}
               </div>
               <div className="text-[10px] text-white/40">{pill.description}</div>
-              <div className={`text-[10px] mt-1 font-medium ${!unlimited && creditBalance !== null && pillQuote(pill.id, actualDuration).credits > creditBalance ? 'text-red-400' : 'text-[#00e5c8]/70'}`}>
+              <div className={`text-[10px] mt-1 font-medium ${!unlimited && creditBalance !== null && pillQuote(pill.id, actualDuration).credits > creditBalance ? 'text-red-400' : quality === pill.id ? 'text-[#00e5c8]/70' : 'text-white/40'}`}>
                 ⬡ {pillQuote(pill.id, actualDuration).credits}
               </div>
             </button>
@@ -285,6 +288,7 @@ export function TextToVideoTab({ onGenerated, creditBalance, userRole, unlimited
       <button
         onClick={handleGenerate}
         disabled={!prompt.trim() || isLoading || gate.generateDisabled}
+        data-generate-credits={quote.credits}
         className="
           w-full py-4 rounded-xl font-semibold text-base
           bg-gradient-to-r from-teal-500 to-teal-600

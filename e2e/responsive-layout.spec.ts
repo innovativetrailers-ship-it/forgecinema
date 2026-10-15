@@ -68,7 +68,27 @@ async function generateIsClickable(page: Page) {
       return owner?.getAttribute('aria-label') || owner?.getAttribute('title') || owner?.textContent?.trim() || ''
     }, { x: box.x + box.width / 2, y: box.y + box.height / 2 })
     expect(hit).toMatch(/Generate/)
+    if (box.width > 80) {
+      const edge = await page.evaluate(({ x, y }) => {
+        const el = document.elementFromPoint(x, y)
+        const owner = el?.closest('button, a')
+        return owner?.getAttribute('aria-label') || owner?.getAttribute('title') || owner?.textContent?.trim() || ''
+      }, { x: box.x + box.width * 0.7, y: box.y + box.height / 2 })
+      expect(edge).toMatch(/Generate/)
+    }
   }
+}
+
+async function oneSelectedQuality(page: Page) {
+  await expect.poll(async () => page.evaluate(() => {
+    const selected = [...document.querySelectorAll<HTMLElement>('[data-selected="true"]')]
+    const priced = document.querySelector('[data-generate-credits]')
+    if (selected.length === 0 || !priced) return 'absent'
+    if (selected.length !== 1) return `count:${selected.length}`
+    const credits = selected[0].getAttribute('data-quality-credits')
+    const button = priced.getAttribute('data-generate-credits')
+    return credits === button ? 'ok' : `${credits}!=${button}`
+  })).toBe('ok')
 }
 
 async function cyclePanel(page: Page) {
@@ -79,14 +99,19 @@ async function cyclePanel(page: Page) {
     await page.waitForTimeout(300)
   }
   const monitor = page.locator('[data-program-monitor]')
+  const picture = page.locator('[data-program-picture]').first()
   const opened = await monitor.boundingBox()
+  const pictureOpen = await picture.boundingBox()
   const panel = await page.locator('[data-side-panel]').boundingBox()
   expect(opened).toBeTruthy()
+  expect(pictureOpen && pictureOpen.width).toBeGreaterThan(200)
   expect(panel && panel.width).toBeGreaterThan(40)
   await page.getByRole('button', { name: 'Close panel' }).first().click()
   await page.waitForTimeout(300)
   const closed = await monitor.boundingBox()
+  const pictureClosed = await picture.boundingBox()
   expect(closed!.width).toBeGreaterThan(opened!.width + Math.max(40, (panel?.width ?? 0) * 0.6))
+  expect(pictureClosed!.width).toBeGreaterThan(pictureOpen!.width + Math.max(80, (panel?.width ?? 0) * 0.7))
   await page.getByRole('button', { name: 'Open panel' }).click()
   await page.waitForTimeout(300)
   const reopened = await monitor.boundingBox()
@@ -113,6 +138,7 @@ for (const route of ROUTES) {
         await expect(page.getByRole('link', { name: 'Open Simple mode' })).toHaveAttribute('href', '/simple')
       } else {
         await generateIsClickable(page)
+        await oneSelectedQuality(page)
       }
 
       if (route !== '/simple' && viewport.width >= 700 && PANEL_WIDTHS.has(viewport.width)) {

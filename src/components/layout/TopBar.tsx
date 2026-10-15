@@ -367,6 +367,9 @@ export function TopBar() {
                 <DropdownMenuItem onClick={() => router.push('/download')} className="gap-2 text-[12px] cursor-pointer">
                   <Download className="w-3.5 h-3.5" /> Download
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => window.dispatchEvent(new Event('cinema-feature-request'))} className="text-[12px] cursor-pointer">
+                  Request a feature
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}

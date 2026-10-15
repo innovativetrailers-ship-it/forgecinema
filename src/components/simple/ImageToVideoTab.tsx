@@ -199,14 +199,17 @@ export function ImageToVideoTab({ onGenerated, creditBalance, unlimited = false 
             key={pill.id}
             onClick={() => setQuality(pill.id)}
             disabled={!unlimited && creditBalance !== null && pillQuote(pill.id, 5).credits > creditBalance}
+            aria-pressed={quality === pill.id}
+            data-selected={quality === pill.id ? 'true' : 'false'}
+            data-quality-credits={pillQuote(pill.id, 5).credits}
             className={`
-              p-2.5 rounded-xl border text-left transition-all text-xs
-              ${quality === pill.id ? 'border-[#00e5c8] bg-[#00e5c8]/15 text-[#00e5c8]' : 'border-white/8 bg-white/3 text-white/50 hover:border-white/20'}
+              p-2.5 rounded-xl border text-left transition-all text-xs outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00e5c8]
+              ${quality === pill.id ? 'border-[#00e5c8] bg-[#00e5c8]/15 text-[#00e5c8]' : 'border-white/15 bg-white/3 text-white/50 hover:border-white/20'}
               disabled:opacity-30 disabled:cursor-not-allowed
             `}
           >
             <div className="font-medium">{pill.label}</div>
-            <div className="text-[10px] text-[#00e5c8]/70 mt-0.5">⬡ {pillQuote(pill.id, 5).credits}</div>
+            <div className={`text-[10px] mt-0.5 ${quality === pill.id ? 'text-[#00e5c8]/70' : 'text-white/40'}`}>⬡ {pillQuote(pill.id, 5).credits}</div>
           </button>
         ))}
       </div>

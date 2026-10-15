@@ -233,7 +233,10 @@ export function GeneratePanel() {
             <button
               key={key}
               onClick={() => setManualTier(key)}
-              className={`px-2 py-1.5 rounded text-[11px] font-medium border transition ${
+              aria-pressed={tier === key}
+              data-selected={tier === key ? 'true' : 'false'}
+              data-quality-credits={quoteGenerationHold({ tier: key, durationSeconds: duration }).credits}
+              className={`px-2 py-1.5 rounded text-[11px] font-medium border transition outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00e5c8] ${
                 tier === key
                   ? 'border-[#00e5c8] bg-[#00e5c8]/10 text-[#00e5c8]'
                   : 'border-[#2a3040] bg-[#1a1f2e] text-gray-400 hover:border-[#3a4050] hover:text-gray-200'
@@ -392,7 +395,8 @@ export function GeneratePanel() {
         <button
           onClick={handleGenerate}
           disabled={isGenerating || !prompt.trim() || gate.generateDisabled}
-          className="w-full py-2 bg-[#00e5c8] text-black text-xs font-bold rounded-lg hover:bg-[#00d4b8] disabled:opacity-40 disabled:cursor-not-allowed transition"
+          data-generate-credits={quote.credits}
+          className="w-full py-2 bg-[#00e5c8] text-black text-xs font-bold rounded-lg hover:bg-[#00d4b8] disabled:opacity-40 disabled:cursor-not-allowed transition outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
         >
           {isGenerating ? 'Generating...' : 'Generate'}
         </button>

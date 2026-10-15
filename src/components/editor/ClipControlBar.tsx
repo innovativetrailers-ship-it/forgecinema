@@ -97,7 +97,9 @@ export function ClipControlBar({ clip }: { clip: Clip }) {
   }
 
   return (
-    <div className="space-y-1 border-t border-white/10 px-3 py-2 text-[10px] text-white/70">
+    <details className="shrink-0 border-t border-white/10 text-[10px] text-white/70">
+      <summary className="cursor-pointer px-3 py-1 text-white/50">Clip controls</summary>
+      <div className="space-y-1 px-3 pb-2">
       <p className="text-white/40">Control on the clip at the playhead. Generated and imported clips both take it. The picture stays.</p>
       <div className="flex flex-wrap gap-1">
         <input className="w-28 rounded bg-black/40 px-1 py-0.5" placeholder="Lower third" value={title} onChange={(event) => setTitle(event.target.value)} />
@@ -123,6 +125,7 @@ export function ClipControlBar({ clip }: { clip: Clip }) {
         </label>
       </div>
       {note && <p>{note}</p>}
-    </div>
+      </div>
+    </details>
   )
 }

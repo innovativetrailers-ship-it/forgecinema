@@ -611,7 +611,7 @@ function place(api: DockviewApi, workspace: WorkspaceName) {
     })
     api.addPanel({ id: 'timeline', component: 'timeline', title: 'Timeline', position: { referencePanel: tool, direction: 'below' } })
     api.addPanel({ id: 'inspector', component: 'inspector', title: 'Inspector', position: { referencePanel: tool, direction: 'within' } })
-    program.api.setConstraints({ minimumWidth: narrow ? 320 : 480, minimumHeight: 270 })
+    program.api.setConstraints({ minimumWidth: narrow ? 200 : 320, minimumHeight: monitorShare(api) })
     api.getPanel('scopes')?.api.setConstraints({ minimumWidth: 240, minimumHeight: 160 })
     tool.api.setConstraints({ minimumHeight: 120 })
     if (!narrow) program.api.setSize({ width: Math.round((api.width || window.innerWidth) * 0.55) })
@@ -630,11 +630,29 @@ function place(api: DockviewApi, workspace: WorkspaceName) {
       api.addPanel({ id: 'extensions', component: 'extensions', title: 'Extensions', position: { referencePanel: 'inspector', direction: 'within' } })
       api.addPanel({ id: 'transcript', component: 'transcript', title: 'Transcript', position: { referencePanel: 'inspector', direction: 'within' } })
     }
-    program.api.setConstraints({ minimumWidth: 320, minimumHeight: 180 })
+    program.api.setConstraints({ minimumWidth: 200, minimumHeight: monitorShare(api) })
   }
-  const lock = workspace === 'Creator'
-  api.groups.forEach((group) => { group.locked = lock })
+  api.groups.forEach((group) => { group.locked = false })
   api.getPanel('timeline')?.api.setConstraints({ minimumHeight: toolWorkspace ? 64 : 80 })
+  applyMonitorShare(api)
+}
+
+function monitorShare(api: DockviewApi): number {
+  return Math.max(180, Math.round((api.height || 0) * 0.45))
+}
+
+function applyMonitorShare(api: DockviewApi) {
+  const program = api.getPanel('program')
+  if (!program) return
+  const min = monitorShare(api)
+  program.api.setConstraints({ minimumHeight: min, minimumWidth: 200 })
+  if ((program.api.height ?? 0) < min) program.api.setSize({ height: min })
+  for (const id of ['tools', 'scopes']) {
+    const side = api.getPanel(id)
+    if (!side) continue
+    side.api.setConstraints({ minimumWidth: 180, maximumWidth: 200 })
+    if ((side.api.width ?? 0) > 200) side.api.setSize({ width: 200 })
+  }
 }
 
 export function EditorDock({
@@ -672,7 +690,7 @@ export function EditorDock({
     apiRef.current?.getPanel('inspector')?.api.setActive()
   }, [selectedClipId])
   const [workspace, setWorkspace] = useState<WorkspaceName>('Creator')
-  const [locked, setLocked] = useState(true)
+  const [locked, setLocked] = useState(false)
   const [preset, setPreset] = useState<KeymapPresetId>('forge')
   const [keymap, setKeymap] = useState<Keymap>(KEYMAP_PRESETS.forge)
   const [timelineMode, setTimelineMode] = useState<TimelineDockMode>('full')
@@ -776,6 +794,8 @@ export function EditorDock({
     } else {
       place(event.api, useUIStore.getState().workspace)
     }
+    applyMonitorShare(event.api)
+    event.api.groups.forEach((group) => { group.locked = false })
     queueMicrotask(() => { suppressLayoutSave.current = false })
   }
 
@@ -816,7 +836,7 @@ export function EditorDock({
 
   function switchWorkspace(next: WorkspaceName) {
     setWorkspace(next)
-    setLocked(next === 'Creator')
+    setLocked(false)
     setTimelineMode(readPin(next) ?? defaultTimelineMode(next))
     useUIStore.getState().setWorkspace(next)
     const api = apiRef.current
@@ -886,8 +906,11 @@ export function EditorDock({
     const panel = apiRef.current?.getPanel('timeline')
     if (!panel) return
     const height = timelineMode === 'full' ? 280 : timelineMode === 'compact' ? 72 : 28
+    const api = apiRef.current
+    const cap = api ? Math.max(80, Math.round(api.height * 0.55)) : height
     panel.api.setConstraints({ minimumHeight: timelineMode === 'hidden' ? 28 : 64 })
-    panel.api.setSize({ height })
+    panel.api.setSize({ height: Math.min(height, cap) })
+    if (api) applyMonitorShare(api)
   }, [timelineMode])
 
   function toggleLock() {

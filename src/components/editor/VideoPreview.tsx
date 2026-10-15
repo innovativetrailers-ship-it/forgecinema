@@ -215,9 +215,9 @@ export function VideoPreview({
   return (
     <div
       ref={containerRef}
-      className="preview-container relative flex h-full min-h-[270px] min-w-0 flex-col bg-black border-b border-white/8"
+      className="preview-container relative flex h-full min-h-0 min-w-0 flex-1 flex-col bg-black border-b border-white/8"
     >
-      <div className="relative flex flex-1 items-center justify-center bg-[#050508]">
+      <div data-program-picture className="relative min-h-0 flex-1 bg-[#050508]">
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={control ? { transform: `translate(${control.x}px, ${control.y}px) scale(${control.scale}) rotate(${control.rotation}deg)` } : undefined}
@@ -225,13 +225,13 @@ export function VideoPreview({
           {resolvedSrc && canPlaySrc(resolvedSrc) && isVideoMediaUrl(resolvedSrc) && !noMedia ? (
             <video
               ref={videoRef}
-              className="preview-video max-h-full max-w-full object-contain"
+              data-program-picture
+              className="preview-video h-full w-full object-contain"
               style={{
                 ...previewGrade(currentClip),
                 transform: currentClip?.transform
                   ? `translate(${currentClip.transform.x}px, ${currentClip.transform.y}px) scale(${currentClip.transform.scale}) rotate(${currentClip.transform.rotation}deg)`
                   : undefined,
-                objectFit: currentClip?.reframe && currentClip.reframe !== '16:9' ? 'cover' : undefined,
               }}
               crossOrigin="anonymous"
               playsInline
@@ -349,7 +349,14 @@ export function VideoPreview({
           {formatTimecode(duration)}
         </span>
       </div>
-      {!scopesInDock && <Scopes videoRef={videoRef} />}
+      {!scopesInDock && (
+        <details className="shrink-0 border-t border-white/10">
+          <summary className="cursor-pointer px-3 py-1 text-[10px] text-white/50">Scopes</summary>
+          <div className="h-28 overflow-hidden">
+            <Scopes videoRef={videoRef} />
+          </div>
+        </details>
+      )}
       {currentClip && <ClipControlBar clip={currentClip} />}
     </div>
   )

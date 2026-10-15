@@ -235,7 +235,7 @@ export function InteractivePlayer(props: Props) {
         </button>
       </div>
 
-      <div className="flex">
+      <div className="flex min-h-0 flex-1">
         {editMode && (
           <div className="flex flex-col gap-1 p-1.5 border-r border-white/8 bg-[#0d1425]">
             {TOOLS.map((t) => (
