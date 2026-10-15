@@ -1,6 +1,6 @@
 # Deferred register
 
-Run 55: the logo checker is removed. Dark-creative stays `x-ai/grok-4.7`. The route-cache read skips the browser so login can render. The desktop pin moves to the web commit that contains that read; the hash is recorded with the desktop pin.
+Run 55: the logo checker is removed. Dark-creative stays `x-ai/grok-4.7`. The route-cache read skips the browser so login can render. The desktop pin is `11173f84ab155cce73a66f3ad302ba5dab5d88e8`. Desktop version 3.0.13.
 
 Run 54: dark-creative is `x-ai/grok-4.7`. The previous desktop pin was `4483f86de4484f06f9595a1198c91ecacf260108`.
 
