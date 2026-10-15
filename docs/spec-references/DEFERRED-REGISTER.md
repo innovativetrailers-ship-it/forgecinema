@@ -1,6 +1,6 @@
 # Deferred register
 
-Run 54: dark-creative is `x-ai/grok-4.7`. The desktop pin must move to the commit that contains `packages/core/src/experts/contract.ts`. The previous pin was `3880de875b563e775d616c08ae19d9baa5378001`.
+Run 54: dark-creative is `x-ai/grok-4.7`. The desktop pin is `4483f86de4484f06f9595a1198c91ecacf260108`, which contains `packages/core/src/experts/contract.ts`.
 
 
 
