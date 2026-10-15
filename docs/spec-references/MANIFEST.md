@@ -1,5 +1,5 @@
 # MANIFEST — every document, its run, its status (the "nothing is lost" index)
-## Run 55 (2026-10-16): logo checker removed. Master `docs/brand/logo-master.png`. Served mark `public/brand/logo.png` (1024, transparent outside the gear). One image edit, USD 0.080000 / AUD 0.114648. Pause and prices unchanged. Open-graph image does not embed the logo file, so it was left as text.
+## Run 55 (2026-10-16): logo checker removed. Master `docs/brand/logo-master.png`. Served mark `public/brand/logo.png` (1024, transparent outside the gear). One image edit, USD 0.080000 / AUD 0.114648. Production alias updated (`dpl_CPbh7ykNDiovcRmKMcc7tURKSzgh`). Desktop 3.0.13 unsigned, pin `11173f84ab155cce73a66f3ad302ba5dab5d88e8`. Pause and prices unchanged. Open-graph image does not embed the logo file, so it was left as text.
 
 ## Run 54 (2026-10-16): Grok 4.7 smoke passed after the schema was sent. `docs/grok-4.7-smoke-2026-10-16.md`. Dark-creative id is `x-ai/grok-4.7`, alias `x-ai/grok-4.7-20260916`.
 
