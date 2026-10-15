@@ -211,6 +211,7 @@ function missingFromCache(): Set<string> {
   if (cacheOverride) return cacheOverride
   if (cacheLoaded) return cacheLoaded
   cacheLoaded = new Set()
+  if (typeof window !== 'undefined') return cacheLoaded
   try {
     const raw = readFileSync(resolve(process.cwd(), 'docs/model-route-cache.json'), 'utf8')
     const parsed = JSON.parse(raw) as { missing?: unknown }

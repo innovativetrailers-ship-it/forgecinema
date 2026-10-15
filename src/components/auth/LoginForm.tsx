@@ -61,7 +61,6 @@ export function LoginForm() {
         <BrandLogo
           size={360}
           showWordmark={false}
-          onBlack
           className="justify-center mb-2 w-full"
         />
         <h1 className="text-2xl font-bold tracking-tight text-foreground">

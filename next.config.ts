@@ -43,7 +43,12 @@ const nextConfig: NextConfig = {
 
   typedRoutes: false,
   allowedDevOrigins: ['192.168.1.208', 'localhost', '127.0.0.1'],
-  turbopack: {},
+  turbopack: {
+    resolveAlias: {
+      'node:fs': { browser: './src/lib/stubs/empty-fs.ts' },
+      'node:path': { browser: './src/lib/stubs/empty-path.ts' },
+    },
+  },
 }
 
 export default nextConfig
