@@ -1,4 +1,6 @@
 # MANIFEST — every document, its run, its status (the "nothing is lost" index)
+## Run 55 (2026-10-16): logo checker removed. Master `docs/brand/logo-master.png`. Served mark `public/brand/logo.png` (1024, transparent outside the gear). One image edit, USD 0.080000 / AUD 0.114648. Pause and prices unchanged. Open-graph image does not embed the logo file, so it was left as text.
+
 ## Run 54 (2026-10-16): Grok 4.7 smoke passed after the schema was sent. `docs/grok-4.7-smoke-2026-10-16.md`. Dark-creative id is `x-ai/grok-4.7`, alias `x-ai/grok-4.7-20260916`.
 
 ## Run 53 (2026-10-16): Grok 4.7 smoke is `docs/grok-4.7-smoke-2026-10-16.md`. The id was not changed. Missing routed ids throw. Pause and prices unchanged.

@@ -1,3 +1,9 @@
+# BUG REGISTER — Run 55 logo (2026-10-16)
+
+| ID | Status | What landed |
+|---|---|---|
+| R55-LOGO | assets + tests, local playwright green | The served mark was a 512 PNG whose grey/white checker was opaque, including inside the gear. No earlier file was clean. One image edit (`fal-ai/nano-banana-2/edit`, 1K) replaced that pattern with charcoal inside and white outside. White outside the gear was keyed to alpha 0. Cost before and after the call: USD 0.080000 / AUD 0.114648. Three of the four allowed calls were not used. `public/brand/logo.png` is the 1024 master. Derived icons, the favicon, and the desktop icon set are rebuilt by `scripts/build-brand-assets.ts`. The sign-in black plate and the edge drop shadow are gone. Local playwright at 1440×900 and 390×844 checked the header and the sign-in mark. The route-cache file read no longer pulls `node:fs` into the browser; the dev login page was crashing on that import. |
+
 # BUG REGISTER — Run 54 grok schema (2026-10-16)
 
 | ID | Status | What landed |

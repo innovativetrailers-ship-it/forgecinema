@@ -1,4 +1,6 @@
 # RUN INDEX — feed these to Cursor, one file per run, in this order
+## Run 55 (2026-10-16): the logo checker is gone. One image edit, then a keyed 1024 master. Derived icons and the desktop icon set rebuild from that master.
+
 ## Run 54 (2026-10-16): the Grok adapter sends the role schema. Two live calls validated. Dark-creative is `x-ai/grok-4.7`.
 
 ## Run 53 (2026-10-16): one Grok 4.7 smoke call failed the director schema, so the dark-creative id stayed `x-ai/grok-4`. A missing routed id now throws instead of falling back. Verify script still exits 1.
