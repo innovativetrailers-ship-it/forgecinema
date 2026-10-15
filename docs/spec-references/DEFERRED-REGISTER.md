@@ -1,6 +1,6 @@
 # Deferred register
 
-Run 52: the desktop app still loads `@cinema/core` from its pin archive, so the expert briefs are in the shared package and on the web build, and they are not in the pinned desktop snapshot. Trigger: the next desktop core pin. Do not pin from this run.
+Run 53: the desktop pin is commit `3880de875b563e775d616c08ae19d9baa5378001`, which contains `experts/`. The dark-creative id is still `x-ai/grok-4` because the 4.7 smoke missed the director schema.
 
 
 
